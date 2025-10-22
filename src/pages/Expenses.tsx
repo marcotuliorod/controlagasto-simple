@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,6 +95,30 @@ export default function Expenses() {
       return data;
     },
   });
+
+  // Subscrever a mudanças em tempo real na tabela expenses
+  useEffect(() => {
+    const channel = supabase
+      .channel('expenses-page-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'expenses'
+        },
+        (payload) => {
+          console.log('Expense changed in list:', payload);
+          // Invalidar queries para recarregar dados
+          queryClient.invalidateQueries({ queryKey: ["expenses"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const handleDelete = async () => {
     if (!deleteId) return;

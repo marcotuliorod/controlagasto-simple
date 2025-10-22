@@ -60,6 +60,28 @@ export default function Dashboard() {
   useEffect(() => {
     checkAuth();
     loadData();
+
+    // Subscrever a mudanças em tempo real na tabela expenses
+    const channel = supabase
+      .channel('dashboard-expenses-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'expenses'
+        },
+        (payload) => {
+          console.log('Expense changed:', payload);
+          // Recarregar dados quando houver mudança
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const checkAuth = async () => {
