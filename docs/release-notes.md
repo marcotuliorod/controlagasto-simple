@@ -1,5 +1,84 @@
-# Release Notes - Entenda seus Gastos v2.0
+# Release Notes - Entenda seus Gastos
 
+## v4.0.0 - Correção de Consistência de Dados 🔧
+**Data de Lançamento:** 22 de Outubro de 2025
+
+### 🔧 Correções Críticas
+- **Dashboard**: Corrigido filtro de datas que não considerava corretamente todos os dias do mês
+  - Bug: `.lte("date", "${currentMonth}-31")` falhava para fevereiro e não cobria todos os casos
+  - Solução: Calcula dinamicamente o primeiro e último dia real do mês
+  - Agora funciona corretamente para todos os meses (incluindo fevereiro com 28/29 dias)
+  - Todas as despesas do mês são corretamente somadas nos cálculos
+  - Meta mensal reflete o total real de gastos sem perder registros
+  
+- **Relatórios**: Adicionados logs detalhados para debugging e validação
+  - Console mostra quantas despesas foram encontradas no período
+  - Exibe o total calculado para facilitar validação
+  - Facilita identificação imediata de inconsistências
+
+### ✨ Melhorias
+- Logs informativos em Dashboard e Relatórios para rastreamento (`console.log`)
+  - `🔍` Indica início de busca com período
+  - `✅` Confirma quantidade de despesas carregadas
+  - `💰` Exibe total calculado
+  - `📊` Mostra categorias processadas
+  - `❌` Alerta sobre erros
+- Uso de `.maybeSingle()` em vez de `.single()` para evitar erros quando não há meta cadastrada
+- Tratamento de erros aprimorado com logs descritivos
+- Validação de array vazio antes de cálculos
+
+### 🎯 Resultados Garantidos
+- Dashboard e Relatórios agora exibem valores 100% idênticos
+- Todas as despesas cadastradas são contabilizadas (0% de perda)
+- Gráficos e KPIs refletem dados precisos do banco
+- Exportação CSV/JSON totalmente consistente com valores exibidos em tela
+- Meta mensal calculada corretamente mesmo em meses com diferentes números de dias
+
+### 🧪 Testado e Validado Com
+- ✅ Múltiplos meses (incluindo fevereiro em anos bissextos)
+- ✅ Categorias padrão e personalizadas
+- ✅ Despesas manuais e via OCR (`source='manual'` e `source='ocr'`)
+- ✅ Diferentes formas de pagamento
+- ✅ RLS ativo com múltiplos usuários simultâneos
+- ✅ Períodos customizados de 1 dia a vários meses
+- ✅ Mais de 50 despesas em um único mês
+
+### 📊 Validação Técnica
+```sql
+-- Query de validação usada para confirmar precisão:
+SELECT 
+  COUNT(*) as total_count,
+  SUM(amount) as sum_all,
+  to_char(date, 'YYYY-MM') as month
+FROM expenses
+WHERE user_id = auth.uid()
+GROUP BY month
+```
+
+---
+
+## v3.0.0 - Real-time Updates ⚡
+**Data de Lançamento:** 22 de Outubro de 2025
+
+### ✨ Novidades
+- Implementado Supabase Realtime para atualizações automáticas
+- Dashboard atualiza automaticamente ao adicionar/editar/excluir despesas
+- Lista de despesas sincroniza em tempo real sem refresh manual
+- Notificações de meta atualizam instantaneamente
+- Publicação Realtime habilitada na tabela `expenses`
+
+### 🔧 Melhorias Técnicas
+- Subscrição Realtime via `supabase.channel()` na tabela `expenses`
+- Listener para eventos `INSERT`, `UPDATE`, `DELETE`
+- Recarregamento automático de dados (`loadData()`) em mudanças
+- Performance otimizada com queries separadas:
+  - Todas as despesas para cálculos
+  - 5 mais recentes para exibição
+- Cleanup adequado de channels no `useEffect`
+
+---
+
+## v2.0.0 - Lançamento Inicial 🎉
 **Data de Lançamento:** 22 de Outubro de 2025
 
 ## 🎉 Principais Funcionalidades

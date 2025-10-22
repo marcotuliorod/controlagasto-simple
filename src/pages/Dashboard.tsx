@@ -108,20 +108,30 @@ export default function Dashboard() {
       }
 
       // Carregar meta do mês corrente
-      const currentMonth = new Date().toISOString().slice(0, 7);
+      const now = new Date();
+      const currentMonth = now.toISOString().slice(0, 7);
+      
+      // Calcular primeiro e último dia do mês corretamente
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const dateFrom = firstDay.toISOString().split('T')[0];
+      const dateTo = lastDay.toISOString().split('T')[0];
+      
+      console.log(`🔍 Dashboard: Buscando despesas de ${dateFrom} até ${dateTo}`);
+      
       const { data: goal } = await supabase
         .from("monthly_goals")
         .select("total_limit")
         .eq("user_id", user.id)
         .eq("month", currentMonth)
-        .single();
+        .maybeSingle();
 
       if (goal) {
         setMonthlyGoal(Number(goal.total_limit));
       }
 
       // Carregar TODAS as despesas do mês para cálculos corretos
-      const { data: allExpenses } = await supabase
+      const { data: allExpenses, error: expensesError } = await supabase
         .from("expenses")
         .select(
           `
@@ -133,9 +143,16 @@ export default function Dashboard() {
         `
         )
         .eq("user_id", user.id)
-        .gte("date", `${currentMonth}-01`)
-        .lte("date", `${currentMonth}-31`)
+        .gte("date", dateFrom)
+        .lte("date", dateTo)
         .order("date", { ascending: false });
+      
+      if (expensesError) {
+        console.error("❌ Erro ao buscar despesas:", expensesError);
+        throw expensesError;
+      }
+      
+      console.log(`✅ Dashboard: ${allExpenses?.length || 0} despesas encontradas no mês`);
 
       // Carregar apenas as 5 mais recentes para exibição
       const { data: recentExpensesData } = await supabase
@@ -150,8 +167,8 @@ export default function Dashboard() {
         `
         )
         .eq("user_id", user.id)
-        .gte("date", `${currentMonth}-01`)
-        .lte("date", `${currentMonth}-31`)
+        .gte("date", dateFrom)
+        .lte("date", dateTo)
         .order("date", { ascending: false })
         .limit(5);
 
@@ -171,9 +188,10 @@ export default function Dashboard() {
       }
 
       // Calcular total usando TODAS as despesas do mês
-      if (allExpenses) {
+      if (allExpenses && allExpenses.length > 0) {
         const total = allExpenses.reduce((sum: number, exp: any) => sum + Number(exp.amount), 0);
         setTotalSpent(total);
+        console.log(`💰 Dashboard: Total calculado R$ ${total.toFixed(2)}`);
 
         // Calcular categorias usando TODAS as despesas
         const catMap = new Map<string, CategoryTotal>();
@@ -196,6 +214,11 @@ export default function Dashboard() {
           .sort((a, b) => b.total - a.total)
           .slice(0, 3);
         setCategoryTotals(sorted);
+        console.log(`📊 Dashboard: ${sorted.length} categorias calculadas`);
+      } else {
+        setTotalSpent(0);
+        setCategoryTotals([]);
+        console.log("ℹ️ Dashboard: Nenhuma despesa encontrada no mês");
       }
 
       // Carregar notificações não lidas

@@ -55,6 +55,8 @@ export default function Reports() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      console.log(`🔍 Relatórios: Buscando despesas de ${dateFrom} até ${dateTo}`);
+
       const { data, error } = await supabase
         .from("expenses")
         .select("id, amount, date, merchant, categories(id, name, icon)")
@@ -63,7 +65,12 @@ export default function Reports() {
         .lte("date", dateTo)
         .order("date", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Erro ao buscar despesas:", error);
+        throw error;
+      }
+
+      console.log(`✅ Relatórios: ${data?.length || 0} despesas encontradas`);
 
       const formattedData: ExpenseData[] = data.map((exp: any) => ({
         id: exp.id,
@@ -76,6 +83,9 @@ export default function Reports() {
           icon: exp.categories?.icon || "💰",
         },
       }));
+
+      const total = formattedData.reduce((sum, e) => sum + e.amount, 0);
+      console.log(`💰 Relatórios: Total calculado R$ ${total.toFixed(2)}`);
 
       setExpenses(formattedData);
       setFilteredExpenses(formattedData);
