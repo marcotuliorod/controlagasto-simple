@@ -130,7 +130,7 @@ Retorne APENAS o JSON, sem explicações adicionais.`
       }
     }
 
-    // Upload image to storage
+    // Upload image to storage (privado)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -153,12 +153,9 @@ Retorne APENAS o JSON, sem explicações adicionais.`
           });
 
         if (!uploadError && uploadData) {
-          const { data: urlData } = supabaseClient.storage
-            .from('receipts')
-            .getPublicUrl(fileName);
-          
-          extractedData.receipt_url = urlData.publicUrl;
-          console.log("Imagem salva no storage:", fileName);
+          // Retornar apenas o path (não URL pública)
+          extractedData.receipt_path = fileName;
+          console.log("Imagem salva no storage (privado):", fileName);
         }
       } catch (storageError) {
         console.error("Erro ao salvar imagem:", storageError);

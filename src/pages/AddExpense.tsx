@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getSignedReceiptUrl } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Camera, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Camera, Loader2, Eye } from "lucide-react";
 
 interface Category {
   id: string;
@@ -23,7 +24,7 @@ interface Category {
   color: string;
 }
 
-const AddExpense = () => {
+export default function AddExpense() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
@@ -36,6 +37,8 @@ const AddExpense = () => {
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
+  const [receiptPath, setReceiptPath] = useState("");
+  const [signedReceiptUrl, setSignedReceiptUrl] = useState("");
 
   useEffect(() => {
     loadCategories();
@@ -43,9 +46,13 @@ const AddExpense = () => {
 
   const loadCategories = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data } = await supabase
         .from("categories")
         .select("*")
+        .or(`user_id.eq.${user.id},is_default.eq.true`)
         .order("name");
 
       if (data) {
@@ -69,31 +76,43 @@ const AddExpense = () => {
     toast.info("Processando cupom...");
 
     try {
-      // Converter imagem para base64
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64Image = event.target?.result as string;
 
-        // Chamar edge function de OCR
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Usuário não autenticado");
+        }
+
         const { data, error } = await supabase.functions.invoke("process-receipt", {
           body: { imageBase64: base64Image },
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message?.includes('429')) {
+            toast.error("Limite de requisições atingido. Tente novamente em alguns segundos.");
+          } else if (error.message?.includes('402')) {
+            toast.error("Créditos esgotados. Adicione créditos nas configurações.");
+          } else {
+            throw error;
+          }
+          return;
+        }
 
         if (data?.success && data?.data) {
           const extracted = data.data;
           
-          // Preencher campos automaticamente
           if (extracted.amount) setAmount(extracted.amount.toString());
           if (extracted.date) setDate(extracted.date);
           if (extracted.merchant) setMerchant(extracted.merchant);
+          if (extracted.receipt_path) setReceiptPath(extracted.receipt_path);
           
           if (extracted.items && extracted.items.length > 0) {
             const itemsText = extracted.items
-              .map((item: any) => `${item.name}: R$ ${item.value}`)
+              .map((item: any) => `${item.item || item.name}: R$ ${item.value || item.price}`)
               .join("\n");
-            setNotes(`Itens:\n${itemsText}`);
+            setNotes(`CNPJ: ${extracted.cnpj || "N/A"}\n\nItens:\n${itemsText}`);
           }
 
           toast.success("Cupom processado com sucesso!");
@@ -118,6 +137,22 @@ const AddExpense = () => {
     }
   };
 
+  const handleViewReceipt = async () => {
+    if (!receiptPath) return;
+
+    try {
+      const url = await getSignedReceiptUrl(receiptPath, 120);
+      if (url) {
+        setSignedReceiptUrl(url);
+        window.open(url, '_blank');
+      } else {
+        toast.error("Erro ao gerar link do recibo");
+      }
+    } catch (error) {
+      toast.error("Erro ao visualizar recibo");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -139,7 +174,8 @@ const AddExpense = () => {
         merchant: merchant || null,
         payment_method: paymentMethod || null,
         notes: notes || null,
-        source: "manual",
+        receipt_url: receiptPath || null,
+        source: receiptPath ? "ocr" : "manual",
       });
 
       if (error) throw error;
@@ -154,7 +190,7 @@ const AddExpense = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       <header className="gradient-primary text-white p-6">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Button
@@ -192,6 +228,7 @@ const AddExpense = () => {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
                 required
               />
             </div>
@@ -233,11 +270,10 @@ const AddExpense = () => {
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Dinheiro</SelectItem>
-                  <SelectItem value="debit">Débito</SelectItem>
-                  <SelectItem value="credit">Crédito</SelectItem>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="other">Outro</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="Débito">Débito</SelectItem>
+                  <SelectItem value="Crédito">Crédito</SelectItem>
+                  <SelectItem value="PIX">PIX</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -252,6 +288,19 @@ const AddExpense = () => {
                 rows={3}
               />
             </div>
+
+            {receiptPath && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleViewReceipt}
+                className="w-full"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Ver Recibo (link temporário)
+              </Button>
+            )}
 
             <div className="flex gap-3">
               <input
@@ -291,6 +340,4 @@ const AddExpense = () => {
       </main>
     </div>
   );
-};
-
-export default AddExpense;
+}

@@ -127,6 +127,7 @@ export type Database = {
           id: string
           payload: Json
           read: boolean
+          ref_month: string | null
           type: string
           user_id: string
         }
@@ -135,6 +136,7 @@ export type Database = {
           id?: string
           payload?: Json
           read?: boolean
+          ref_month?: string | null
           type: string
           user_id: string
         }
@@ -143,6 +145,7 @@ export type Database = {
           id?: string
           payload?: Json
           read?: boolean
+          ref_month?: string | null
           type?: string
           user_id?: string
         }
@@ -177,7 +180,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      sum_expenses_in_month: {
+        Args: { p_month: string; p_user_id: string }
+        Returns: {
+          sum: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
