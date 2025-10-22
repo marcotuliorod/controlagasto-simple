@@ -120,8 +120,8 @@ export default function Dashboard() {
         setMonthlyGoal(Number(goal.total_limit));
       }
 
-      // Carregar despesas do mês
-      const { data: expenses } = await supabase
+      // Carregar TODAS as despesas do mês para cálculos corretos
+      const { data: allExpenses } = await supabase
         .from("expenses")
         .select(
           `
@@ -134,11 +134,29 @@ export default function Dashboard() {
         )
         .eq("user_id", user.id)
         .gte("date", `${currentMonth}-01`)
+        .lte("date", `${currentMonth}-31`)
+        .order("date", { ascending: false });
+
+      // Carregar apenas as 5 mais recentes para exibição
+      const { data: recentExpensesData } = await supabase
+        .from("expenses")
+        .select(
+          `
+          id,
+          amount,
+          date,
+          merchant,
+          categories (name, icon, color)
+        `
+        )
+        .eq("user_id", user.id)
+        .gte("date", `${currentMonth}-01`)
+        .lte("date", `${currentMonth}-31`)
         .order("date", { ascending: false })
         .limit(5);
 
-      if (expenses) {
-        const formattedExpenses = expenses.map((exp: any) => ({
+      if (recentExpensesData) {
+        const formattedExpenses = recentExpensesData.map((exp: any) => ({
           id: exp.id,
           amount: Number(exp.amount),
           date: exp.date,
@@ -150,12 +168,16 @@ export default function Dashboard() {
           },
         }));
         setRecentExpenses(formattedExpenses);
+      }
 
-        const total = expenses.reduce((sum: number, exp: any) => sum + Number(exp.amount), 0);
+      // Calcular total usando TODAS as despesas do mês
+      if (allExpenses) {
+        const total = allExpenses.reduce((sum: number, exp: any) => sum + Number(exp.amount), 0);
         setTotalSpent(total);
 
+        // Calcular categorias usando TODAS as despesas
         const catMap = new Map<string, CategoryTotal>();
-        expenses.forEach((exp: any) => {
+        allExpenses.forEach((exp: any) => {
           const cat = exp.categories;
           const key = cat?.name || "Outros";
           if (catMap.has(key)) {
