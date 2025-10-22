@@ -1,200 +1,318 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ArrowLeft, Download, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
-import { ArrowLeft, Calendar, TrendingDown, DollarSign } from "lucide-react";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-interface MonthlyData {
-  month: string;
-  total: number;
-  expenses: Array<{
+interface ExpenseData {
+  id: string;
+  amount: number;
+  date: string;
+  merchant: string;
+  category: {
     id: string;
-    amount: number;
-    date: string;
-    merchant: string;
-    category: {
-      name: string;
-      icon: string;
-    };
-  }>;
+    name: string;
+    icon: string;
+  };
 }
 
-const Reports = () => {
+const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+
+export default function Reports() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [monthlyData, setMonthlyData] = useState<MonthlyData | null>(null);
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState(() => {
+    const date = new Date();
+    date.setDate(1);
+    return date.toISOString().split('T')[0];
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [expenses, setExpenses] = useState<ExpenseData[]>([]);
+  const [filteredExpenses, setFilteredExpenses] = useState<ExpenseData[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    loadAvailableMonths();
-  }, []);
+    loadData();
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
-    if (selectedMonth) {
-      loadMonthData(selectedMonth);
+    if (selectedCategory) {
+      setFilteredExpenses(expenses.filter(e => e.category.id === selectedCategory));
+    } else {
+      setFilteredExpenses(expenses);
     }
-  }, [selectedMonth]);
+  }, [selectedCategory, expenses]);
 
-  const loadAvailableMonths = async () => {
+  const loadData = async () => {
+    setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("expenses")
-        .select("date")
+        .select("id, amount, date, merchant, categories(id, name, icon)")
         .eq("user_id", user.id)
+        .gte("date", dateFrom)
+        .lte("date", dateTo)
         .order("date", { ascending: false });
 
-      if (data) {
-        const months = [...new Set(data.map((exp) => exp.date.slice(0, 7)))];
-        setAvailableMonths(months);
-        if (months.length > 0) {
-          setSelectedMonth(months[0]);
-        }
-      }
-    } catch (error) {
-      toast.error("Erro ao carregar meses");
+      if (error) throw error;
+
+      const formattedData: ExpenseData[] = data.map((exp: any) => ({
+        id: exp.id,
+        amount: Number(exp.amount),
+        date: exp.date,
+        merchant: exp.merchant || "Sem estabelecimento",
+        category: {
+          id: exp.categories?.id || "",
+          name: exp.categories?.name || "Outros",
+          icon: exp.categories?.icon || "💰",
+        },
+      }));
+
+      setExpenses(formattedData);
+      setFilteredExpenses(formattedData);
+    } catch (error: any) {
+      toast.error("Erro ao carregar dados");
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMonthData = async (month: string) => {
+  const kpis = {
+    total: filteredExpenses.reduce((sum, e) => sum + e.amount, 0),
+    count: filteredExpenses.length,
+    average: filteredExpenses.length > 0
+      ? filteredExpenses.reduce((sum, e) => sum + e.amount, 0) / filteredExpenses.length
+      : 0,
+  };
+
+  const categoryData = Object.entries(
+    filteredExpenses.reduce((acc, exp) => {
+      const cat = exp.category.name;
+      acc[cat] = (acc[cat] || 0) + exp.amount;
+      return acc;
+    }, {} as Record<string, number>)
+  )
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const getMonthlyComparison = () => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const lastMonthStr = lastMonth.toISOString().slice(0, 7);
+
+    const currentData = expenses.filter(e => e.date.startsWith(currentMonth));
+    const lastData = expenses.filter(e => e.date.startsWith(lastMonthStr));
+
+    return [
+      {
+        month: "Mês Anterior",
+        total: lastData.reduce((sum, e) => sum + e.amount, 0),
+      },
+      {
+        month: "Mês Atual",
+        total: currentData.reduce((sum, e) => sum + e.amount, 0),
+      },
+    ];
+  };
+
+  const handleExport = async (format: 'csv' | 'json') => {
+    setIsExporting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data, error } = await supabase.functions.invoke("export-data", {
+        body: { period: { from: dateFrom, to: dateTo } },
+      });
 
-      const { data: expenses } = await supabase
-        .from("expenses")
-        .select(
-          `
-          id,
-          amount,
-          date,
-          merchant,
-          categories (name, icon)
-        `
-        )
-        .eq("user_id", user.id)
-        .gte("date", `${month}-01`)
-        .lte("date", `${month}-31`)
-        .order("date", { ascending: false });
+      if (error) throw error;
 
-      if (expenses) {
-        const total = expenses.reduce(
-          (sum: number, exp: any) => sum + parseFloat(exp.amount),
-          0
-        );
+      const content = format === 'csv' ? data.csv : data.json;
+      const blob = new Blob([content], {
+        type: format === 'csv' ? 'text/csv' : 'application/json',
+      });
 
-        setMonthlyData({
-          month,
-          total,
-          expenses: expenses.map((exp: any) => ({
-            id: exp.id,
-            amount: parseFloat(exp.amount),
-            date: exp.date,
-            merchant: exp.merchant || "Sem estabelecimento",
-            category: {
-              name: exp.categories?.name || "Outros",
-              icon: exp.categories?.icon || "💰",
-            },
-          })),
-        });
-      }
-    } catch (error) {
-      toast.error("Erro ao carregar dados do mês");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `despesas_${dateFrom}_${dateTo}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exportado com sucesso (${format.toUpperCase()})`);
+    } catch (error: any) {
+      toast.error("Erro ao exportar dados");
+      console.error(error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const formatMonth = (monthStr: string) => {
-    const [year, month] = monthStr.split("-");
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString("pt-BR", { year: "numeric", month: "long" });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <header className="gradient-primary text-white p-6">
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/dashboard")}
-            className="text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <TrendingDown className="w-8 h-8" />
-            <h1 className="text-2xl font-bold">Relatórios</h1>
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3">
+              <TrendingDown className="w-8 h-8 text-primary" />
+              <h1 className="text-3xl font-bold">Relatórios Avançados</h1>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => handleExport('csv')}
+              disabled={isExporting}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleExport('json')}
+              disabled={isExporting}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              JSON
+            </Button>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto p-6 space-y-6">
-        <Card className="p-6 shadow-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-primary" />
-            <Label className="text-lg font-semibold">Selecione o Mês</Label>
+        <Card className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Data Inicial</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                max={dateTo}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Final</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                min={dateFrom}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
           </div>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um mês" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableMonths.map((month) => (
-                <SelectItem key={month} value={month}>
-                  {formatMonth(month)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </Card>
 
-        {monthlyData && (
+        {isLoading ? (
+          <Card className="p-6">
+            <p className="text-center">Carregando...</p>
+          </Card>
+        ) : (
           <>
-            <Card className="p-6 shadow-card">
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign className="w-5 h-5 text-success" />
-                <h2 className="text-xl font-semibold">Total do Mês</h2>
-              </div>
-              <p className="text-4xl font-bold text-primary">
-                R$ {monthlyData.total.toFixed(2)}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                {monthlyData.expenses.length} despesas registradas
-              </p>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Total no Período</p>
+                <p className="text-3xl font-bold text-primary">
+                  R$ {kpis.total.toFixed(2)}
+                </p>
+              </Card>
+              <Card className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Ticket Médio</p>
+                <p className="text-3xl font-bold text-secondary">
+                  R$ {kpis.average.toFixed(2)}
+                </p>
+              </Card>
+              <Card className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Nº de Despesas</p>
+                <p className="text-3xl font-bold">{kpis.count}</p>
+              </Card>
+            </div>
 
-            <Card className="p-6 shadow-card">
-              <h2 className="text-xl font-semibold mb-4">Todas as Despesas</h2>
-              {monthlyData.expenses.length === 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Comparação Mensal</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={getMonthlyComparison()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                    />
+                    <Bar dataKey="total" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Por Categoria</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${(percent * 100).toFixed(0)}%`
+                      }
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      onClick={(data) => {
+                        const cat = filteredExpenses.find(
+                          e => e.category.name === data.name
+                        );
+                        setSelectedCategory(
+                          selectedCategory === cat?.category.id ? null : cat?.category.id || null
+                        );
+                      }}
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {selectedCategory && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className="w-full mt-4"
+                  >
+                    Limpar Filtro
+                  </Button>
+                )}
+              </Card>
+            </div>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">
+                {selectedCategory ? "Despesas Filtradas" : "Todas as Despesas"}
+              </h3>
+              {filteredExpenses.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Nenhuma despesa neste mês
+                  Nenhuma despesa no período selecionado
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {monthlyData.expenses.map((expense) => (
+                  {filteredExpenses.map((expense) => (
                     <div
                       key={expense.id}
                       className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
@@ -209,7 +327,7 @@ const Reports = () => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-lg font-semibold">
+                      <span className="text-lg font-semibold text-primary">
                         R$ {expense.amount.toFixed(2)}
                       </span>
                     </div>
@@ -219,9 +337,7 @@ const Reports = () => {
             </Card>
           </>
         )}
-      </main>
+      </div>
     </div>
   );
-};
-
-export default Reports;
+}
