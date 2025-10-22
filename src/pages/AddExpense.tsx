@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Camera, Plus } from "lucide-react";
+import { ArrowLeft, Save, Camera, Loader2 } from "lucide-react";
 
 interface Category {
   id: string;
@@ -26,7 +26,9 @@ interface Category {
 const AddExpense = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -51,6 +53,68 @@ const AddExpense = () => {
       }
     } catch (error) {
       toast.error("Erro ao carregar categorias");
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem");
+      return;
+    }
+
+    setIsProcessingOCR(true);
+    toast.info("Processando cupom...");
+
+    try {
+      // Converter imagem para base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Image = event.target?.result as string;
+
+        // Chamar edge function de OCR
+        const { data, error } = await supabase.functions.invoke("process-receipt", {
+          body: { imageBase64: base64Image },
+        });
+
+        if (error) throw error;
+
+        if (data?.success && data?.data) {
+          const extracted = data.data;
+          
+          // Preencher campos automaticamente
+          if (extracted.amount) setAmount(extracted.amount.toString());
+          if (extracted.date) setDate(extracted.date);
+          if (extracted.merchant) setMerchant(extracted.merchant);
+          
+          if (extracted.items && extracted.items.length > 0) {
+            const itemsText = extracted.items
+              .map((item: any) => `${item.name}: R$ ${item.value}`)
+              .join("\n");
+            setNotes(`Itens:\n${itemsText}`);
+          }
+
+          toast.success("Cupom processado com sucesso!");
+        } else {
+          toast.error("Não foi possível extrair informações do cupom");
+        }
+      };
+
+      reader.onerror = () => {
+        toast.error("Erro ao ler imagem");
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      console.error("Erro no OCR:", error);
+      toast.error(error.message || "Erro ao processar cupom");
+    } finally {
+      setIsProcessingOCR(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -190,16 +254,34 @@ const AddExpense = () => {
             </div>
 
             <div className="flex gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={isProcessingOCR}
+              />
               <Button
                 type="button"
                 variant="outline"
                 className="flex-1"
-                onClick={() => toast.info("Função de foto do cupom em breve!")}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessingOCR}
               >
-                <Camera className="w-4 h-4 mr-2" />
-                Foto do Cupom
+                {isProcessingOCR ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Foto do Cupom
+                  </>
+                )}
               </Button>
-              <Button type="submit" className="flex-1" disabled={isLoading}>
+              <Button type="submit" className="flex-1" disabled={isLoading || isProcessingOCR}>
                 <Save className="w-4 h-4 mr-2" />
                 {isLoading ? "Salvando..." : "Salvar"}
               </Button>
