@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
-import { Bell, Download, Send } from "lucide-react";
+import { Bell, Download, Send, Share } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePWAInstall } from "@/providers/PWAInstallProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function Settings() {
   const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+  const { canInstall, isIOS, isStandalone, requestInstall, diagnostics } = usePWAInstall();
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [swStatus, setSwStatus] = useState<'checking' | 'active' | 'error'>('checking');
 
@@ -28,9 +30,16 @@ export default function Settings() {
     }
   };
 
-  const handleInstallPrompt = () => {
-    localStorage.removeItem('pwa-install-dismissed');
-    toast.info('Recarregue a página para ver o prompt de instalação');
+  const handleInstallPrompt = async () => {
+    const outcome = await requestInstall();
+    
+    if (outcome === 'unavailable') {
+      if (isIOS) {
+        toast.info('No iOS, use o botão de Compartilhar para adicionar à tela de início');
+      } else {
+        toast.info('Instalação ainda não disponível. Aguarde alguns segundos e tente novamente.');
+      }
+    }
   };
 
   const handleSendTestNotification = async () => {
@@ -153,7 +162,7 @@ export default function Settings() {
           </div>
         </CardHeader>
         <CardContent>
-          {window.matchMedia('(display-mode: standalone)').matches ? (
+          {isStandalone ? (
             <div className="text-sm text-muted-foreground">
               ✓ App já está instalado
             </div>
@@ -168,10 +177,51 @@ export default function Settings() {
                 <li>Receber notificações</li>
                 <li>Economizar dados móveis</li>
               </ul>
-              <Button onClick={handleInstallPrompt} variant="outline" className="w-full">
-                <Download className="mr-2 h-4 w-4" />
-                Mostrar opção de instalação
-              </Button>
+
+              {isIOS ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Para instalar no iOS:
+                  </p>
+                  <ol className="text-xs space-y-1 text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <span className="font-semibold">1.</span>
+                      Toque no ícone <Share className="inline h-3 w-3" />
+                    </li>
+                    <li>
+                      <span className="font-semibold">2.</span> Toque em "Adicionar à Tela de Início"
+                    </li>
+                    <li>
+                      <span className="font-semibold">3.</span> Toque em "Adicionar"
+                    </li>
+                  </ol>
+                </div>
+              ) : canInstall ? (
+                <Button onClick={handleInstallPrompt} variant="outline" className="w-full">
+                  <Download className="mr-2 h-4 w-4" />
+                  Instalar Agora
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Button onClick={handleInstallPrompt} variant="outline" className="w-full" disabled>
+                    <Download className="mr-2 h-4 w-4" />
+                    Instalação não disponível
+                  </Button>
+                  {import.meta.env.DEV && (
+                    <div className="text-xs text-muted-foreground space-y-1 p-2 bg-muted/50 rounded">
+                      <p className="font-semibold">Diagnóstico:</p>
+                      <ul className="space-y-0.5">
+                        <li>• SW: {diagnostics.swReady ? '✓ Ativo' : '✗ Inativo'}</li>
+                        <li>• Manifest: {diagnostics.manifestDetected ? '✓ Detectado' : '✗ Não encontrado'}</li>
+                        <li>• Prompt: {canInstall ? '✓ Disponível' : '✗ Indisponível'}</li>
+                      </ul>
+                      <p className="mt-2">
+                        Dica: Visite o app 2x e aguarde ~30s para o navegador oferecer a instalação.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
+import { PWAInstallProvider } from "./providers/PWAInstallProvider";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -53,12 +54,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
-        <BrowserRouter>
-          <Toaster />
-          <Sonner />
-          <InstallPWA />
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
+        <PWAInstallProvider>
+          <BrowserRouter>
+            <Toaster />
+            <Sonner />
+            <InstallPWA />
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -92,9 +94,10 @@ const App = () => (
             </Routes>
           </Suspense>
         </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+      </PWAInstallProvider>
+    </TooltipProvider>
+  </ThemeProvider>
+</QueryClientProvider>
 );
 
 export default App;
