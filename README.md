@@ -57,10 +57,11 @@ This project is built with:
 - Vite
 - TypeScript
 - React
-- shadcn-ui
+- shadcn-ui (including Sidebar component)
 - Tailwind CSS
 - Vitest (testing)
 - Supabase (auth, database, storage, edge functions)
+- React Router DOM (with NavLink for active states)
 
 ## Running Tests
 

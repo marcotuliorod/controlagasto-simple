@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Download, TrendingDown } from "lucide-react";
+import { Download, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -176,17 +176,12 @@ export default function Reports() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-4">
+    <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <TrendingDown className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl font-bold">Relatórios Avançados</h1>
-            </div>
+          <div className="flex items-center gap-3">
+            <TrendingDown className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-bold">Relatórios Avançados</h1>
           </div>
           <div className="flex gap-2">
             <Button

@@ -8,18 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Wallet,
-  Plus,
-  TrendingUp,
-  LogOut,
   PieChart,
   Receipt,
   Target,
-  Bell,
   AlertTriangle,
-  List,
 } from "lucide-react";
-import AppFooter from "@/components/AppFooter";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface Expense {
   id: string;
@@ -254,9 +247,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 flex flex-col">
-      <header className="gradient-primary text-white p-6">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+    <div className="min-h-screen p-4 md:p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <header className="gradient-primary text-white p-6 rounded-lg shadow-card">
           <div className="flex items-center gap-3">
             <Wallet className="w-8 h-8" />
             <div>
@@ -264,16 +257,7 @@ export default function Dashboard() {
               <p className="text-white/80 text-sm">Acompanhe seus gastos</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-white hover:bg-white/20">
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto p-6 space-y-6 flex-1">
+        </header>
         {notifications.length > 0 && (
           <div className="space-y-3">
             {notifications.map((notif) => (
@@ -405,23 +389,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button onClick={() => navigate("/add-expense")} size="lg" className="w-full">
-            <Plus className="w-4 h-4 mr-2" />
-            Adicionar Despesa
-          </Button>
-          <Button onClick={() => navigate("/expenses")} variant="outline" size="lg" className="w-full">
-            <List className="w-4 h-4 mr-2" />
-            Ver Todas
-          </Button>
-          <Button onClick={() => navigate("/reports")} variant="outline" size="lg" className="w-full">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Relatórios
-          </Button>
-        </div>
-      </main>
-
-      <AppFooter />
+      </div>
     </div>
   );
 }

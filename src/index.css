@@ -122,4 +122,8 @@ All colors MUST be HSL.
   .shadow-hover {
     box-shadow: var(--shadow-hover);
   }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

@@ -1,5 +1,94 @@
 # Release Notes - Entenda seus Gastos
 
+## v5.3.0 - Navegação Aprimorada & FAB 🚀
+**Data de Lançamento:** 23 de Outubro de 2025
+
+### 🎯 Objetivo
+Melhorar drasticamente a UX de navegação implementando sidebar collapsible (desktop), bottom navigation (mobile) e Floating Action Button (FAB) sempre visível para adicionar despesas.
+
+### ✨ Funcionalidades
+
+#### Floating Action Button (FAB)
+- Botão circular fixo no canto inferior direito
+- Sempre visível em todas as páginas autenticadas
+- Ícone `Plus` com animações hover
+- Atalho de teclado: `Ctrl/Cmd + N` para adicionar despesa
+- Posição responsiva: acima do Bottom Nav no mobile
+
+#### Bottom Navigation Bar (Mobile)
+- 4 itens principais: Dashboard, Despesas, Relatórios, Perfil
+- Ícones + labels curtos
+- Active state destacado (cor primária)
+- Fixo no bottom da tela (< 768px)
+- Height: 64px (acessível para polegares)
+- Safe area inset para iPhones com notch
+
+#### Sidebar Collapsible (Desktop)
+- Sidebar lateral esquerda (>= 768px)
+- Logo + nome do app no topo
+- Menu items com ícones + labels
+- Footer com: ThemeToggle e Logout
+- Transição suave collapse/expand
+- Mini sidebar (ícones apenas) quando colapsado
+- Largura: adaptativa com estado
+
+#### AppLayout Wrapper
+- Componente unificador que envolve páginas autenticadas
+- Renderiza Sidebar (desktop) OU BottomNav (mobile)
+- Inclui FAB em todas as páginas
+- Header mobile com SidebarTrigger
+- Gerencia estado de sidebar com `SidebarProvider`
+
+### 📁 Arquivos Criados
+- `src/components/FABAddExpense.tsx` - Floating Action Button
+- `src/components/BottomNav.tsx` - Bottom Navigation (mobile)
+- `src/components/AppSidebar.tsx` - Sidebar com menu
+- `src/components/AppLayout.tsx` - Layout wrapper
+
+### 📝 Arquivos Atualizados
+- `src/pages/Dashboard.tsx`: Removido header com logout e botões de navegação
+- `src/pages/Expenses.tsx`: Removido header com ArrowLeft
+- `src/pages/Reports.tsx`: Removido header com ArrowLeft
+- `src/App.tsx`: Rotas autenticadas agora wrapped com `<AppLayout>`
+- `src/index.css`: Adicionado `.safe-area-inset-bottom`
+
+### 🎨 UX/UI Melhorias
+- **Hierarquia Visual Clara**:
+  1. FAB (+) → Adicionar Despesa (PRIMÁRIA)
+  2. Sidebar/BottomNav → Navegação principal (SECUNDÁRIA)
+  3. Conteúdo da página → Cards/Actions (TERCIÁRIA)
+- **Redução de Cliques**: 1 clique para adicionar despesa (de qualquer página)
+- **Navegação Persistente**: Menu sempre visível (não precisa voltar ao Dashboard)
+- **Active States**: Item atual destacado em cor primária
+- **Dark Mode**: Totalmente compatível
+- **Responsividade**: Mobile, Tablet, Desktop testados
+
+### ♿ Acessibilidade
+- `aria-label` em todos os botões de navegação
+- `aria-current="page"` no item ativo
+- Keyboard navigation funcional (Tab, Enter, Esc)
+- Touch targets mínimo 44x44px (WCAG 2.5.5)
+- Screen reader compatível
+
+### 📊 Impacto
+- **Antes**: 2-3 cliques + scroll para adicionar despesa
+- **Depois**: 1 clique (FAB) de qualquer lugar
+- **Redução de fricção**: ~60%
+
+### ✅ Critérios de Aceite
+- ✅ FAB (+) sempre visível e funcional em páginas autenticadas
+- ✅ BottomNav funcional no mobile (< 768px)
+- ✅ Sidebar funcional no desktop (>= 768px) com collapse
+- ✅ Active state destacado no item atual
+- ✅ Dashboard sem botões de navegação redundantes
+- ✅ 1 clique máximo para adicionar despesa
+- ✅ Navegação fluida entre páginas principais
+- ✅ Dark mode preservado
+- ✅ Atalho Ctrl/Cmd+N funcional
+- ✅ Build sem erros
+
+---
+
 ## v5.2.0 - Perfil & Metas 👤
 **Data de Lançamento:** 23 de Outubro de 2025
 

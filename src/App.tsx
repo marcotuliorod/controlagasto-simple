@@ -22,6 +22,9 @@ const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
 const AccountProfile = lazy(() => import("./pages/AccountProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Layout wrapper
+const AppLayout = lazy(() => import("./components/AppLayout"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -46,20 +49,26 @@ const App = () => (
         <BrowserRouter>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            
+            {/* Onboarding route */}
             <Route element={<RequireOnboarding />}>
               <Route path="/onboarding" element={<Onboarding />} />
             </Route>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/add-expense" element={<AddExpense />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/expenses/:id/edit" element={<EditExpense />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/account/profile" element={<AccountProfile />} />
-            <Route path="/account/delete" element={<DeleteAccount />} />
+            
+            {/* Authenticated routes with layout */}
+            <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
+            <Route path="/add-expense" element={<AppLayout><AddExpense /></AppLayout>} />
+            <Route path="/expenses" element={<AppLayout><Expenses /></AppLayout>} />
+            <Route path="/expenses/:id/edit" element={<AppLayout><EditExpense /></AppLayout>} />
+            <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
+            <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
+            <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
