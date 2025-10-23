@@ -177,6 +177,42 @@ export type Database = {
           },
         ]
       }
+      financial_health_scores: {
+        Row: {
+          budget_adherence_score: number
+          consistency_score: number
+          created_at: string
+          id: string
+          month: string
+          quiz_performance_score: number
+          savings_score: number
+          score: number
+          user_id: string
+        }
+        Insert: {
+          budget_adherence_score?: number
+          consistency_score?: number
+          created_at?: string
+          id?: string
+          month: string
+          quiz_performance_score?: number
+          savings_score?: number
+          score: number
+          user_id: string
+        }
+        Update: {
+          budget_adherence_score?: number
+          consistency_score?: number
+          created_at?: string
+          id?: string
+          month?: string
+          quiz_performance_score?: number
+          savings_score?: number
+          score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       monthly_goals: {
         Row: {
           created_at: string | null
@@ -369,6 +405,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_financial_health_score: {
+        Args: { p_month: string; p_user_id: string }
+        Returns: {
+          budget_score: number
+          consistency_score: number
+          quiz_score: number
+          savings_score: number
+          total_score: number
+        }[]
+      }
       sum_expenses_in_month: {
         Args: { p_month: string; p_user_id: string }
         Returns: {

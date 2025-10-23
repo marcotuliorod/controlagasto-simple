@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Home, Receipt, TrendingUp, User } from "lucide-react";
+import { Home, Receipt, Heart, User } from "lucide-react";
 
 const navItems = [
   { path: "/dashboard", icon: Home, label: "Início" },
   { path: "/expenses", icon: Receipt, label: "Despesas" },
-  { path: "/reports", icon: TrendingUp, label: "Relatórios" },
+  { path: "/financial-health", icon: Heart, label: "Saúde" },
   { path: "/account/profile", icon: User, label: "Perfil" },
 ];
 

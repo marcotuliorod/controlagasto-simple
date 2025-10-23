@@ -22,6 +22,7 @@ const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
 const AccountProfile = lazy(() => import("./pages/AccountProfile"));
 const Education = lazy(() => import("./pages/Education"));
 const Quiz = lazy(() => import("./pages/Quiz"));
+const FinancialHealth = lazy(() => import("./pages/FinancialHealth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Layout wrapper
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
             <Route path="/education" element={<AppLayout><Education /></AppLayout>} />
             <Route path="/quiz" element={<AppLayout><Quiz /></AppLayout>} />
+            <Route path="/financial-health" element={<AppLayout><FinancialHealth /></AppLayout>} />
             <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
             <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
             

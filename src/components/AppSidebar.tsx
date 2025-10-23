@@ -10,6 +10,7 @@ import {
   Wallet,
   GraduationCap,
   Brain,
+  Heart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,6 +32,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
     { title: "Dashboard", url: "/dashboard", icon: Home },
     { title: "Despesas", url: "/expenses", icon: Receipt },
     { title: "Relatórios", url: "/reports", icon: TrendingUp },
+    { title: "Saúde Financeira", url: "/financial-health", icon: Heart },
     { title: "Educação", url: "/education", icon: GraduationCap },
     { title: "Quiz", url: "/quiz", icon: Brain },
   ];

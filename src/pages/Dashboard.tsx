@@ -16,6 +16,7 @@ import {
 import { useCurrentMonthCategoryGoals } from "@/hooks/useCategoryGoals";
 import { InsightsCard } from "@/components/InsightsCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
+import { FinancialHealthScore } from "@/components/FinancialHealthScore";
 
 interface Expense {
   id: string;
@@ -330,6 +331,8 @@ export default function Dashboard() {
             )}
           </div>
         </Card>
+
+        <FinancialHealthScore />
 
         <InsightsCard />
 
