@@ -118,27 +118,29 @@ export const InvestmentProjection = () => {
               </p>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold mb-3">Evolução Anual</h4>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="ano" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                  />
-                  <Legend />
-                  <Bar dataKey="contribuicoes" fill="hsl(var(--primary))" name="Contribuições" />
-                  <Bar dataKey="rendimentos" fill="#10b981" name="Rendimentos" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {chartData.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Evolução Anual</h4>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="ano" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="contribuicoes" fill="hsl(var(--primary))" name="Contribuições" />
+                    <Bar dataKey="rendimentos" fill="#10b981" name="Rendimentos" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

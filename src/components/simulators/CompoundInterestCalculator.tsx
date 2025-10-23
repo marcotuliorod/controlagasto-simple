@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { calculateCompoundInterest } from "@/lib/financialCalculations";
 import { TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 export const CompoundInterestCalculator = () => {
   const [initialAmount, setInitialAmount] = useState(1000);
@@ -125,47 +125,42 @@ export const CompoundInterestCalculator = () => {
               </div>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold mb-3">Evolução do Investimento</h4>
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="saldo" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    fill="url(#colorBalance)"
-                    name="Saldo Total"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="contribuicoes" 
-                    stroke="hsl(var(--muted-foreground))" 
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={false}
-                    name="Total Investido"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {chartData.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Evolução do Investimento</h4>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="saldo" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      name="Saldo Total"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="contribuicoes" 
+                      stroke="hsl(var(--muted-foreground))" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      name="Total Investido"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
