@@ -27,15 +27,21 @@ export function useProfile() {
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching profile:", error);
         throw error;
       }
 
+      if (!data) {
+        throw new Error("Perfil não encontrado");
+      }
+
       return data as Profile;
     },
+    retry: 1,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
 

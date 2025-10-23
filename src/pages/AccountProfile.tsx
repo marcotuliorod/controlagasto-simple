@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, User, Target, Mail } from "lucide-react";
@@ -19,8 +19,8 @@ import AppFooter from "@/components/AppFooter";
 export default function AccountProfile() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
 
-  // Queries
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  // Queries with error handling
+  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile();
   const { data: userEmail } = useUserEmail();
   const { data: currentMonthGoal } = useCurrentMonthGoal();
 
@@ -33,8 +33,8 @@ export default function AccountProfile() {
   // Profile form
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileFormSchema),
-    values: {
-      name: profile?.name || "",
+    defaultValues: {
+      name: "",
     },
   });
 
@@ -46,17 +46,28 @@ export default function AccountProfile() {
   // Goals form
   const goalsForm = useForm<GoalsFormData>({
     resolver: zodResolver(goalsFormSchema),
-    values: {
-      defaultGoal: profile ? formatCurrencyBR(profile.monthly_goal) : "",
-      currentMonthGoal: currentMonthGoal
-        ? formatCurrencyBR(currentMonthGoal.total_limit)
-        : profile
-        ? formatCurrencyBR(profile.monthly_goal)
-        : "",
+    defaultValues: {
+      defaultGoal: "",
+      currentMonthGoal: "",
       propagateEnabled: false,
       propagateMonths: 3,
     },
   });
+
+  // Update forms when data loads
+  useEffect(() => {
+    if (profile) {
+      profileForm.reset({ name: profile.name });
+      goalsForm.reset({
+        defaultGoal: formatCurrencyBR(profile.monthly_goal),
+        currentMonthGoal: currentMonthGoal
+          ? formatCurrencyBR(currentMonthGoal.total_limit)
+          : formatCurrencyBR(profile.monthly_goal),
+        propagateEnabled: false,
+        propagateMonths: 3,
+      });
+    }
+  }, [profile, currentMonthGoal]);
 
   const propagateEnabled = goalsForm.watch("propagateEnabled");
 
@@ -114,8 +125,28 @@ export default function AccountProfile() {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (profileError || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Erro ao carregar perfil</CardTitle>
+            <CardDescription>
+              Não foi possível carregar suas informações. Tente recarregar a página.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.reload()} className="w-full">
+              Recarregar
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
