@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Download, Send } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,15 @@ import { toast } from "sonner";
 export default function Settings() {
   const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [swStatus, setSwStatus] = useState<'checking' | 'active' | 'error'>('checking');
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then(() => setSwStatus('active'))
+        .catch(() => setSwStatus('error'));
+    }
+  }, []);
 
   const handleToggleNotifications = async () => {
     if (isSubscribed) {
@@ -118,6 +127,14 @@ export default function Settings() {
                 <Send className="mr-2 h-4 w-4" />
                 {isSendingTest ? "Enviando..." : "Enviar Notificação de Teste"}
               </Button>
+            </div>
+          )}
+
+          {import.meta.env.DEV && (
+            <div className="pt-2 mt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Service Worker: <span className={swStatus === 'active' ? 'text-green-500' : swStatus === 'error' ? 'text-red-500' : ''}>{swStatus}</span>
+              </p>
             </div>
           )}
         </CardContent>

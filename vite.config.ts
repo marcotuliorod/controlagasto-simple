@@ -29,16 +29,22 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'public',
       filename: 'sw.js',
       injectManifest: {
+        swSrc: 'public/sw.js',
+        swDest: 'dist/sw.js',
+        globDirectory: 'dist',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       },
       includeAssets: ['icon-192.png', 'icon-512.png', 'splash-640x1136.png'],
       manifest: {
+        id: '/',
         name: 'Entenda seus Gastos',
         short_name: 'Meus Gastos',
         description: 'Controle suas finanças pessoais de forma inteligente com notificações',
         theme_color: '#3B82F6',
         background_color: '#0B1220',
         display: 'standalone',
+        orientation: 'portrait',
         scope: '/',
         start_url: '/',
         icons: [
@@ -54,11 +60,13 @@ export default defineConfig(({ mode }) => ({
             type: 'image/png',
             purpose: 'any maskable'
           }
-        ]
+        ],
+        categories: ['finance', 'productivity'],
       },
       devOptions: {
         enabled: true,
-        type: 'module'
+        type: 'module',
+        navigateFallback: 'index.html',
       }
     })
   ].filter(Boolean),
