@@ -95,7 +95,8 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       devOptions: {
-        enabled: false
+        enabled: true,
+        type: 'module'
       }
     })
   ].filter(Boolean),

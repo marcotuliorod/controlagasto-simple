@@ -6,12 +6,21 @@ import { registerSW } from 'virtual:pwa-register';
 // Register service worker
 const updateSW = registerSW({
   onNeedRefresh() {
-    if (confirm('Nova versão disponível! Recarregar?')) {
+    if (confirm('Nova versão disponível! Recarregar para atualizar?')) {
       updateSW(true);
     }
   },
   onOfflineReady() {
-    console.log('App pronto para funcionar offline');
+    console.log('✅ App pronto para funcionar offline');
+  },
+  onRegisteredSW(swUrl, registration) {
+    console.log('✅ Service Worker registrado:', swUrl);
+    if (registration) {
+      console.log('📦 Escopo:', registration.scope);
+    }
+  },
+  onRegisterError(error) {
+    console.error('❌ Erro ao registrar Service Worker:', error);
   },
 });
 
