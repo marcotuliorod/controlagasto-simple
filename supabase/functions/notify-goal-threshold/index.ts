@@ -88,6 +88,25 @@ serve(async (req) => {
           } else if (!notifError) {
             notificationsCreated++;
             console.log(`✅ Notificação criada para usuário ${goal.user_id}`);
+            
+            // Enviar push notification
+            try {
+              await supabase.functions.invoke('send-push-notification', {
+                body: {
+                  userId: goal.user_id,
+                  title: '⚠️ Alerta de Meta',
+                  body: `Você atingiu ${Math.round(ratio * 100)}% do seu limite mensal (R$ ${spent.toFixed(2)} de R$ ${limit.toFixed(2)})`,
+                  url: '/',
+                  tag: `goal-threshold-${currentMonth}`,
+                  icon: '/icon-192.png',
+                  badge: '/icon-192.png',
+                  requireInteraction: true,
+                }
+              });
+              console.log(`📱 Push notification enviada para usuário ${goal.user_id}`);
+            } catch (pushError) {
+              console.error(`Erro ao enviar push para ${goal.user_id}:`, pushError);
+            }
           } else {
             console.log(`ℹ️ Notificação já existe para usuário ${goal.user_id}`);
           }
