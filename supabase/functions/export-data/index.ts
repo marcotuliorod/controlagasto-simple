@@ -22,8 +22,17 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    
+    // Extract token from "Bearer <token>"
+    const token = authHeader.replace("Bearer ", "");
+    
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { 
+        headers: { Authorization: authHeader }
+      },
+      auth: {
+        persistSession: false,
+      }
     });
 
     const { data: { user } } = await supabase.auth.getUser();
