@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Download, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import html2pdf from "html2pdf.js";
 
 interface ExpenseData {
   id: string;
@@ -185,19 +186,29 @@ export default function Reports() {
 
       if (error) throw error;
 
-      // Convert HTML to PDF using browser's print functionality
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(data.html);
-        printWindow.document.close();
-        
-        // Wait for content to load then print
-        printWindow.onload = () => {
-          printWindow.print();
-        };
-      }
+      // Criar elemento temporário para renderizar HTML
+      const element = document.createElement('div');
+      element.innerHTML = data.html;
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      document.body.appendChild(element);
 
-      toast.success("Relatório PDF gerado com sucesso");
+      // Configurar opções do PDF
+      const opt = {
+        margin: 10,
+        filename: `despesas_${dateFrom}_${dateTo}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+      };
+
+      // Gerar e baixar PDF
+      await html2pdf().set(opt).from(element).save();
+
+      // Limpar elemento temporário
+      document.body.removeChild(element);
+
+      toast.success("PDF baixado com sucesso");
     } catch (error: any) {
       toast.error("Erro ao gerar PDF");
       console.error(error);
