@@ -27,6 +27,7 @@ const FinancialHealth = lazy(() => import("./pages/FinancialHealth"));
 const Simulator = lazy(() => import("./pages/Simulator"));
 const ChatAssistant = lazy(() => import("./pages/ChatAssistant"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Accounts = lazy(() => import("./pages/Accounts"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Layout wrapper
@@ -79,6 +80,7 @@ const App = () => (
             <Route path="/financial-health" element={<AppLayout><FinancialHealth /></AppLayout>} />
             <Route path="/simulator" element={<AppLayout><Simulator /></AppLayout>} />
             <Route path="/chat" element={<AppLayout><ChatAssistant /></AppLayout>} />
+            <Route path="/accounts" element={<AppLayout><Accounts /></AppLayout>} />
             <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
             <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
             <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />

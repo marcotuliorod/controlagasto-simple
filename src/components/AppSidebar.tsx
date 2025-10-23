@@ -34,10 +34,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
   const mainItems = [
     { title: "Dashboard", url: "/dashboard", icon: Home },
     { title: "Despesas", url: "/expenses", icon: Receipt },
+    { title: "Contas", url: "/accounts", icon: Wallet, badge: "Novo" },
     { title: "Relatórios", url: "/reports", icon: TrendingUp },
     { title: "Saúde Financeira", url: "/financial-health", icon: Heart },
     { title: "Simulador", url: "/simulator", icon: Calculator },
-    { title: "Chat IA", url: "/chat", icon: MessageCircle, badge: "Novo" },
+    { title: "Chat IA", url: "/chat", icon: MessageCircle },
     { title: "Educação", url: "/education", icon: GraduationCap },
     { title: "Quiz", url: "/quiz", icon: Brain },
   ];
