@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.check-category-variations]
 verify_jwt = true
+
+[functions.chat-assistant]
+verify_jwt = true

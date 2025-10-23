@@ -12,6 +12,7 @@ import {
   Brain,
   Heart,
   Calculator,
+  MessageCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
   const mainItems = [
@@ -35,6 +37,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
     { title: "Relatórios", url: "/reports", icon: TrendingUp },
     { title: "Saúde Financeira", url: "/financial-health", icon: Heart },
     { title: "Simulador", url: "/simulator", icon: Calculator },
+    { title: "Chat IA", url: "/chat", icon: MessageCircle, badge: "Novo" },
     { title: "Educação", url: "/education", icon: GraduationCap },
     { title: "Quiz", url: "/quiz", icon: Brain },
   ];
@@ -91,7 +94,16 @@ export function AppSidebar() {
                         aria-current={isActive ? "page" : undefined}
                       >
                         <item.icon className="h-4 w-4" />
-                        {!isCollapsed && <span>{item.title}</span>}
+                        {!isCollapsed && (
+                          <span className="flex items-center gap-2">
+                            {item.title}
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </span>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
