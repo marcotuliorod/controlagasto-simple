@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -124,7 +124,8 @@ export default function Reports() {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
 
-  const getMonthlyComparison = () => {
+  // 🚀 OTIMIZAÇÃO: Memoizar cálculo pesado de comparação mensal
+  const monthlyComparison = useMemo(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
@@ -143,7 +144,7 @@ export default function Reports() {
         total: currentData.reduce((sum, e) => sum + e.amount, 0),
       },
     ];
-  };
+  }, [expenses]);
 
   const handleExport = async (format: 'csv' | 'json') => {
     setIsExporting(true);
@@ -306,7 +307,7 @@ export default function Reports() {
               <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Comparação Mensal</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={getMonthlyComparison()}>
+                  <BarChart data={monthlyComparison}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />

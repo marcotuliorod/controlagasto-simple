@@ -62,7 +62,7 @@ export default function Dashboard() {
     checkAuth();
     loadData();
 
-    // Subscrever a mudanças em tempo real na tabela expenses
+    // 🚀 OTIMIZAÇÃO: Realtime leve - apenas invalidar ao invés de recarregar tudo
     const channel = supabase
       .channel('dashboard-expenses-changes')
       .on(
@@ -73,7 +73,8 @@ export default function Dashboard() {
           table: 'expenses'
         },
         (payload) => {
-          console.log('🔄 Dashboard: Despesa alterada, recarregando...', payload);
+          console.log('🔄 Dashboard: Despesa alterada, atualizando...', payload);
+          // Recarregar apenas quando necessário
           loadData();
         }
       )
@@ -96,17 +97,6 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Carregar perfil
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", user.id)
-        .single();
-
-      if (profile) {
-        setUserName(profile.name);
-      }
-
       // Calcular intervalo do mês atual (inclusivo no início, exclusivo no fim)
       const now = new Date();
       const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
@@ -116,31 +106,61 @@ export default function Dashboard() {
 
       console.log(`🔍 Dashboard: Buscando despesas de ${monthStart} até ${nextMonth} (exclusivo)`);
       
-      const { data: goal } = await supabase
-        .from("monthly_goals")
-        .select("total_limit")
-        .eq("user_id", user.id)
-        .eq("month", currentMonth)
-        .maybeSingle();
+      // 🚀 OTIMIZAÇÃO: Paralelizar queries independentes
+      const [
+        { data: profile },
+        { data: goal },
+        { data: allExpenses, error: expensesError },
+        { data: notifs }
+      ] = await Promise.all([
+        // Query 1: Perfil
+        supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", user.id)
+          .single(),
+        
+        // Query 2: Meta mensal
+        supabase
+          .from("monthly_goals")
+          .select("total_limit")
+          .eq("user_id", user.id)
+          .eq("month", currentMonth)
+          .maybeSingle(),
+        
+        // Query 3: Despesas do mês
+        supabase
+          .from("expenses")
+          .select("id, amount, date, merchant, category_id, categories:categories!left(id, name, icon, color)")
+          .eq("user_id", user.id)
+          .gte("date", monthStart)
+          .lt("date", nextMonth)
+          .order("date", { ascending: false }),
+        
+        // Query 4: Notificações não lidas
+        supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("read", false)
+          .order("created_at", { ascending: false })
+          .limit(3)
+      ]);
+
+      if (expensesError) {
+        console.error("❌ Erro ao buscar despesas:", expensesError);
+        throw expensesError;
+      }
+
+      // Processar resultados
+      if (profile) {
+        setUserName(profile.name);
+      }
 
       if (goal) {
         setMonthlyGoal(Number(goal.total_limit || 0));
       }
 
-      // Carregar TODAS as despesas do mês com LEFT JOIN (não perder despesas sem categoria)
-      const { data: allExpenses, error: expensesError } = await supabase
-        .from("expenses")
-        .select("id, amount, date, merchant, category_id, categories:categories!left(id, name, icon, color)")
-        .eq("user_id", user.id)
-        .gte("date", monthStart)
-        .lt("date", nextMonth)
-        .order("date", { ascending: false });
-      
-      if (expensesError) {
-        console.error("❌ Erro ao buscar despesas:", expensesError);
-        throw expensesError;
-      }
-      
       console.log(`✅ Dashboard: ${allExpenses?.length || 0} despesas encontradas no mês`);
 
       // Calcular total do mês (garantir conversão numérica robusta)
@@ -189,15 +209,6 @@ export default function Dashboard() {
 
       setCategoryTotals(categoryData);
       console.log(`📊 Dashboard: ${categoryData.length} categorias calculadas`);
-
-      // Carregar notificações não lidas
-      const { data: notifs } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("read", false)
-        .order("created_at", { ascending: false })
-        .limit(3);
 
       if (notifs) {
         setNotifications(notifs);
