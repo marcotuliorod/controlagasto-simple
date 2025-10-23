@@ -44,6 +44,44 @@ export type Database = {
         }
         Relationships: []
       }
+      category_goals: {
+        Row: {
+          category_id: string
+          created_at: string | null
+          id: string
+          limit_amount: number
+          month: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string | null
+          id?: string
+          limit_amount: number
+          month: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string | null
+          id?: string
+          limit_amount?: number
+          month?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_goals_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number

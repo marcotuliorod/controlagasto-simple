@@ -13,6 +13,7 @@ import {
   Target,
   AlertTriangle,
 } from "lucide-react";
+import { useCurrentMonthCategoryGoals } from "@/hooks/useCategoryGoals";
 
 interface Expense {
   id: string;
@@ -50,6 +51,9 @@ export default function Dashboard() {
   const [categoryTotals, setCategoryTotals] = useState<CategoryTotal[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch category goals
+  const { data: categoryGoals = [] } = useCurrentMonthCategoryGoals();
 
   useEffect(() => {
     checkAuth();
@@ -333,17 +337,52 @@ export default function Dashboard() {
                 <h2 className="text-xl font-semibold">Top Categorias</h2>
               </div>
               <div className="space-y-3">
-                {categoryTotals.map((cat) => (
-                  <div key={cat.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{cat.icon}</span>
-                      <span className="font-medium">{cat.name}</span>
+                {categoryTotals.map((cat) => {
+                  const categoryGoal = categoryGoals.find(g => g.category?.name === cat.name);
+                  const hasGoal = !!categoryGoal;
+                  const percent = hasGoal ? (cat.total / categoryGoal.limit_amount) * 100 : 0;
+                  
+                  let statusColor = "bg-primary";
+                  if (hasGoal) {
+                    if (percent >= 100) statusColor = "bg-destructive";
+                    else if (percent >= 80) statusColor = "bg-orange-500";
+                    else if (percent >= 60) statusColor = "bg-yellow-500";
+                  }
+
+                  return (
+                    <div key={cat.name} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{cat.icon}</span>
+                          <span className="font-medium">{cat.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-semibold text-foreground">
+                            R$ {cat.total.toFixed(2)}
+                          </span>
+                          {hasGoal && (
+                            <p className="text-xs text-muted-foreground">
+                              / R$ {categoryGoal.limit_amount.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {hasGoal && (
+                        <div className="space-y-1">
+                          <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all ${statusColor}`}
+                              style={{ width: `${Math.min(percent, 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground text-right">
+                            {percent.toFixed(0)}% da meta
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <span className="font-semibold text-foreground">
-                      R$ {cat.total.toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           )}

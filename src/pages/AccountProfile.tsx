@@ -15,6 +15,7 @@ import { useCurrentMonthGoal, useUpsertMonthlyGoal, useUpsertMultipleGoalsRPC } 
 import { profileFormSchema, emailChangeSchema, goalsFormSchema, type ProfileFormData, type EmailChangeData, type GoalsFormData } from "@/schemas/profileSchema";
 import { parseCurrencyBR, formatCurrencyBR, generateFutureMonths, getCurrentMonth } from "@/lib/currencyUtils";
 import AppFooter from "@/components/AppFooter";
+import CategoryGoalsManager from "@/components/CategoryGoalsManager";
 
 export default function AccountProfile() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -162,9 +163,10 @@ export default function AccountProfile() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Personal Data Card */}
-            <Card>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Personal Data Card */}
+              <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
@@ -382,6 +384,10 @@ export default function AccountProfile() {
                 </form>
               </CardContent>
             </Card>
+            </div>
+
+            {/* Category Goals Manager */}
+            <CategoryGoalsManager />
           </div>
         </div>
       </div>
