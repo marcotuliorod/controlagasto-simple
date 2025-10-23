@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.generate-insights]
 verify_jwt = true
+
+[functions.export-pdf]
+verify_jwt = true
+
+[functions.check-category-variations]
+verify_jwt = true

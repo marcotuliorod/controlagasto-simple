@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, AlertCircle, CheckCircle2, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Lightbulb, AlertCircle, CheckCircle2, TrendingUp, RefreshCw } from "lucide-react";
 import { useInsights, Insight } from "@/hooks/useInsights";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,7 +28,14 @@ const getInsightVariant = (type: Insight["type"]) => {
 };
 
 export function InsightsCard() {
-  const { data, isLoading, error } = useInsights();
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useInsights();
+
+  const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : null;
 
   if (isLoading) {
     return (
@@ -87,7 +95,21 @@ export function InsightsCard() {
         <Badge variant="outline" className="ml-auto">
           IA
         </Badge>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isLoading}
+          className="ml-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
+      {lastUpdate && (
+        <p className="text-xs text-muted-foreground mb-3">
+          Atualizado em {lastUpdate}
+        </p>
+      )}
       <div className="space-y-4">
         {data.insights.map((insight, index) => (
           <div

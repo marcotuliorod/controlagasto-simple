@@ -36,6 +36,7 @@ export default function Reports() {
   const [filteredExpenses, setFilteredExpenses] = useState<ExpenseData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -175,6 +176,36 @@ export default function Reports() {
     }
   };
 
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("export-pdf", {
+        body: { startDate: dateFrom, endDate: dateTo },
+      });
+
+      if (error) throw error;
+
+      // Convert HTML to PDF using browser's print functionality
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(data.html);
+        printWindow.document.close();
+        
+        // Wait for content to load then print
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+
+      toast.success("Relatório PDF gerado com sucesso");
+    } catch (error: any) {
+      toast.error("Erro ao gerar PDF");
+      console.error(error);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -199,6 +230,14 @@ export default function Reports() {
             >
               <Download className="h-4 w-4 mr-2" />
               JSON
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              PDF
             </Button>
           </div>
         </div>

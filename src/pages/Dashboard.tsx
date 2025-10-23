@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCurrentMonthCategoryGoals } from "@/hooks/useCategoryGoals";
 import { InsightsCard } from "@/components/InsightsCard";
+import { NotificationsCard } from "@/components/NotificationsCard";
 
 interface Expense {
   id: string;
@@ -331,6 +332,8 @@ export default function Dashboard() {
         </Card>
 
         <InsightsCard />
+
+        <NotificationsCard />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {categoryTotals.length > 0 && (
