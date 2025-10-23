@@ -6,6 +6,7 @@ export interface Profile {
   id: string;
   name: string;
   monthly_goal: number;
+  billing_cycle_day?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -46,25 +47,44 @@ export function useProfile() {
 }
 
 /**
- * Hook to update user profile (name and default monthly goal)
+ * Hook to update user profile (name, default monthly goal, and billing cycle day)
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ name, monthlyGoal }: { name: string; monthlyGoal: number }) => {
+    mutationFn: async ({ 
+      name, 
+      monthlyGoal, 
+      billingCycleDay 
+    }: { 
+      name: string; 
+      monthlyGoal: number;
+      billingCycleDay?: number;
+    }) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         throw new Error("Usuário não autenticado");
       }
 
+      const updateData: {
+        name: string;
+        monthly_goal: number;
+        billing_cycle_day?: number;
+      } = {
+        name,
+        monthly_goal: monthlyGoal,
+      };
+
+      // Only update billing_cycle_day if provided
+      if (billingCycleDay !== undefined) {
+        updateData.billing_cycle_day = billingCycleDay;
+      }
+
       const { data, error } = await supabase
         .from("profiles")
-        .update({
-          name,
-          monthly_goal: monthlyGoal,
-        })
+        .update(updateData)
         .eq("id", user.id)
         .select()
         .single();

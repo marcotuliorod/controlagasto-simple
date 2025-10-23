@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, User, Target, Mail } from "lucide-react";
+import { Loader2, User, Target, Mail, Calendar, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +64,7 @@ export default function AccountProfile() {
         currentMonthGoal: currentMonthGoal
           ? formatCurrencyBR(currentMonthGoal.total_limit)
           : formatCurrencyBR(profile.monthly_goal),
+        billingCycleDay: profile.billing_cycle_day || 1,
         propagateEnabled: false,
         propagateMonths: 3,
       });
@@ -93,11 +94,12 @@ export default function AccountProfile() {
       const defaultGoalValue = parseCurrencyBR(data.defaultGoal);
       const currentMonthGoalValue = parseCurrencyBR(data.currentMonthGoal);
 
-      // Update default goal in profile
+      // Update default goal and billing cycle day in profile
       if (profile) {
         await updateProfile.mutateAsync({
           name: profile.name,
           monthlyGoal: defaultGoalValue,
+          billingCycleDay: data.billingCycleDay,
         });
       }
 
@@ -324,6 +326,54 @@ export default function AccountProfile() {
                         {goalsForm.formState.errors.currentMonthGoal.message}
                       </p>
                     )}
+                  </div>
+
+                  <div className="space-y-2 border-t pt-4">
+                    <div className="flex items-start gap-2">
+                      <Calendar className="h-4 w-4 mt-1 text-muted-foreground" />
+                      <div className="flex-1 space-y-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Label htmlFor="billingCycleDay" className="cursor-help flex items-center gap-1">
+                                Dia de Início do Ciclo
+                                <Info className="h-3 w-3" />
+                              </Label>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-semibold mb-1">Configure seu ciclo financeiro</p>
+                              <p className="text-xs">
+                                Se você recebe salário no dia 5, seu ciclo será de 05/Jan a 04/Fev.
+                                Todas as metas e relatórios usarão este período.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <Input
+                          id="billingCycleDay"
+                          type="number"
+                          min={1}
+                          max={28}
+                          {...goalsForm.register("billingCycleDay", { valueAsNumber: true })}
+                          placeholder="1"
+                          disabled={updateProfile.isPending}
+                        />
+                        {goalsForm.formState.errors.billingCycleDay && (
+                          <p className="text-sm text-destructive">
+                            {goalsForm.formState.errors.billingCycleDay.message}
+                          </p>
+                        )}
+                        <div className="bg-muted/50 border border-border rounded-md p-3 space-y-1">
+                          <p className="text-xs font-medium text-foreground">
+                            ⚠️ Atenção ao alterar
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Mudar o dia do ciclo afeta como seus gastos são agrupados nos relatórios.
+                            Recomendamos usar o dia em que você recebe seu salário.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-3 border-t pt-4">

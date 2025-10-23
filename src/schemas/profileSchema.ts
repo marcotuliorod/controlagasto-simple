@@ -48,6 +48,13 @@ export const goalsFormSchema = z.object({
       return !isNaN(num) && num > 0;
     }, "Valor deve ser maior que zero"),
   
+  billingCycleDay: z
+    .number()
+    .int("Deve ser um número inteiro")
+    .min(1, "Mínimo dia 1")
+    .max(28, "Máximo dia 28")
+    .default(1),
+  
   propagateEnabled: z.boolean().default(false),
   
   propagateMonths: z

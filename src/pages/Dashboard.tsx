@@ -12,8 +12,10 @@ import {
   Receipt,
   Target,
   AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import { useCurrentMonthCategoryGoals } from "@/hooks/useCategoryGoals";
+import { useBillingCycle } from "@/hooks/useBillingCycle";
 import { InsightsCard } from "@/components/InsightsCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { FinancialHealthScore } from "@/components/FinancialHealthScore";
@@ -47,6 +49,7 @@ interface Notification {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { getCurrentCycle, hasCustomCycle } = useBillingCycle();
   const [userName, setUserName] = useState("");
   const [monthlyGoal, setMonthlyGoal] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
@@ -97,14 +100,10 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Calcular intervalo do mês atual (inclusivo no início, exclusivo no fim)
-      const now = new Date();
-      const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
-      const monthStart = `${currentMonth}-01`;
-      const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const nextMonth = nextMonthDate.toISOString().slice(0, 10);
+      // Get current billing cycle
+      const { start: cycleStart, end: cycleEnd, label: cycleLabel } = getCurrentCycle();
 
-      console.log(`🔍 Dashboard: Buscando despesas de ${monthStart} até ${nextMonth} (exclusivo)`);
+      console.log(`🔍 Dashboard: Buscando despesas de ${cycleStart} até ${cycleEnd} (exclusivo)`);
       
       // 🚀 OTIMIZAÇÃO: Paralelizar queries independentes
       const [
@@ -120,21 +119,21 @@ export default function Dashboard() {
           .eq("id", user.id)
           .single(),
         
-        // Query 2: Meta mensal
+        // Query 2: Meta mensal (usando label do ciclo)
         supabase
           .from("monthly_goals")
           .select("total_limit")
           .eq("user_id", user.id)
-          .eq("month", currentMonth)
+          .eq("month", cycleLabel)
           .maybeSingle(),
         
-        // Query 3: Despesas do mês
+        // Query 3: Despesas do ciclo (usando date range)
         supabase
           .from("expenses")
           .select("id, amount, date, merchant, category_id, categories:categories!left(id, name, icon, color)")
           .eq("user_id", user.id)
-          .gte("date", monthStart)
-          .lt("date", nextMonth)
+          .gte("date", cycleStart)
+          .lt("date", cycleEnd)
           .order("date", { ascending: false }),
         
         // Query 4: Notificações não lidas
@@ -272,7 +271,23 @@ export default function Dashboard() {
             <Wallet className="w-8 h-8" />
             <div>
               <h1 className="text-2xl font-bold">Olá, {userName}</h1>
-              <p className="text-white/80 text-sm">Acompanhe seus gastos</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Calendar className="w-4 h-4 text-white/80" />
+                <p className="text-white/80 text-sm">
+                  {(() => {
+                    const { start, end } = getCurrentCycle();
+                    const startDate = new Date(start);
+                    const endDate = new Date(end);
+                    endDate.setDate(endDate.getDate() - 1); // Make end inclusive for display
+                    return `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`;
+                  })()}
+                </p>
+                {hasCustomCycle && (
+                  <Badge variant="secondary" className="ml-1 text-xs bg-white/20 text-white border-white/30">
+                    Ciclo Personalizado
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         </header>

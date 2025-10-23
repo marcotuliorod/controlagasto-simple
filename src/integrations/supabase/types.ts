@@ -328,6 +328,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          billing_cycle_day: number | null
           created_at: string | null
           id: string
           monthly_goal: number | null
@@ -335,6 +336,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          billing_cycle_day?: number | null
           created_at?: string | null
           id: string
           monthly_goal?: number | null
@@ -342,6 +344,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          billing_cycle_day?: number | null
           created_at?: string | null
           id?: string
           monthly_goal?: number | null
@@ -472,6 +475,13 @@ export type Database = {
           quiz_score: number
           savings_score: number
           total_score: number
+        }[]
+      }
+      get_billing_period: {
+        Args: { p_reference_date: string; p_user_id: string }
+        Returns: {
+          end_date: string
+          start_date: string
         }[]
       }
       sum_expenses_in_month: {
