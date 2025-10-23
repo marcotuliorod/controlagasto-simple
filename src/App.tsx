@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import RequireOnboarding from "./routes/RequireOnboarding";
+import InstallPWA from "./components/InstallPWA";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -25,6 +26,7 @@ const Quiz = lazy(() => import("./pages/Quiz"));
 const FinancialHealth = lazy(() => import("./pages/FinancialHealth"));
 const Simulator = lazy(() => import("./pages/Simulator"));
 const ChatAssistant = lazy(() => import("./pages/ChatAssistant"));
+const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Layout wrapper
@@ -51,6 +53,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <InstallPWA />
         <BrowserRouter>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
@@ -76,6 +79,7 @@ const App = () => (
             <Route path="/financial-health" element={<AppLayout><FinancialHealth /></AppLayout>} />
             <Route path="/simulator" element={<AppLayout><Simulator /></AppLayout>} />
             <Route path="/chat" element={<AppLayout><ChatAssistant /></AppLayout>} />
+            <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
             <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
             <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
             

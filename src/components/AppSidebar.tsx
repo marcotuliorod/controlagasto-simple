@@ -44,6 +44,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const accountItems = [
   { title: "Perfil & Metas", url: "/account/profile", icon: User },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
