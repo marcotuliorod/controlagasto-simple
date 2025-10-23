@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAccounts } from "@/hooks/useAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,10 +22,12 @@ export default function EditExpense() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { accounts } = useAccounts();
 
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [accountId, setAccountId] = useState("");
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
@@ -67,6 +70,7 @@ export default function EditExpense() {
       setAmount(expense.amount.toString());
       setDate(expense.date);
       setCategoryId(expense.category_id || "");
+      setAccountId(expense.account_id || "");
       setMerchant(expense.merchant || "");
       setPaymentMethod(expense.payment_method || "");
       setNotes(expense.notes || "");
@@ -96,6 +100,7 @@ export default function EditExpense() {
           amount: amountNum,
           date,
           category_id: categoryId || null,
+          account_id: accountId || null,
           merchant: merchant || null,
           payment_method: paymentMethod || null,
           notes: notes || null,
@@ -180,6 +185,22 @@ export default function EditExpense() {
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.icon} {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="account">Conta</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger id="account">
+                  <SelectValue placeholder="Selecione uma conta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts?.filter(a => a.is_active).map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.icon} {acc.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

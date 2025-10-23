@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getSignedReceiptUrl } from "@/lib/storage";
+import { useAccounts } from "@/hooks/useAccounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,11 +30,13 @@ export default function AddExpense() {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const { accounts } = useAccounts();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [categoryId, setCategoryId] = useState("");
+  const [accountId, setAccountId] = useState("");
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
@@ -171,6 +174,7 @@ export default function AddExpense() {
         amount: expenseAmount,
         date,
         category_id: categoryId || null,
+        account_id: accountId || null,
         merchant: merchant || null,
         payment_method: paymentMethod || null,
         notes: notes || null,
@@ -245,6 +249,25 @@ export default function AddExpense() {
                       <span className="flex items-center gap-2">
                         <span>{cat.icon}</span>
                         <span>{cat.name}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="account">Conta</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma conta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts?.filter(a => a.is_active).map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{acc.icon}</span>
+                        <span>{acc.name}</span>
                       </span>
                     </SelectItem>
                   ))}

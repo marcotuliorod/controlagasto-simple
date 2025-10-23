@@ -56,6 +56,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string | null
+          entity: string
+          entity_id: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string | null
+          entity: string
+          entity_id: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string | null
+          entity?: string
+          entity_id?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string
@@ -528,6 +567,16 @@ export type Database = {
           savings_score: number
           total_score: number
         }[]
+      }
+      create_audit_log: {
+        Args: {
+          p_action: string
+          p_after_data?: Json
+          p_before_data?: Json
+          p_entity: string
+          p_entity_id: string
+        }
+        Returns: undefined
       }
       get_billing_period: {
         Args: { p_reference_date: string; p_user_id: string }

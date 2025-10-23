@@ -13,6 +13,7 @@ import {
   Heart,
   Calculator,
   MessageCircle,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 const accountItems = [
   { title: "Perfil & Metas", url: "/account/profile", icon: User },
+  { title: "Audit Logs", url: "/audit-logs", icon: Shield, badge: "Novo" },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
