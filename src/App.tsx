@@ -20,6 +20,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
 const AccountProfile = lazy(() => import("./pages/AccountProfile"));
+const Education = lazy(() => import("./pages/Education"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Layout wrapper
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/expenses" element={<AppLayout><Expenses /></AppLayout>} />
             <Route path="/expenses/:id/edit" element={<AppLayout><EditExpense /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
+            <Route path="/education" element={<AppLayout><Education /></AppLayout>} />
             <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
             <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
             

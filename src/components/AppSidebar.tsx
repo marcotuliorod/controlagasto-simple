@@ -8,6 +8,7 @@ import {
   Settings,
   LogOut,
   Wallet,
+  GraduationCap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,7 @@ const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Despesas", url: "/expenses", icon: Receipt },
   { title: "Relatórios", url: "/reports", icon: TrendingUp },
+  { title: "Educação", url: "/education", icon: GraduationCap },
 ];
 
 const accountItems = [

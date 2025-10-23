@@ -82,6 +82,48 @@ export type Database = {
           },
         ]
       }
+      educational_content: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          description: string
+          id: string
+          level: string
+          reading_time: number | null
+          title: string
+          type: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          category: string
+          content: string
+          created_at?: string
+          description: string
+          id?: string
+          level: string
+          reading_time?: number | null
+          title: string
+          type: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          description?: string
+          id?: string
+          level?: string
+          reading_time?: number | null
+          title?: string
+          type?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -212,6 +254,41 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      user_content_progress: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          content_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          content_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          content_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_content_progress_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "educational_content"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
