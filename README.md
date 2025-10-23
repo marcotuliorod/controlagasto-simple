@@ -60,6 +60,7 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 - Vitest (testing)
+- Supabase (auth, database, storage, edge functions)
 
 ## Running Tests
 

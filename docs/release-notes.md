@@ -1,5 +1,97 @@
 # Release Notes - Entenda seus Gastos
 
+## v5.2.0 - Perfil & Metas 👤
+**Data de Lançamento:** 23 de Outubro de 2025
+
+### 🎯 Objetivo
+Implementar página completa de edição de perfil e gerenciamento de metas mensais, incluindo propagação automática para meses futuros.
+
+### ✨ Funcionalidades
+
+#### Dados Pessoais
+- Edição de nome do perfil
+- Visualização de e-mail com botão para solicitar alteração
+- Modal de alteração de e-mail com confirmação via link
+
+#### Gerenciamento de Metas
+- **Meta padrão**: Valor aplicado a todos os meses (salvo em `profiles.monthly_goal`)
+- **Meta do mês atual**: Upsert em `monthly_goals` para o mês corrente
+- **Propagação inteligente**: Aplicar meta do mês atual para os próximos N meses (1-12)
+- Tooltips explicativos sobre funcionamento das metas
+
+### 🔧 Implementação Técnica
+
+#### Utilitários (`src/lib/currencyUtils.ts`)
+- `parseCurrencyBR()`: Converte "1.234,56" → 1234.56
+- `formatCurrencyBR()`: Formata números para exibição PT-BR
+- `generateFutureMonths()`: Gera array de meses futuros (YYYY-MM)
+- `getCurrentMonth()`: Retorna mês atual formatado
+
+#### Schemas Zod (`src/schemas/profileSchema.ts`)
+- `profileFormSchema`: Validação de nome (1-80 chars)
+- `emailChangeSchema`: Validação de e-mail
+- `goalsFormSchema`: Validação de metas com normalização PT-BR
+
+#### Hooks TanStack Query
+- `useProfile()`: Query para perfil do usuário
+- `useUpdateProfile()`: Mutation para nome + meta padrão
+- `useUpdateEmail()`: Mutation para solicitar alteração de e-mail
+- `useCurrentMonthGoal()`: Query para meta do mês atual
+- `useUpsertMonthlyGoal()`: Mutation para meta única
+- `useUpsertMultipleGoalsRPC()`: Mutation batch para propagação
+
+#### RPC Function (Performance)
+- `upsert_monthly_goals(p_user_id, p_months[], p_limit)`:
+  - Batch upsert de múltiplas metas em uma única transação
+  - `SECURITY DEFINER` com `search_path = 'public'`
+  - Validação de auth integrada (apenas próprio usuário)
+  - Índice único `uq_monthly_goals_user_month`
+
+### 📁 Arquivos Criados
+- `src/lib/currencyUtils.ts` + `.test.ts` (com testes Vitest)
+- `src/schemas/profileSchema.ts`
+- `src/hooks/useProfile.ts`
+- `src/hooks/useGoals.ts`
+- `src/pages/AccountProfile.tsx`
+
+### 📝 Arquivos Atualizados
+- `src/App.tsx`: Rota `/account/profile` adicionada
+- `src/components/AppFooter.tsx`: Link "Perfil & Metas"
+- Migration SQL: RPC `upsert_monthly_goals` + índice único
+
+### 🧪 Testes
+- ✅ Testes unitários para `currencyUtils` (parse, format, future months)
+- ✅ Validação de formatos BR: "1.234,56", "1234,56", "1234.56"
+- ✅ Geração correta de meses incluindo transição de ano
+
+### 🎨 UX/UI
+- Layout responsivo: cards lado a lado (desktop) / empilhados (mobile)
+- Estados de loading em botões durante mutações
+- Toasts Sonner para feedback (sucesso/erro)
+- Dark Mode totalmente compatível
+- Placeholders e tooltips contextuais
+- Desabilitação inteligente de botões (form inválido/sem mudanças)
+
+### 🔒 Segurança
+- RLS mantido em todas as tabelas
+- RPC com validação `auth.uid() = p_user_id`
+- Índice único previne duplicatas
+- `SECURITY DEFINER` com `search_path` fixo
+
+### ✅ Critérios de Aceite
+- ✅ Página `/account/profile` acessível
+- ✅ Edição de nome salva em `profiles.name`
+- ✅ Meta padrão salva em `profiles.monthly_goal`
+- ✅ Meta do mês atual faz upsert em `monthly_goals`
+- ✅ Propagação insere/atualiza N meses futuros
+- ✅ Dashboard reflete mudanças imediatamente
+- ✅ Modal de e-mail funciona e dispara fluxo Supabase Auth
+- ✅ Dark Mode preservado
+- ✅ Testes unitários passam
+- ✅ Build sem erros
+
+---
+
 ## v5.1.0 - Correções de Segurança e Testes Anti-Regressão 🔒
 **Data de Lançamento:** 23 de Outubro de 2025
 

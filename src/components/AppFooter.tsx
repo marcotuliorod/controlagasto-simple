@@ -22,6 +22,12 @@ export default function AppFooter() {
               Termos de Uso
             </Link>
             <Link
+              to="/account/profile"
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              Perfil & Metas
+            </Link>
+            <Link
               to="/account/delete"
               className="text-sm text-muted-foreground hover:text-destructive transition-colors"
             >

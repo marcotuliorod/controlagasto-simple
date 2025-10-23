@@ -186,6 +186,10 @@ export type Database = {
           sum: number
         }[]
       }
+      upsert_monthly_goals: {
+        Args: { p_limit: number; p_months: string[]; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
