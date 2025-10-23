@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, TrendingDown } from "lucide-react";
+import { Download, TrendingDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import html2pdf from "html2pdf.js";
+import { exportToXLSX } from "@/lib/exportUtils";
 
 interface ExpenseData {
   id: string;
@@ -38,6 +39,7 @@ export default function Reports() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingXlsx, setIsExportingXlsx] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -218,6 +220,30 @@ export default function Reports() {
     }
   };
 
+  const handleExportXLSX = async () => {
+    setIsExportingXlsx(true);
+    try {
+      const exportData = expenses.map(exp => ({
+        date: exp.date,
+        merchant: exp.merchant,
+        category: exp.category?.name || 'Sem categoria',
+        amount: exp.amount,
+        payment_method: (exp as any).payment_method || '',
+        notes: (exp as any).notes || ''
+      }));
+
+      const filename = `despesas_${dateFrom}_${dateTo}`;
+      exportToXLSX(exportData, filename);
+      
+      toast.success("XLSX exportado com sucesso");
+    } catch (error: any) {
+      toast.error("Erro ao exportar XLSX");
+      console.error(error);
+    } finally {
+      setIsExportingXlsx(false);
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -234,6 +260,14 @@ export default function Reports() {
             >
               <Download className="h-4 w-4 mr-2" />
               CSV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportXLSX}
+              disabled={isExportingXlsx}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              XLSX
             </Button>
             <Button
               variant="outline"
