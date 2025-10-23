@@ -53,46 +53,46 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <InstallPWA />
         <BrowserRouter>
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            
-            {/* Onboarding route */}
-            <Route element={<RequireOnboarding />}>
-              <Route path="/onboarding" element={<Onboarding />} />
-            </Route>
-            
-            {/* Authenticated routes with layout */}
-            <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
-            <Route path="/add-expense" element={<AppLayout><AddExpense /></AppLayout>} />
-            <Route path="/expenses" element={<AppLayout><Expenses /></AppLayout>} />
-            <Route path="/expenses/:id/edit" element={<AppLayout><EditExpense /></AppLayout>} />
-            <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
-            <Route path="/education" element={<AppLayout><Education /></AppLayout>} />
-            <Route path="/quiz" element={<AppLayout><Quiz /></AppLayout>} />
-            <Route path="/financial-health" element={<AppLayout><FinancialHealth /></AppLayout>} />
-            <Route path="/simulator" element={<AppLayout><Simulator /></AppLayout>} />
-            <Route path="/chat" element={<AppLayout><ChatAssistant /></AppLayout>} />
-            <Route path="/accounts" element={<AppLayout><Accounts /></AppLayout>} />
-            <Route path="/audit-logs" element={<AppLayout><AuditLogs /></AppLayout>} />
-            <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
-            <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
-            <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <InstallPWA />
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              
+              {/* Onboarding route */}
+              <Route element={<RequireOnboarding />}>
+                <Route path="/onboarding" element={<Onboarding />} />
+              </Route>
+              
+              {/* Authenticated routes with layout */}
+              <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
+              <Route path="/add-expense" element={<AppLayout><AddExpense /></AppLayout>} />
+              <Route path="/expenses" element={<AppLayout><Expenses /></AppLayout>} />
+              <Route path="/expenses/:id/edit" element={<AppLayout><EditExpense /></AppLayout>} />
+              <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
+              <Route path="/education" element={<AppLayout><Education /></AppLayout>} />
+              <Route path="/quiz" element={<AppLayout><Quiz /></AppLayout>} />
+              <Route path="/financial-health" element={<AppLayout><FinancialHealth /></AppLayout>} />
+              <Route path="/simulator" element={<AppLayout><Simulator /></AppLayout>} />
+              <Route path="/chat" element={<AppLayout><ChatAssistant /></AppLayout>} />
+              <Route path="/accounts" element={<AppLayout><Accounts /></AppLayout>} />
+              <Route path="/audit-logs" element={<AppLayout><AuditLogs /></AppLayout>} />
+              <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
+              <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
+              <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
+              
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
