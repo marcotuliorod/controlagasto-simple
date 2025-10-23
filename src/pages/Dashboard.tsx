@@ -19,6 +19,7 @@ import {
   List,
 } from "lucide-react";
 import AppFooter from "@/components/AppFooter";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface Expense {
   id: string;
@@ -263,9 +264,12 @@ export default function Dashboard() {
               <p className="text-white/80 text-sm">Acompanhe seus gastos</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-white hover:bg-white/20">
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-white hover:bg-white/20">
+              <LogOut className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
