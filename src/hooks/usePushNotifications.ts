@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { urlBase64ToUint8Array, isValidVapidKey } from "@/lib/pushUtils";
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -78,9 +79,23 @@ export function usePushNotifications() {
       // Subscribe to push notifications
       const vapidKey = urlBase64ToUint8Array(vapidPublicKey);
 
+      // Validate VAPID key length (P-256 uncompressed = 65 bytes)
+      if (!isValidVapidKey(vapidKey)) {
+        console.error("Invalid VAPID key length:", vapidKey.length, "expected 65");
+        toast.error("Erro na configuração de notificações. Tente novamente.");
+        return;
+      }
+
+      console.log("✅ VAPID key validated, length:", vapidKey.length);
+
+      // Convert to ArrayBuffer for applicationServerKey
+      const applicationServerKey = vapidKey.buffer instanceof ArrayBuffer 
+        ? vapidKey.buffer 
+        : new Uint8Array(vapidKey).buffer;
+
       const newSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: vapidKey.buffer as ArrayBuffer,
+        applicationServerKey,
       });
 
       setSubscription(newSubscription);
@@ -170,15 +185,3 @@ export function usePushNotifications() {
   };
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}

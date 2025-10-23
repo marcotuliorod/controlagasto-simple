@@ -72,18 +72,18 @@ self.addEventListener('push', (event) => {
 
   if (event.data) {
     try {
-      const data = event.data.json();
+      const parsed = event.data.json();
       notificationData = {
-        title: data.title || notificationData.title,
-        body: data.body || notificationData.body,
-        icon: data.icon || notificationData.icon,
-        badge: data.badge || notificationData.badge,
+        title: parsed.title || notificationData.title,
+        body: parsed.body || notificationData.body,
+        icon: parsed.icon || notificationData.icon,
+        badge: parsed.badge || notificationData.badge,
         data: {
-          url: data.url || '/',
-          notificationId: data.notificationId
+          url: (parsed.data && parsed.data.url) || parsed.url || '/',
+          ...(parsed.data || {}),
         },
-        tag: data.tag || 'default',
-        requireInteraction: data.requireInteraction || false,
+        tag: parsed.tag || 'default',
+        requireInteraction: parsed.requireInteraction || false,
       };
     } catch (err) {
       console.error('[Service Worker] Error parsing push data:', err);
@@ -104,22 +104,33 @@ self.addEventListener('notificationclick', (event) => {
   
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/';
+  const urlToOpen = new URL(
+    event.notification.data?.url || '/', 
+    self.location.origin
+  ).href;
 
   const promiseChain = clients.matchAll({
     type: 'window',
     includeUncontrolled: true
   })
   .then((windowClients) => {
-    // Check if there's already a window open
+    // Check if there's already a window open with this URL
     for (let i = 0; i < windowClients.length; i++) {
       const client = windowClients[i];
-      if (client.url.includes(self.location.origin) && 'focus' in client) {
-        client.focus();
-        client.navigate(urlToOpen);
-        return;
+      if (client.url === urlToOpen && 'focus' in client) {
+        return client.focus();
       }
     }
+    
+    // Check if there's any window open that we can navigate
+    if (windowClients.length > 0) {
+      const client = windowClients[0];
+      if ('navigate' in client && 'focus' in client) {
+        client.navigate(urlToOpen);
+        return client.focus();
+      }
+    }
+    
     // If no window is open, open a new one
     if (clients.openWindow) {
       return clients.openWindow(urlToOpen);

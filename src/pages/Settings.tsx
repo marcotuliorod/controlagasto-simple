@@ -1,12 +1,15 @@
-import { Bell, Download } from "lucide-react";
+import { useState } from "react";
+import { Bell, Download, Send } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function Settings() {
   const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   const handleToggleNotifications = async () => {
     if (isSubscribed) {
@@ -17,9 +20,46 @@ export default function Settings() {
   };
 
   const handleInstallPrompt = () => {
-    // Clear the dismissed flag to show the install prompt again
     localStorage.removeItem('pwa-install-dismissed');
     toast.info('Recarregue a página para ver o prompt de instalação');
+  };
+
+  const handleSendTestNotification = async () => {
+    if (!isSubscribed) {
+      toast.error("Ative as notificações primeiro");
+      return;
+    }
+
+    setIsSendingTest(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Você precisa estar logado");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
+        body: {
+          user_id: user.id,
+          title: "🎉 Notificação de Teste",
+          body: "Suas notificações estão funcionando perfeitamente!",
+          url: "/settings",
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`✅ Notificação enviada! (${data.sent} dispositivo(s))`);
+      
+      if (data.removed > 0) {
+        toast.info(`${data.removed} inscrição(ões) inválida(s) removida(s)`);
+      }
+    } catch (error: any) {
+      console.error("Error sending test notification:", error);
+      toast.error("Erro ao enviar notificação: " + error.message);
+    } finally {
+      setIsSendingTest(false);
+    }
   };
 
   return (
@@ -64,6 +104,20 @@ export default function Settings() {
                 checked={isSubscribed}
                 onCheckedChange={handleToggleNotifications}
               />
+            </div>
+          )}
+          
+          {isSubscribed && (
+            <div className="pt-4 mt-4 border-t">
+              <Button
+                onClick={handleSendTestNotification}
+                disabled={isSendingTest}
+                variant="outline"
+                className="w-full"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {isSendingTest ? "Enviando..." : "Enviar Notificação de Teste"}
+              </Button>
             </div>
           )}
         </CardContent>
