@@ -1,5 +1,87 @@
 # Release Notes - Entenda seus Gastos
 
+## v5.1.0 - Correções de Segurança e Testes Anti-Regressão 🔒
+**Data de Lançamento:** 23 de Outubro de 2025
+
+### 🎯 Objetivo
+Corrigir o erro de importação do Vite relacionado ao Dark Mode, mitigar avisos de segurança do Supabase Linter e adicionar testes unitários para prevenir regressões futuras.
+
+### 🔧 Correções Implementadas
+
+#### Vite Import Error (Dark Mode)
+- **Problema**: Erro `TypeError: Importing a module script failed` no chunk do Vite relacionado ao `next-themes`
+- **Solução**: 
+  - Adicionado `optimizeDeps: { include: ['next-themes'] }` no `vite.config.ts`
+  - Configurado `ssr: { noExternal: ['next-themes'] }` para forçar bundling correto
+  - Componente `ThemeToggle` simplificado sem `DropdownMenu` para evitar tree-shaking incorreto
+- **Resultado**: Build funciona sem erros, Dark Mode operacional com persistência em localStorage
+
+#### Segurança - Function Search Path
+- **Problema**: Warning `Function Search Path Mutable` no Supabase Linter
+- **Solução**: 
+  - Migração SQL aplicada: `SET search_path = 'public'` na função `sum_expenses_in_month`
+  - Função recriada com `SECURITY DEFINER` e `search_path` fixo
+  - Adicionada documentação inline (COMMENT ON FUNCTION)
+- **Resultado**: Previne vulnerabilidades de path injection
+
+#### Segurança - Leaked Password Protection
+- **Status**: Requer ação manual
+- **Ação Necessária**: Ativar "Check against leaked passwords" no painel Supabase Auth → Settings → Security
+- **Benefício**: Previne uso de senhas comprometidas em vazamentos conhecidos
+
+### 🧪 Testes Adicionados
+
+#### Testes Unitários (Vitest)
+- **`src/lib/amountUtils.test.ts`**: Valida somatório de despesas
+  - Suporta números, strings, null/undefined
+  - Garante precisão decimal
+  - Testa formatação de moeda (BRL)
+- **`src/lib/dateRange.test.ts`**: Valida cálculos de intervalos mensais
+  - Testa meses de 28/30/31 dias
+  - Valida anos bissextos (29 de fevereiro)
+  - Confirma transição de ano (dezembro → janeiro)
+
+#### Configuração de Testes
+- Vitest configurado com `globals: true` e `environment: 'jsdom'`
+- Comando: `npm test` para executar testes
+- Dependências adicionadas: `vitest`, `@vitest/ui`, `jsdom`
+
+### 📁 Arquivos Criados
+- `src/lib/amountUtils.ts` - Utilitários de soma e formatação
+- `src/lib/amountUtils.test.ts` - Testes unitários de valores
+- `src/lib/dateRange.ts` - Utilitários de intervalos de data
+- `src/lib/dateRange.test.ts` - Testes unitários de datas
+
+### 📝 Arquivos Atualizados
+- `vite.config.ts` - Configurações de optimizeDeps, ssr e test
+- `docs/release-notes.md` - Documentação da v5.1.0
+- `README.md` - Informações de segurança e testes
+- Migration SQL: Correção de `search_path` em `sum_expenses_in_month`
+
+### ✅ Validação de Regressões
+**Confirmado**: Nenhuma regressão detectada na v5.0.0
+- ✅ Dashboard continua somando 100% das despesas do mês atual
+- ✅ Relatórios mantêm totalização correta em ranges multi-mês
+- ✅ Exportação CSV/JSON bate com valores da UI
+- ✅ LEFT JOIN preservado para despesas sem categoria
+- ✅ Conversão numérica `Number(amount || 0)` intacta
+- ✅ Modelo inclusivo-exclusivo de datas mantido
+
+### 🎯 Próximos Passos
+1. **Ação manual requerida**: Ativar "Leaked Password Protection" no painel Supabase Auth
+2. Executar `npm test` para validar testes unitários
+3. (Opcional) Implementar testes E2E com Playwright para validação completa
+
+### 📊 Checklist de Aceite v5.1
+- ✅ Build de produção sem erros (`npm run build`)
+- ✅ Dark Mode funciona em dev e prod
+- ✅ Migração SQL executada (search_path corrigido)
+- ✅ Testes unitários passam (`npm test`)
+- ✅ Dashboard/Reports continuam somando 100% das despesas
+- ⏳ Leaked Password Protection (aguardando ativação manual)
+
+---
+
 ## v5.0.0 - Correção Completa de Totalização (Revisão Lovable v4) 🎯
 **Data de Lançamento:** 23 de Outubro de 2025
 

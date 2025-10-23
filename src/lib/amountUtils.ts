@@ -11,7 +11,11 @@
  * sumAmounts([10, "5.5", null, 0]) // returns 15.5
  */
 export function sumAmounts(amounts: Array<string | number | null | undefined>): number {
-  return amounts.reduce((sum, val) => sum + Number(val || 0), 0);
+  let total = 0;
+  for (const val of amounts) {
+    total += Number(val || 0);
+  }
+  return total;
 }
 
 /**

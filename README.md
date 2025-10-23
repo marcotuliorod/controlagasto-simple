@@ -59,6 +59,32 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Vitest (testing)
+
+## Running Tests
+
+This project includes unit tests to ensure code quality and prevent regressions:
+
+```sh
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with UI
+npm run test:ui
+```
+
+## Security
+
+This project implements the following security measures:
+
+- **Row-Level Security (RLS)**: All database tables have RLS policies enabled
+- **Function Security**: Database functions use `SECURITY DEFINER` with fixed `search_path = 'public'`
+- **Password Protection**: (Requires manual activation) Enable "Check against leaked passwords" in Supabase Auth settings
+- **Private Storage**: Receipt files are stored in a private bucket with signed URLs
+- **JWT Verification**: All Edge Functions verify authentication tokens
 
 ## How can I deploy this project?
 
