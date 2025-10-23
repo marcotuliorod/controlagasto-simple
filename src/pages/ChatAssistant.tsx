@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Bot, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import MessageBubble from "@/components/chat/MessageBubble";
 import SuggestedQuestions from "@/components/chat/SuggestedQuestions";
 import ChatInput from "@/components/chat/ChatInput";
@@ -69,7 +68,10 @@ export default function ChatAssistant() {
 
         {/* Messages Area */}
         <Card className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <div 
+            ref={scrollRef}
+            className="flex-1 p-4 overflow-y-auto"
+          >
             {!hasMessages ? (
               <div className="h-full flex flex-col items-center justify-center gap-8">
                 <div className="text-center space-y-2">
@@ -108,7 +110,7 @@ export default function ChatAssistant() {
                 )}
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Input Area */}
           <div className="p-4 border-t">
