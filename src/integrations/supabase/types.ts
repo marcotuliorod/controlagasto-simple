@@ -255,6 +255,80 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_questions: {
+        Row: {
+          category: string
+          correct_answer: string
+          created_at: string
+          difficulty: string
+          explanation: string
+          id: string
+          options: Json
+          points: number
+          question: string
+        }
+        Insert: {
+          category: string
+          correct_answer: string
+          created_at?: string
+          difficulty: string
+          explanation: string
+          id?: string
+          options: Json
+          points?: number
+          question: string
+        }
+        Update: {
+          category?: string
+          correct_answer?: string
+          created_at?: string
+          difficulty?: string
+          explanation?: string
+          id?: string
+          options?: Json
+          points?: number
+          question?: string
+        }
+        Relationships: []
+      }
+      quiz_responses: {
+        Row: {
+          completed_at: string
+          id: string
+          is_correct: boolean
+          points_earned: number
+          question_id: string
+          user_answer: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          is_correct: boolean
+          points_earned?: number
+          question_id: string
+          user_answer: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          is_correct?: boolean
+          points_earned?: number
+          question_id?: string
+          user_answer?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_content_progress: {
         Row: {
           completed: boolean
