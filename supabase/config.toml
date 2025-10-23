@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.notify-goal-threshold]
 verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = true
