@@ -55,14 +55,21 @@ export default function Reports() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log(`🔍 Relatórios: Buscando despesas de ${dateFrom} até ${dateTo}`);
+      // Calcular intervalo inclusivo-exclusivo (mais robusto)
+      const start = dateFrom || new Date(new Date().setDate(1)).toISOString().slice(0, 10);
+      const endDate = dateTo ? new Date(dateTo) : new Date();
+      endDate.setDate(endDate.getDate() + 1); // próximo dia (exclusivo)
+      const endExclusive = endDate.toISOString().slice(0, 10);
 
+      console.log(`🔍 Relatórios: Buscando despesas de ${start} até ${endExclusive} (exclusivo)`);
+
+      // LEFT JOIN para não perder despesas sem categoria, sem limites
       const { data, error } = await supabase
         .from("expenses")
-        .select("id, amount, date, merchant, categories(id, name, icon)")
+        .select("id, amount, date, merchant, payment_method, category_id, categories:categories!left(id, name, icon)")
         .eq("user_id", user.id)
-        .gte("date", dateFrom)
-        .lte("date", dateTo)
+        .gte("date", start)
+        .lt("date", endExclusive)
         .order("date", { ascending: false });
 
       if (error) {
@@ -72,9 +79,9 @@ export default function Reports() {
 
       console.log(`✅ Relatórios: ${data?.length || 0} despesas encontradas`);
 
-      const formattedData: ExpenseData[] = data.map((exp: any) => ({
+      const formattedData: ExpenseData[] = (data || []).map((exp: any) => ({
         id: exp.id,
-        amount: Number(exp.amount),
+        amount: Number(exp.amount || 0),
         date: exp.date,
         merchant: exp.merchant || "Sem estabelecimento",
         category: {

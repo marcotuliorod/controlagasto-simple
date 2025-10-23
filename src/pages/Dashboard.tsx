@@ -72,8 +72,7 @@ export default function Dashboard() {
           table: 'expenses'
         },
         (payload) => {
-          console.log('Expense changed:', payload);
-          // Recarregar dados quando houver mudança
+          console.log('🔄 Dashboard: Despesa alterada, recarregando...', payload);
           loadData();
         }
       )
@@ -107,17 +106,14 @@ export default function Dashboard() {
         setUserName(profile.name);
       }
 
-      // Carregar meta do mês corrente
+      // Calcular intervalo do mês atual (inclusivo no início, exclusivo no fim)
       const now = new Date();
-      const currentMonth = now.toISOString().slice(0, 7);
-      
-      // Calcular primeiro e último dia do mês corretamente
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const dateFrom = firstDay.toISOString().split('T')[0];
-      const dateTo = lastDay.toISOString().split('T')[0];
-      
-      console.log(`🔍 Dashboard: Buscando despesas de ${dateFrom} até ${dateTo}`);
+      const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+      const monthStart = `${currentMonth}-01`;
+      const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const nextMonth = nextMonthDate.toISOString().slice(0, 10);
+
+      console.log(`🔍 Dashboard: Buscando despesas de ${monthStart} até ${nextMonth} (exclusivo)`);
       
       const { data: goal } = await supabase
         .from("monthly_goals")
@@ -127,24 +123,16 @@ export default function Dashboard() {
         .maybeSingle();
 
       if (goal) {
-        setMonthlyGoal(Number(goal.total_limit));
+        setMonthlyGoal(Number(goal.total_limit || 0));
       }
 
-      // Carregar TODAS as despesas do mês para cálculos corretos
+      // Carregar TODAS as despesas do mês com LEFT JOIN (não perder despesas sem categoria)
       const { data: allExpenses, error: expensesError } = await supabase
         .from("expenses")
-        .select(
-          `
-          id,
-          amount,
-          date,
-          merchant,
-          categories (name, icon, color)
-        `
-        )
+        .select("id, amount, date, merchant, category_id, categories:categories!left(id, name, icon, color)")
         .eq("user_id", user.id)
-        .gte("date", dateFrom)
-        .lte("date", dateTo)
+        .gte("date", monthStart)
+        .lt("date", nextMonth)
         .order("date", { ascending: false });
       
       if (expensesError) {
@@ -154,72 +142,52 @@ export default function Dashboard() {
       
       console.log(`✅ Dashboard: ${allExpenses?.length || 0} despesas encontradas no mês`);
 
-      // Carregar apenas as 5 mais recentes para exibição
-      const { data: recentExpensesData } = await supabase
-        .from("expenses")
-        .select(
-          `
-          id,
-          amount,
-          date,
-          merchant,
-          categories (name, icon, color)
-        `
-        )
-        .eq("user_id", user.id)
-        .gte("date", dateFrom)
-        .lte("date", dateTo)
-        .order("date", { ascending: false })
-        .limit(5);
+      // Calcular total do mês (garantir conversão numérica robusta)
+      const totalSpent = (allExpenses || []).reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+      console.log(`💰 Dashboard: Total calculado R$ ${totalSpent.toFixed(2)}`);
+      setTotalSpent(totalSpent);
 
-      if (recentExpensesData) {
-        const formattedExpenses = recentExpensesData.map((exp: any) => ({
-          id: exp.id,
-          amount: Number(exp.amount),
-          date: exp.date,
-          merchant: exp.merchant || "Sem estabelecimento",
-          category: {
-            name: exp.categories?.name || "Outros",
-            icon: exp.categories?.icon || "💰",
-            color: exp.categories?.color || "#10b981",
-          },
-        }));
-        setRecentExpenses(formattedExpenses);
-      }
+      // Separar as 5 mais recentes para exibição
+      const recentExpenses = (allExpenses || []).slice(0, 5);
+      const formattedExpenses = recentExpenses.map((exp: any) => ({
+        id: exp.id,
+        amount: Number(exp.amount || 0),
+        date: exp.date,
+        merchant: exp.merchant || "Sem estabelecimento",
+        category: {
+          name: exp.categories?.name || "Outros",
+          icon: exp.categories?.icon || "💰",
+          color: exp.categories?.color || "#10b981",
+        },
+      }));
+      setRecentExpenses(formattedExpenses);
 
-      // Calcular total usando TODAS as despesas do mês
-      if (allExpenses && allExpenses.length > 0) {
-        const total = allExpenses.reduce((sum: number, exp: any) => sum + Number(exp.amount), 0);
-        setTotalSpent(total);
-        console.log(`💰 Dashboard: Total calculado R$ ${total.toFixed(2)}`);
+      // Agrupar por categoria (usando TODAS as despesas do mês, sem limites)
+      const categoryMap = new Map<string, CategoryTotal>();
+      
+      (allExpenses || []).forEach(exp => {
+        const cat = exp.categories || { name: "Outros", icon: "💰", color: "#10b981" };
+        const key = cat.name;
+        
+        if (!categoryMap.has(key)) {
+          categoryMap.set(key, { 
+            name: cat.name, 
+            icon: cat.icon, 
+            color: cat.color || "#10b981", 
+            total: 0 
+          });
+        }
+        
+        const current = categoryMap.get(key)!;
+        current.total += Number(exp.amount || 0);
+      });
 
-        // Calcular categorias usando TODAS as despesas
-        const catMap = new Map<string, CategoryTotal>();
-        allExpenses.forEach((exp: any) => {
-          const cat = exp.categories;
-          const key = cat?.name || "Outros";
-          if (catMap.has(key)) {
-            catMap.get(key)!.total += Number(exp.amount);
-          } else {
-            catMap.set(key, {
-              name: cat?.name || "Outros",
-              icon: cat?.icon || "💰",
-              color: cat?.color || "#10b981",
-              total: Number(exp.amount),
-            });
-          }
-        });
+      const categoryData = Array.from(categoryMap.values())
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 3);
 
-        const sorted = Array.from(catMap.values())
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 3);
-        setCategoryTotals(sorted);
-        console.log(`📊 Dashboard: ${sorted.length} categorias calculadas`);
-      } else {
-        setTotalSpent(0);
-        setCategoryTotals([]);
-        console.log("ℹ️ Dashboard: Nenhuma despesa encontrada no mês");
-      }
+      setCategoryTotals(categoryData);
+      console.log(`📊 Dashboard: ${categoryData.length} categorias calculadas`);
 
       // Carregar notificações não lidas
       const { data: notifs } = await supabase

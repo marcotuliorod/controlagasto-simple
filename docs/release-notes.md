@@ -1,5 +1,64 @@
 # Release Notes - Entenda seus Gastos
 
+## v5.0.0 - Correção Completa de Totalização (Revisão Lovable v4) 🎯
+**Data de Lançamento:** 23 de Outubro de 2025
+
+### 🎯 Objetivo
+Garantir que **100% das despesas** do usuário autenticado sejam contabilizadas corretamente em Dashboard, Relatórios e Exportação, sem perdas por filtros incorretos, joins ou conversões numéricas.
+
+### 🔧 Correções Críticas
+
+#### Dashboard
+- **Filtro de data corrigido**: Agora usa intervalo inclusivo-exclusivo (`monthStart` até `nextMonth`), eliminando bug que ignorava despesas em meses curtos ou longos
+- **LEFT JOIN implementado**: `categories:categories!left` garante que despesas sem categoria sejam incluídas
+- **Conversão numérica robusta**: `Number(exp.amount || 0)` aplicado consistentemente antes de somar
+- **Sem limites indevidos**: Todas as despesas do mês são consideradas no cálculo (não apenas as 5 recentes exibidas)
+- **Logs detalhados**: Console mostra intervalo de busca, quantidade de despesas e total calculado
+
+#### Relatórios
+- **Intervalo inclusivo-exclusivo**: `start` até `endExclusive` (dia seguinte ao `dateTo`), alinhado com export-data
+- **LEFT JOIN implementado**: Mantém despesas sem categoria no resultado
+- **Agregações otimizadas**: Conversão `Number(exp.amount || 0)` em todos os cálculos de KPIs
+- **Sem filtros prematuros**: Categoria só é filtrada após carregamento completo dos dados
+- **Logs de diagnóstico**: Console exibe período real de busca e total calculado
+
+#### Edge Function (export-data)
+- **Alinhamento com UI**: Usa o mesmo modelo inclusivo-exclusivo (`from` até `endExclusive`)
+- **LEFT JOIN implementado**: `categories:categories!left` evita perda de registros
+- **Conversão numérica**: `Number(exp.amount || 0)` garante cálculo correto do summary
+- **Logs de auditoria**: Console registra período e quantidade de despesas exportadas
+
+### 🧪 Testes de Consistência
+
+#### Cenário A - Mês Atual
+- ✅ Dashboard soma 100% das despesas do mês corrente
+- ✅ Progresso da meta reflete total real
+
+#### Cenário B - Faixa Multi-Mês
+- ✅ Relatórios somam todas as despesas do período selecionado
+- ✅ KPIs (total, média, contagem) batem com dados do banco
+- ✅ Gráficos (pizza, barras) usam dataset completo
+
+#### Cenário C - Categoria Filtrada
+- ✅ Filtro por categoria mantém precisão nos totais
+
+#### Cenário D - Exportação
+- ✅ CSV/JSON exportados têm valores idênticos aos da UI
+- ✅ Summary (total_expenses, total_amount) confere com tela
+
+### 📊 Impacto
+- **Precisão**: 100% das despesas agora são contabilizadas
+- **Consistência**: Dashboard, Relatórios e Exportação exibem valores idênticos
+- **Confiabilidade**: Usuários podem confiar nos totais e gráficos
+- **Performance**: Otimizações com conversões numéricas adequadas
+
+### 🔒 Segurança Mantida
+- RLS ativo: `user_id = auth.uid()` em todas as queries
+- LEFT JOIN não compromete isolamento entre usuários
+- Edge Functions com `verify_jwt: true`
+
+---
+
 ## v4.0.0 - Correção de Consistência de Dados 🔧
 **Data de Lançamento:** 22 de Outubro de 2025
 

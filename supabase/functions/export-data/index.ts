@@ -29,20 +29,30 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Usuário não encontrado");
 
-    console.log(`Exportando dados do usuário ${user.id} de ${from} a ${to}`);
+    // Calcular endExclusive (alinhar com UI: inclusivo-exclusivo)
+    let endExclusive = null;
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setDate(toDate.getDate() + 1);
+      endExclusive = toDate.toISOString().slice(0, 10);
+    }
 
-    // Get expenses with categories
+    console.log(`📦 Export: Buscando despesas de ${from} até ${endExclusive || 'hoje'} (exclusivo)`);
+
+    // LEFT JOIN para não perder despesas sem categoria, sem limites
     let query = supabase
       .from("expenses")
-      .select("*, categories(*)")
+      .select("*, categories:categories!left(*)")
       .eq("user_id", user.id)
       .order("date", { ascending: false });
 
     if (from) query = query.gte("date", from);
-    if (to) query = query.lte("date", to);
+    if (endExclusive) query = query.lt("date", endExclusive);
 
     const { data: expenses, error } = await query;
     if (error) throw error;
+
+    console.log(`✅ Export: ${expenses?.length || 0} despesas encontradas`);
 
     // Get profile for additional context
     const { data: profile } = await supabase
@@ -69,7 +79,7 @@ serve(async (req) => {
       })),
       summary: {
         total_expenses: expenses.length,
-        total_amount: expenses.reduce((sum, exp) => sum + Number(exp.amount), 0),
+        total_amount: expenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0),
       },
     };
 
