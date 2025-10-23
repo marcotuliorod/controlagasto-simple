@@ -26,6 +26,24 @@ serve(async (req) => {
     // Extract token from "Bearer <token>"
     const token = authHeader.replace("Bearer ", "");
     
+    // Decode JWT to extract userId from 'sub' claim
+    let userId: string;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) throw new Error("Invalid JWT format");
+      
+      // Decode the payload (second part)
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      userId = payload.sub;
+      
+      console.log(`✅ JWT decoded successfully. User ID: ${userId}`);
+      
+      if (!userId) throw new Error("Missing 'sub' claim in JWT");
+    } catch (decodeError) {
+      console.error("❌ Failed to decode JWT:", decodeError);
+      throw new Error("Token inválido");
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { 
         headers: { Authorization: authHeader }
@@ -34,9 +52,6 @@ serve(async (req) => {
         persistSession: false,
       }
     });
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Usuário não encontrado");
 
     // Calcular endExclusive (alinhar com UI: inclusivo-exclusivo)
     let endExclusive = null;
@@ -52,7 +67,7 @@ serve(async (req) => {
     let query = supabase
       .from("expenses")
       .select("*, categories:categories!left(*)")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("date", { ascending: false });
 
     if (from) query = query.gte("date", from);
@@ -67,13 +82,13 @@ serve(async (req) => {
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     // Prepare data for export
     const exportData = {
       user: {
-        email: user.email,
+        email: profile?.name || "User",
         name: profile?.name,
         monthly_goal: profile?.monthly_goal,
       },
