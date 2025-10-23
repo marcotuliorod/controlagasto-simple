@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { VapidKeyGenerator } from "@/components/VapidKeyGenerator";
 import { toast } from "sonner";
 
 export default function Settings() {
@@ -31,8 +30,6 @@ export default function Settings() {
           Gerencie suas preferências e configurações do app
         </p>
       </div>
-
-      <VapidKeyGenerator />
 
       <Card>
         <CardHeader>

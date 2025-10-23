@@ -82,32 +82,39 @@ Deno.serve(async (req) => {
     // Get environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-    const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-    const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:noreply@example.com";
 
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Missing Supabase credentials");
       throw new Error("Missing Supabase credentials");
     }
 
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("Missing VAPID keys - Please configure VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY secrets");
+    // Initialize Supabase client with service role key
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get VAPID keys from database
+    const { data: vapidKeys, error: vapidError } = await supabase
+      .from("vapid_keys")
+      .select("public_key, private_key")
+      .single();
+
+    if (vapidError || !vapidKeys) {
+      console.error("VAPID keys not found in database:", vapidError);
       return new Response(
         JSON.stringify({ 
           error: "VAPID keys not configured",
-          message: "Please generate and configure VAPID keys in Settings" 
+          message: "Push notifications are not set up yet. They will be configured automatically when needed." 
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const vapidPublicKey = vapidKeys.public_key;
+    const vapidPrivateKey = vapidKeys.private_key;
+    const vapidSubject = "mailto:noreply@example.com";
+
     // Parse request body
     const payload: NotificationPayload = await req.json();
     console.log("Sending push notification to user:", payload.user_id);
-
-    // Initialize Supabase client with service role key
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get all push subscriptions for the user
     const { data: subscriptions, error: fetchError } = await supabase
