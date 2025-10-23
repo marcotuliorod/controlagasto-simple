@@ -10,6 +10,16 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  optimizeDeps: {
+    include: ['next-themes'],
+  },
+  ssr: {
+    noExternal: ['next-themes'],
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
