@@ -24,6 +24,7 @@ export const useInsights = () => {
       return data;
     },
     staleTime: 1000 * 60 * 15, // Cache for 15 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus (expensive AI call)
     retry: 1,
   });
 };

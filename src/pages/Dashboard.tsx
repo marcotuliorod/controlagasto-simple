@@ -79,8 +79,6 @@ export default function Dashboard() {
       // Get current billing cycle - memoize to prevent recreating loadData
       const billingCycle = getCurrentCycle();
       const { start: cycleStart, end: cycleEnd, label: cycleLabel } = billingCycle;
-
-      console.log(`🔍 Dashboard: Buscando despesas de ${cycleStart} até ${cycleEnd} (exclusivo)`);
       
       // 🚀 OTIMIZAÇÃO: Paralelizar queries independentes
       const [
@@ -124,24 +122,16 @@ export default function Dashboard() {
       ]);
 
       if (expensesError) {
-        console.error("❌ Erro ao buscar despesas:", expensesError);
+        console.error("Erro ao buscar despesas:", expensesError);
         throw expensesError;
       }
 
       // Processar resultados
-      if (profile) {
-        setUserName(profile.name);
-      }
+      if (profile) setUserName(profile.name);
+      if (goal) setMonthlyGoal(Number(goal.total_limit || 0));
 
-      if (goal) {
-        setMonthlyGoal(Number(goal.total_limit || 0));
-      }
-
-      console.log(`✅ Dashboard: ${allExpenses?.length || 0} despesas encontradas no mês`);
-
-      // Calcular total do mês (garantir conversão numérica robusta)
+      // Calcular total do mês
       const totalSpent = (allExpenses || []).reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
-      console.log(`💰 Dashboard: Total calculado R$ ${totalSpent.toFixed(2)}`);
       setTotalSpent(totalSpent);
 
       // Separar as 5 mais recentes para exibição
@@ -184,11 +174,7 @@ export default function Dashboard() {
         .slice(0, 3);
 
       setCategoryTotals(categoryData);
-      console.log(`📊 Dashboard: ${categoryData.length} categorias calculadas`);
-
-      if (notifs) {
-        setNotifications(notifs);
-      }
+      if (notifs) setNotifications(notifs);
     } catch (error: any) {
       toast.error("Erro ao carregar dados");
       console.error(error);

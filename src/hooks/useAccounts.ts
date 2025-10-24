@@ -39,6 +39,8 @@ export const useAccounts = () => {
       if (error) throw error;
       return data as Account[];
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes - accounts change rarely
+    refetchOnWindowFocus: false,
   });
 
   const { data: accountsWithBalance } = useQuery({
@@ -66,6 +68,7 @@ export const useAccounts = () => {
       return accountsWithBalances;
     },
     enabled: !!accounts,
+    staleTime: 1000 * 60 * 2, // 2 minutes - balances change more often
   });
 
   const createAccount = useMutation({
