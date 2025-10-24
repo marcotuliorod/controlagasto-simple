@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import BottomNav from "@/components/BottomNav";
 import FABAddExpense from "@/components/FABAddExpense";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -41,6 +42,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         {/* Floating Action Button */}
         <FABAddExpense />
+        
+        {/* Global Search (Cmd+K) */}
+        <GlobalSearch />
       </div>
     </SidebarProvider>
   );
