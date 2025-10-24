@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useBillingCycle } from "./useBillingCycle";
+import { useMemo } from "react";
 
 export interface CategoryGoal {
   id: string;
@@ -48,6 +49,7 @@ export function useCurrentMonthCategoryGoals() {
       if (error) throw error;
       return data as CategoryGoal[];
     },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 }
 

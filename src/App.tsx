@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { Loader2 } from "lucide-react";
 import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
@@ -46,7 +47,7 @@ const queryClient = new QueryClient({
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    <Loader2 className="h-12 w-12 animate-spin text-primary" />
   </div>
 );
 

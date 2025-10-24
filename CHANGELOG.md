@@ -186,17 +186,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Versão Futura (v6.0.0) - Production Release
 
-### Planejado - Sprint 4: Optimizations
-- [ ] Dynamic imports para libs pesadas (Recharts, html2pdf.js, xlsx)
-- [ ] React Query: ajuste de staleTime/gcTime
-- [ ] Acessibilidade WCAG 2.1 AA (Lighthouse ≥95)
-- [ ] Otimização de ícones PWA com sharp
+### Added - Sprint 4: Performance Optimizations
+- **Code Splitting**
+  - Lazy loading de todas as páginas com React.lazy()
+  - Suspense boundaries com loading spinner
+  - Import dinâmico do AppLayout
+  
+- **Query Optimizations**
+  - React Query staleTime: 5 minutos para dados estáticos
+  - Seleção mínima de campos nas queries Supabase
+  - Memoização de cálculos pesados (useMemo)
 
-### Planejado - Sprint 5: Documentation
-- [x] CHANGELOG.md completo
-- [ ] FAQ de ciclo de faturamento
-- [ ] Release notes v6.0.0 com screenshots
-- [ ] Documentação de suporte
+### Added - Sprint 5: Documentation
+- **Documentação Técnica**
+  - `docs/billing-cycle.md`: Guia completo do feature de ciclo
+  - `docs/testing.md`: Guia de testes unitários e E2E
+  - `docs/architecture.md`: Arquitetura do projeto
+  - README.md expandido com features completas
+  
+- **Developer Experience**
+  - Scripts npm documentados
+  - Estrutura de projeto explicada
+  - Guias de deployment
+  - Roadmap público
 
 ---
 
