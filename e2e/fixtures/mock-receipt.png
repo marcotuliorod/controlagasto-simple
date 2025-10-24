@@ -1,0 +1,3 @@
+// This is a placeholder for a mock receipt image
+// In a real test environment, this would be a binary PNG file
+// For now, tests will handle the missing file gracefully
