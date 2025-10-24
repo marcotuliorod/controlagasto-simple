@@ -64,13 +64,42 @@ serve(async (req) => {
 
         console.log(`Usuário ${goal.user_id}: gastou R$ ${spent} de R$ ${limit} (${(ratio * 100).toFixed(1)}%)`);
 
-        // Se atingiu 80% ou mais, criar notificação
-        if (ratio >= 0.8) {
+        // Determinar tipo de notificação baseado na porcentagem
+        let notifType = '';
+        let notifTitle = '';
+        let notifBody = '';
+        let shouldNotify = false;
+
+        if (ratio >= 1.0) {
+          // 100% ou mais - Meta atingida/ultrapassada
+          notifType = 'GOAL_100';
+          notifTitle = '🎯 Meta Atingida!';
+          notifBody = `Você atingiu 100% do seu limite mensal! Total gasto: R$ ${spent.toFixed(2)} de R$ ${limit.toFixed(2)}`;
+          shouldNotify = true;
+        } else if (ratio >= 0.8) {
+          // 80% - Alerta de proximidade
+          notifType = 'GOAL_80';
+          notifTitle = '⚠️ Alerta de Meta';
+          notifBody = `Você atingiu ${Math.round(ratio * 100)}% do seu limite mensal (R$ ${spent.toFixed(2)} de R$ ${limit.toFixed(2)})`;
+          shouldNotify = true;
+        } else if (ratio < 0.8 && spent > 0) {
+          // Economia - Gastou menos de 80%
+          const savedPercentage = Math.round((1 - ratio) * 100);
+          if (savedPercentage >= 20) {
+            notifType = 'GOAL_ECONOMY';
+            notifTitle = '💰 Parabéns!';
+            notifBody = `Você economizou ${savedPercentage}% do seu orçamento este mês! Continue assim!`;
+            shouldNotify = true;
+          }
+        }
+
+        // Se deve notificar, criar notificação
+        if (shouldNotify) {
           const { error: notifError } = await supabase
             .from('notifications')
             .insert({
               user_id: goal.user_id,
-              type: 'GOAL_80',
+              type: notifType,
               ref_month: currentMonth,
               payload: {
                 month: currentMonth,
@@ -87,20 +116,20 @@ serve(async (req) => {
             console.error(`Erro ao criar notificação para ${goal.user_id}:`, notifError);
           } else if (!notifError) {
             notificationsCreated++;
-            console.log(`✅ Notificação criada para usuário ${goal.user_id}`);
+            console.log(`✅ Notificação ${notifType} criada para usuário ${goal.user_id}`);
             
             // Enviar push notification
             try {
               await supabase.functions.invoke('send-push-notification', {
                 body: {
                   userId: goal.user_id,
-                  title: '⚠️ Alerta de Meta',
-                  body: `Você atingiu ${Math.round(ratio * 100)}% do seu limite mensal (R$ ${spent.toFixed(2)} de R$ ${limit.toFixed(2)})`,
+                  title: notifTitle,
+                  body: notifBody,
                   url: '/',
-                  tag: `goal-threshold-${currentMonth}`,
+                  tag: `goal-${notifType}-${currentMonth}`,
                   icon: '/icon-192.png',
                   badge: '/icon-192.png',
-                  requireInteraction: true,
+                  requireInteraction: ratio >= 0.8, // Apenas alertas críticos requerem interação
                 }
               });
               console.log(`📱 Push notification enviada para usuário ${goal.user_id}`);
@@ -108,7 +137,7 @@ serve(async (req) => {
               console.error(`Erro ao enviar push para ${goal.user_id}:`, pushError);
             }
           } else {
-            console.log(`ℹ️ Notificação já existe para usuário ${goal.user_id}`);
+            console.log(`ℹ️ Notificação ${notifType} já existe para usuário ${goal.user_id}`);
           }
         }
       } catch (userError) {

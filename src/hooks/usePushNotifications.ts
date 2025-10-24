@@ -177,11 +177,53 @@ export function usePushNotifications() {
     }
   };
 
+  const sendTestNotification = async () => {
+    if (!isSubscribed) {
+      toast.error("Ative as notificações primeiro");
+      return { success: false };
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Você precisa estar logado");
+        return { success: false };
+      }
+
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
+        body: {
+          userId: user.id,
+          title: "🎉 Notificação de Teste",
+          body: "Suas notificações estão funcionando perfeitamente!",
+          url: "/settings",
+          tag: "test-notification",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`✅ Notificação enviada! (${data.sent} dispositivo(s))`);
+      
+      if (data.removed > 0) {
+        toast.info(`${data.removed} inscrição(ões) inválida(s) removida(s)`);
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error("Error sending test notification:", error);
+      toast.error("Erro ao enviar notificação: " + error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
   return {
     isSupported,
     isSubscribed,
     subscribe,
     unsubscribe,
+    sendTestNotification,
   };
 }
 

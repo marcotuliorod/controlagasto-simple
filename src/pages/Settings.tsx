@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Download, Send, Share } from "lucide-react";
+import { Bell, Download, Send, Share, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -7,9 +7,10 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { usePWAInstall } from "@/providers/PWAInstallProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import PushOnboarding from "@/components/PushOnboarding";
 
 export default function Settings() {
-  const { isSupported, isSubscribed, subscribe, unsubscribe } = usePushNotifications();
+  const { isSupported, isSubscribed, subscribe, unsubscribe, sendTestNotification } = usePushNotifications();
   const { canInstall, isIOS, isStandalone, requestInstall, diagnostics } = usePWAInstall();
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [swStatus, setSwStatus] = useState<'checking' | 'active' | 'error'>('checking');
@@ -43,45 +44,26 @@ export default function Settings() {
   };
 
   const handleSendTestNotification = async () => {
-    if (!isSubscribed) {
-      toast.error("Ative as notificações primeiro");
-      return;
-    }
-
     setIsSendingTest(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Você precisa estar logado");
-        return;
-      }
+    await sendTestNotification();
+    setIsSendingTest(false);
+  };
 
-      const { data, error } = await supabase.functions.invoke("send-push-notification", {
-        body: {
-          user_id: user.id,
-          title: "🎉 Notificação de Teste",
-          body: "Suas notificações estão funcionando perfeitamente!",
-          url: "/settings",
-        },
-      });
+  const handleActivateNotifications = async () => {
+    await subscribe();
+  };
 
-      if (error) throw error;
-
-      toast.success(`✅ Notificação enviada! (${data.sent} dispositivo(s))`);
-      
-      if (data.removed > 0) {
-        toast.info(`${data.removed} inscrição(ões) inválida(s) removida(s)`);
-      }
-    } catch (error: any) {
-      console.error("Error sending test notification:", error);
-      toast.error("Erro ao enviar notificação: " + error.message);
-    } finally {
-      setIsSendingTest(false);
-    }
+  const handleDismissOnboarding = () => {
+    toast.info("Você pode ativar as notificações mais tarde nas configurações");
   };
 
   return (
     <div className="container max-w-4xl py-6 space-y-6">
+      <PushOnboarding 
+        onActivate={handleActivateNotifications}
+        onDismiss={handleDismissOnboarding}
+      />
+      
       <div>
         <h1 className="text-3xl font-bold">Configurações</h1>
         <p className="text-muted-foreground mt-2">
@@ -126,16 +108,35 @@ export default function Settings() {
           )}
           
           {isSubscribed && (
-            <div className="pt-4 mt-4 border-t">
-              <Button
-                onClick={handleSendTestNotification}
-                disabled={isSendingTest}
-                variant="outline"
-                className="w-full"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {isSendingTest ? "Enviando..." : "Enviar Notificação de Teste"}
-              </Button>
+            <div className="space-y-4">
+              <div className="pt-4 mt-4 border-t">
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs font-semibold text-muted-foreground">Você receberá notificações sobre:</p>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span>Alerta ao atingir 80% da meta mensal</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span>Alerta ao atingir 100% da meta</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span>Parabéns quando economizar 20%+ do orçamento</span>
+                    </li>
+                  </ul>
+                </div>
+                <Button
+                  onClick={handleSendTestNotification}
+                  disabled={isSendingTest}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {isSendingTest ? "Enviando..." : "Enviar Notificação de Teste"}
+                </Button>
+              </div>
             </div>
           )}
 
