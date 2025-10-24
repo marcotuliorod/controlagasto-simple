@@ -17,7 +17,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AddExpense = lazy(() => import("./pages/AddExpense"));
 const Reports = lazy(() => import("./pages/Reports"));
-const Expenses = lazy(() => import("./pages/Expenses"));
+const ExpensesVirtualized = lazy(() => import("./pages/ExpensesVirtualized"));
 const EditExpense = lazy(() => import("./pages/EditExpense"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -76,7 +76,7 @@ const App = () => (
               {/* Authenticated routes with layout */}
               <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
               <Route path="/add-expense" element={<AppLayout><AddExpense /></AppLayout>} />
-              <Route path="/expenses" element={<AppLayout><Expenses /></AppLayout>} />
+              <Route path="/expenses" element={<AppLayout><ExpensesVirtualized /></AppLayout>} />
               <Route path="/expenses/:id/edit" element={<AppLayout><EditExpense /></AppLayout>} />
               <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />
               <Route path="/education" element={<AppLayout><Education /></AppLayout>} />
