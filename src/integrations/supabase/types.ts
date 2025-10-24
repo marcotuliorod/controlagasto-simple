@@ -272,11 +272,14 @@ export type Database = {
           created_at: string | null
           date: string
           id: string
+          is_transfer: boolean | null
           merchant: string | null
           notes: string | null
           payment_method: string | null
           receipt_url: string | null
           source: string
+          tags: string[] | null
+          transfer_to_account_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -287,11 +290,14 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          is_transfer?: boolean | null
           merchant?: string | null
           notes?: string | null
           payment_method?: string | null
           receipt_url?: string | null
           source?: string
+          tags?: string[] | null
+          transfer_to_account_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -302,11 +308,14 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          is_transfer?: boolean | null
           merchant?: string | null
           notes?: string | null
           payment_method?: string | null
           receipt_url?: string | null
           source?: string
+          tags?: string[] | null
+          transfer_to_account_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -323,6 +332,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_transfer_to_account_id_fkey"
+            columns: ["transfer_to_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -383,6 +399,42 @@ export type Database = {
           id?: string
           month?: string
           total_limit?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          budget_alert_threshold: number | null
+          created_at: string | null
+          expense_reminder_days: number | null
+          id: string
+          monthly_review_enabled: boolean | null
+          proactive_insights_enabled: boolean | null
+          spending_pattern_alert: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          budget_alert_threshold?: number | null
+          created_at?: string | null
+          expense_reminder_days?: number | null
+          id?: string
+          monthly_review_enabled?: boolean | null
+          proactive_insights_enabled?: boolean | null
+          spending_pattern_alert?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          budget_alert_threshold?: number | null
+          created_at?: string | null
+          expense_reminder_days?: number | null
+          id?: string
+          monthly_review_enabled?: boolean | null
+          proactive_insights_enabled?: boolean | null
+          spending_pattern_alert?: boolean | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -547,6 +599,147 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      recurring_expenses: {
+        Row: {
+          account_id: string | null
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          is_active: boolean | null
+          merchant: string
+          next_occurrence: string
+          notes: string | null
+          payment_method: string | null
+          start_date: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          end_date?: string | null
+          frequency: string
+          id?: string
+          is_active?: boolean | null
+          merchant: string
+          next_occurrence: string
+          notes?: string | null
+          payment_method?: string | null
+          start_date: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean | null
+          merchant?: string
+          next_occurrence?: string
+          notes?: string | null
+          payment_method?: string | null
+          start_date?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_expenses_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_filters: {
+        Row: {
+          created_at: string | null
+          filters: Json
+          id: string
+          is_favorite: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          filters: Json
+          id?: string
+          is_favorite?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          filters?: Json
+          id?: string
+          is_favorite?: boolean | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_exports: {
+        Row: {
+          created_at: string | null
+          filters: Json | null
+          format: string
+          frequency: string
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          name: string
+          next_run_at: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          filters?: Json | null
+          format: string
+          frequency: string
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name: string
+          next_run_at: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          filters?: Json | null
+          format?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_content_progress: {
         Row: {
