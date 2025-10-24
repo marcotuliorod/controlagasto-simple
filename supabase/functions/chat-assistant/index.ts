@@ -37,6 +37,34 @@ serve(async (req) => {
 
     const { message, conversationId } = await req.json();
 
+    // Input validation
+    if (!message || typeof message !== 'string') {
+      throw new Error('Invalid message format');
+    }
+    
+    const trimmedMessage = message.trim();
+    if (trimmedMessage.length === 0) {
+      throw new Error('Message cannot be empty');
+    }
+    
+    if (trimmedMessage.length > 4000) {
+      throw new Error('Message too long (max 4000 characters)');
+    }
+
+    // Rate limiting check: max 10 messages per minute per user
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+    const { count, error: countError } = await supabase
+      .from('chat_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('role', 'user')
+      .gte('created_at', oneMinuteAgo);
+    
+    if (countError) console.error('Rate limit check failed:', countError);
+    if (count && count >= 10) {
+      throw new Error('Rate limit exceeded. Please wait a minute before sending more messages.');
+    }
+
     // Get user context
     const [profileResult, expensesResult, goalsResult, scoreResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -144,7 +172,7 @@ Diretrizes importantes:
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
+          { role: 'user', content: trimmedMessage }
         ],
         temperature: 0.7,
         max_tokens: 800
@@ -169,7 +197,7 @@ Diretrizes importantes:
         .from('chat_conversations')
         .insert({
           user_id: user.id,
-          title: message.slice(0, 50) + (message.length > 50 ? '...' : '')
+          title: trimmedMessage.slice(0, 50) + (trimmedMessage.length > 50 ? '...' : '')
         })
         .select()
         .single();
@@ -183,7 +211,7 @@ Diretrizes importantes:
       conversation_id: finalConversationId,
       user_id: user.id,
       role: 'user',
-      content: message
+      content: trimmedMessage
     });
 
     // Save assistant message

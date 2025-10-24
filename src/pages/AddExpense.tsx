@@ -172,7 +172,24 @@ export default function AddExpense() {
 
       const expenseAmount = parseFloat(amount);
       if (isNaN(expenseAmount) || expenseAmount <= 0) {
-        throw new Error("Valor inválido");
+        throw new Error("Valor deve ser maior que zero");
+      }
+      if (expenseAmount > 999999.99) {
+        throw new Error("Valor máximo é R$ 999.999,99");
+      }
+
+      // Validate date (not in future, not more than 2 years old)
+      const selectedDate = new Date(date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      
+      if (selectedDate > today) {
+        throw new Error("Data não pode ser no futuro");
+      }
+      if (selectedDate < twoYearsAgo) {
+        throw new Error("Data não pode ser há mais de 2 anos");
       }
 
       const { error } = await supabase.from("expenses").insert({
@@ -231,16 +248,24 @@ export default function AddExpense() {
         <Card className="p-6 shadow-card">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="amount">Valor (R$) *</Label>
+              <Label htmlFor="amount" className="flex items-center gap-2">
+                Valor (R$) *
+              </Label>
               <Input
                 id="amount"
                 type="number"
                 step="0.01"
+                min="0.01"
+                max="999999.99"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+                aria-describedby="amount-help"
               />
+              <p id="amount-help" className="text-xs text-muted-foreground">
+                Valor máximo: R$ 999.999,99
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -250,15 +275,20 @@ export default function AddExpense() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                min={new Date(new Date().setFullYear(new Date().getFullYear() - 2)).toISOString().split("T")[0]}
                 max={new Date().toISOString().split("T")[0]}
                 required
+                aria-describedby="date-help"
               />
+              <p id="date-help" className="text-xs text-muted-foreground">
+                Apenas datas passadas (até 2 anos atrás)
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="category">Categoria</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
+                <SelectTrigger aria-describedby="category-help">
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -272,12 +302,15 @@ export default function AddExpense() {
                   ))}
                 </SelectContent>
               </Select>
+              <p id="category-help" className="text-xs text-muted-foreground">
+                Ajuda a organizar seus gastos por tipo
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="account">Conta</Label>
               <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger>
+                <SelectTrigger aria-describedby="account-help">
                   <SelectValue placeholder="Selecione uma conta" />
                 </SelectTrigger>
                 <SelectContent>
@@ -291,6 +324,9 @@ export default function AddExpense() {
                   ))}
                 </SelectContent>
               </Select>
+              <p id="account-help" className="text-xs text-muted-foreground">
+                Selecione de qual conta saiu o dinheiro
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -298,10 +334,15 @@ export default function AddExpense() {
               <Input
                 id="merchant"
                 type="text"
-                placeholder="Nome do estabelecimento"
+                maxLength={100}
+                placeholder="Ex: Supermercado Pão de Açúcar"
                 value={merchant}
                 onChange={(e) => setMerchant(e.target.value)}
+                aria-describedby="merchant-help"
               />
+              <p id="merchant-help" className="text-xs text-muted-foreground">
+                {merchant.length}/100 caracteres
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -323,11 +364,16 @@ export default function AddExpense() {
               <Label htmlFor="notes">Observações</Label>
               <Textarea
                 id="notes"
-                placeholder="Adicione observações..."
+                maxLength={1000}
+                placeholder="Adicione observações sobre esta despesa..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
+                aria-describedby="notes-help"
               />
+              <p id="notes-help" className="text-xs text-muted-foreground">
+                {notes.length}/1000 caracteres
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -335,8 +381,11 @@ export default function AddExpense() {
               <TagInput
                 tags={tags}
                 onChange={setTags}
-                placeholder="Adicionar tag..."
+                placeholder="Ex: viagem, trabalho, pessoal..."
               />
+              <p className="text-xs text-muted-foreground">
+                Organize suas despesas com tags personalizadas
+              </p>
             </div>
 
             {receiptPath && (
@@ -367,6 +416,8 @@ export default function AddExpense() {
                 className="flex-1"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isProcessingOCR}
+                title="Tire foto do recibo para extrair dados automaticamente"
+                aria-label="Capturar foto do cupom fiscal para preenchimento automático"
               >
                 {isProcessingOCR ? (
                   <>
