@@ -38,97 +38,135 @@ export const PWAInstallProvider = ({ children }: { children: ReactNode }) => {
   const [manifestDetected, setManifestDetected] = useState(false);
 
   useEffect(() => {
-    // Detect iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(iOS);
+    console.log('[PWAInstallProvider] 🚀 Iniciando detecção de PWA...');
     
-    // Check if already installed
-    const standalone = window.matchMedia('(display-mode: standalone)').matches;
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const iOS = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(iOS);
+    console.log('[PWAInstallProvider] 📱 iOS detectado:', iOS);
+
+    // Detect standalone mode
+    const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                      (window.navigator as any).standalone === true;
     setIsStandalone(standalone);
     setIsInstalled(standalone);
+    console.log('[PWAInstallProvider] 🖥️ Modo standalone:', standalone);
 
-    // Check Service Worker
+    // Check if Service Worker is ready
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready
-        .then(() => {
-          setSwReady(true);
-          if (import.meta.env.DEV) {
-            console.log('✅ [PWA] Service Worker ready');
-          }
-        })
-        .catch(() => setSwReady(false));
+      console.log('[PWAInstallProvider] 🔍 Verificando Service Worker...');
+      navigator.serviceWorker.ready.then((registration) => {
+        setSwReady(true);
+        console.log('[PWAInstallProvider] ✅ Service Worker pronto:', {
+          scope: registration.scope,
+          state: registration.active?.state,
+          scriptURL: registration.active?.scriptURL
+        });
+      }).catch((err) => {
+        console.warn('[PWAInstallProvider] ⚠️ Service Worker não está pronto:', err);
+      });
+
+      // Log current SW registration state
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration) {
+          console.log('[PWAInstallProvider] 📊 Registro SW atual:', {
+            installing: !!registration.installing,
+            waiting: !!registration.waiting,
+            active: !!registration.active,
+          });
+        } else {
+          console.warn('[PWAInstallProvider] ⚠️ Nenhum SW registrado ainda');
+        }
+      });
+    } else {
+      console.error('[PWAInstallProvider] ❌ Service Worker não suportado');
     }
 
-    // Check manifest
+    // Check if manifest is present
     const manifestLink = document.querySelector('link[rel="manifest"]');
-    setManifestDetected(!!manifestLink?.getAttribute('href'));
+    const hasManifest = !!manifestLink && !!(manifestLink as HTMLLinkElement).href;
+    setManifestDetected(hasManifest);
+    console.log('[PWAInstallProvider] 📄 Manifest detectado:', hasManifest, manifestLink);
 
-    // Capture beforeinstallprompt event
+    // Listen for beforeinstallprompt (Chrome, Edge, Samsung Internet)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      const promptEvent = e as BeforeInstallPromptEvent;
-      setDeferredPrompt(promptEvent);
-      
-      if (import.meta.env.DEV) {
-        console.log('✅ [PWA] Install prompt captured');
-      }
-    };
-
-    // Listen for app installed
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setIsStandalone(true);
-      setDeferredPrompt(null);
-      toast.success('App instalado com sucesso!');
-      
-      if (import.meta.env.DEV) {
-        console.log('✅ [PWA] App installed');
-      }
+      console.log('[PWAInstallProvider] 🎯 beforeinstallprompt capturado!', e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      toast.info('App pode ser instalado! Veja nas configurações.');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    console.log('[PWAInstallProvider] 👂 Listener "beforeinstallprompt" adicionado');
+
+    // Check if event was already fired (edge case)
+    setTimeout(() => {
+      if (!deferredPrompt && !standalone && !iOS) {
+        console.log('[PWAInstallProvider] ⏱️ 5s sem beforeinstallprompt. Possíveis causas:');
+        console.log('  - App já instalado');
+        console.log('  - Critérios não atendidos (HTTPS, manifest, SW, 2+ visitas)');
+        console.log('  - Browser não suporta (apenas Chrome/Edge/Samsung)');
+      }
+    }, 5000);
+
+    // Listen for appinstalled (user installed the PWA)
+    const handleAppInstalled = () => {
+      console.log('[PWAInstallProvider] 🎉 App foi instalado!');
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      toast.success('App instalado com sucesso! 🎉');
+    };
+
     window.addEventListener('appinstalled', handleAppInstalled);
+    console.log('[PWAInstallProvider] 👂 Listener "appinstalled" adicionado');
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      console.log('[PWAInstallProvider] 🧹 Listeners removidos');
     };
   }, []);
 
   const requestInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'unavailable'> => {
+    console.log('[PWAInstallProvider] 🎯 requestInstall chamado');
+    
     if (!deferredPrompt) {
-      if (import.meta.env.DEV) {
-        console.warn('⚠️ [PWA] No install prompt available');
-      }
+      console.warn('[PWAInstallProvider] ⚠️ Nenhum prompt de instalação disponível');
+      console.log('[PWAInstallProvider] 📊 Estado atual:', {
+        deferredPrompt: !!deferredPrompt,
+        isStandalone,
+        isIOS,
+        swReady,
+        manifestDetected
+      });
       return 'unavailable';
     }
 
     try {
-      if (import.meta.env.DEV) {
-        console.log('📱 [PWA] Showing install prompt');
-      }
-
-      await deferredPrompt.prompt();
+      console.log('[PWAInstallProvider] 📢 Mostrando prompt de instalação...');
+      deferredPrompt.prompt();
+      
       const { outcome } = await deferredPrompt.userChoice;
-
-      if (import.meta.env.DEV) {
-        console.log(`📱 [PWA] User choice: ${outcome}`);
-      }
-
+      console.log('[PWAInstallProvider] 👤 Escolha do usuário:', outcome);
+      
       if (outcome === 'accepted') {
-        toast.success('App instalado com sucesso!');
+        console.log('[PWAInstallProvider] ✅ Usuário aceitou a instalação');
         setIsInstalled(true);
-        setDeferredPrompt(null);
+        toast.success('App instalado! Abra pela tela inicial.');
       } else {
-        toast.info('Instalação cancelada');
+        console.log('[PWAInstallProvider] ❌ Usuário recusou a instalação');
+        toast.info('Você pode instalar depois nas configurações.');
       }
-
+      
+      setDeferredPrompt(null);
       return outcome;
-    } catch (error) {
-      console.error('❌ [PWA] Error showing install prompt:', error);
+    } catch (err) {
+      console.error('[PWAInstallProvider] ❌ Erro ao solicitar instalação:', err);
+      toast.error('Erro ao instalar. Tente novamente.');
       return 'unavailable';
     }
-  }, [deferredPrompt]);
+  }, [deferredPrompt, isStandalone, isIOS, swReady, manifestDetected]);
 
   const resetDismiss = useCallback(() => {
     localStorage.removeItem('pwa-install-dismissed');

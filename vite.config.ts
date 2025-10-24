@@ -41,27 +41,43 @@ export default defineConfig(({ mode }) => ({
         name: 'Entenda seus Gastos',
         short_name: 'Meus Gastos',
         description: 'Controle suas finanças pessoais de forma inteligente com notificações',
+        lang: 'pt-BR',
+        dir: 'ltr',
         theme_color: '#3B82F6',
         background_color: '#0B1220',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'portrait-primary',
         scope: '/',
-        start_url: '/',
+        start_url: '/?source=pwa',
+        prefer_related_applications: false,
         icons: [
           {
             src: '/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
           },
           {
             src: '/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ],
         categories: ['finance', 'productivity'],
+        screenshots: [],
       },
       devOptions: {
         enabled: true,

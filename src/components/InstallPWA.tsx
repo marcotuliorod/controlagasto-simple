@@ -34,9 +34,14 @@ export default function InstallPWA() {
   };
 
   const handleInstall = async () => {
-    const outcome = await requestInstall();
-    if (outcome === 'accepted') {
+    console.log('[InstallPWA] Botão "Instalar" clicado');
+    const result = await requestInstall();
+    console.log('[InstallPWA] Resultado da instalação:', result);
+    if (result === 'accepted') {
       setShowCard(false);
+    } else if (result === 'unavailable') {
+      // Se não houver prompt, mostrar instruções alternativas
+      console.log('[InstallPWA] Prompt não disponível, mostrando fallback');
     }
   };
 

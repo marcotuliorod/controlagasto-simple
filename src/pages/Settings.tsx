@@ -178,50 +178,117 @@ export default function Settings() {
                 <li>Economizar dados móveis</li>
               </ul>
 
-              {isIOS ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">
-                    Para instalar no iOS:
-                  </p>
-                  <ol className="text-xs space-y-1 text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <span className="font-semibold">1.</span>
-                      Toque no ícone <Share className="inline h-3 w-3" />
-                    </li>
-                    <li>
-                      <span className="font-semibold">2.</span> Toque em "Adicionar à Tela de Início"
-                    </li>
-                    <li>
-                      <span className="font-semibold">3.</span> Toque em "Adicionar"
-                    </li>
-                  </ol>
-                </div>
-              ) : canInstall ? (
-                <Button onClick={handleInstallPrompt} variant="outline" className="w-full">
-                  <Download className="mr-2 h-4 w-4" />
-                  Instalar Agora
-                </Button>
-              ) : (
-                <div className="space-y-2">
-                  <Button onClick={handleInstallPrompt} variant="outline" className="w-full" disabled>
-                    <Download className="mr-2 h-4 w-4" />
-                    Instalação não disponível
-                  </Button>
-                  {import.meta.env.DEV && (
-                    <div className="text-xs text-muted-foreground space-y-1 p-2 bg-muted/50 rounded">
-                      <p className="font-semibold">Diagnóstico:</p>
-                      <ul className="space-y-0.5">
-                        <li>• SW: {diagnostics.swReady ? '✓ Ativo' : '✗ Inativo'}</li>
-                        <li>• Manifest: {diagnostics.manifestDetected ? '✓ Detectado' : '✗ Não encontrado'}</li>
-                        <li>• Prompt: {canInstall ? '✓ Disponível' : '✗ Indisponível'}</li>
-                      </ul>
-                      <p className="mt-2">
-                        Dica: Visite o app 2x e aguarde ~30s para o navegador oferecer a instalação.
+              {/* PWA Install */}
+              <Card className="border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Download className="h-4 w-4 text-primary" />
+                    Instalação do App
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {isStandalone ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                        App já está instalado
+                      </span>
+                    </div>
+                  ) : isIOS ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Para instalar no iOS:
+                      </p>
+                      <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                        <li>Toque no botão de compartilhar (ícone de quadrado com seta)</li>
+                        <li>Role para baixo e toque em "Adicionar à Tela de Início"</li>
+                        <li>Toque em "Adicionar" para confirmar</li>
+                      </ol>
+                      <p className="text-xs text-muted-foreground pt-2">
+                        💡 Após instalar, abra o app pela tela inicial para a melhor experiência.
+                      </p>
+                    </div>
+                  ) : canInstall ? (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={handleInstallPrompt}
+                        className="w-full"
+                        variant="default"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Instalar Agora
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Instale o app para acesso rápido e uso offline
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Instalação ainda não disponível. Verifique:
+                        </p>
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          <li>✓ Use Chrome, Edge ou Samsung Internet</li>
+                          <li>✓ Visite o app pelo menos 2 vezes</li>
+                          <li>✓ Aguarde alguns segundos na página</li>
+                          <li>✓ Conexão HTTPS ativa</li>
+                        </ul>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center pt-1">
+                        💡 Dica: Tente recarregar a página ou adicionar aos favoritos do navegador
                       </p>
                     </div>
                   )}
-                </div>
-              )}
+                  
+                  {import.meta.env.DEV && diagnostics && (
+                    <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t mt-3">
+                      <p className="font-semibold">🔧 Debug Info (Dev Only):</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        <p>• SW Ready:</p>
+                        <p className={diagnostics.swReady ? 'text-green-500' : 'text-red-500'}>
+                          {diagnostics.swReady ? '✓ Sim' : '✗ Não'}
+                        </p>
+                        <p>• Manifest:</p>
+                        <p className={diagnostics.manifestDetected ? 'text-green-500' : 'text-red-500'}>
+                          {diagnostics.manifestDetected ? '✓ Sim' : '✗ Não'}
+                        </p>
+                        <p>• Can Install:</p>
+                        <p className={canInstall ? 'text-green-500' : 'text-red-500'}>
+                          {canInstall ? '✓ Sim' : '✗ Não'}
+                        </p>
+                        <p>• Standalone:</p>
+                        <p className={isStandalone ? 'text-green-500' : 'text-muted-foreground'}>
+                          {isStandalone ? '✓ Sim' : '- Não'}
+                        </p>
+                        <p>• iOS:</p>
+                        <p className={isIOS ? 'text-blue-500' : 'text-muted-foreground'}>
+                          {isIOS ? '✓ Sim' : '- Não'}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          console.log('=== PWA DIAGNOSTIC REPORT ===');
+                          console.log('User Agent:', navigator.userAgent);
+                          console.log('Standalone:', isStandalone);
+                          console.log('iOS:', isIOS);
+                          console.log('Can Install:', canInstall);
+                          console.log('Diagnostics:', diagnostics);
+                          console.log('SW Registration:', navigator.serviceWorker?.controller);
+                          console.log('Manifest:', document.querySelector('link[rel="manifest"]'));
+                          console.log('==============================');
+                          toast.success('Diagnóstico completo no console');
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                      >
+                        📋 Log Diagnóstico Completo
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
         </CardContent>
