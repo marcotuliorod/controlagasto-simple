@@ -51,8 +51,10 @@ export default function DeleteAccount() {
             variant="ghost"
             size="icon"
             onClick={() => navigate("/dashboard")}
+            aria-label="Voltar para o dashboard"
+            title="Voltar"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Button>
           <h1 className="text-3xl font-bold">Excluir Conta</h1>
         </div>

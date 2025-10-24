@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,9 +29,10 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
 
-export default function Expenses() {
+export default function ExpensesVirtualized() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const parentRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedPayment, setSelectedPayment] = useState<string>("all");
@@ -97,13 +99,21 @@ export default function Expenses() {
     },
   });
 
-  // ✅ Hook centralizado para Realtime (evita WebSocket errors)
+  // ⚡ Virtual scrolling configuration
+  const rowVirtualizer = useVirtualizer({
+    count: expenses.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 96, // Height of each expense card (~96px)
+    overscan: 5, // Render 5 extra items for smooth scrolling
+  });
+
+  // ✅ Hook centralizado para Realtime
   const invalidateExpenses = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["expenses"] });
   }, [queryClient]);
 
   useExpensesRealtime({
-    channelName: 'expenses-list',
+    channelName: 'expenses-list-virtualized',
     onUpdate: invalidateExpenses,
   });
 
@@ -137,31 +147,34 @@ export default function Expenses() {
         <Card className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
+                aria-label="Buscar despesas"
               />
             </div>
 
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filtrar por categoria">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
-                    {cat.icon} {cat.name}
+                    <span aria-label={`Categoria ${cat.name}`}>
+                      {cat.icon} {cat.name}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
             <Select value={selectedPayment} onValueChange={setSelectedPayment}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filtrar por forma de pagamento">
                 <SelectValue placeholder="Pagamento" />
               </SelectTrigger>
               <SelectContent>
@@ -178,6 +191,7 @@ export default function Expenses() {
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               placeholder="De"
+              aria-label="Data inicial"
             />
 
             <Input
@@ -185,82 +199,115 @@ export default function Expenses() {
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               placeholder="Até"
+              aria-label="Data final"
             />
           </div>
         </Card>
 
         {isLoading ? (
           <Card className="p-6">
-            <p className="text-center text-muted-foreground">Carregando...</p>
+            <p className="text-center text-muted-foreground" role="status" aria-live="polite">
+              Carregando despesas...
+            </p>
           </Card>
         ) : expenses.length === 0 ? (
           <Card className="p-6">
-            <p className="text-center text-muted-foreground">
+            <p className="text-center text-muted-foreground" role="status" aria-live="polite">
               Nenhuma despesa encontrada
             </p>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {expenses.map((expense) => (
-              <Card
-                key={expense.id}
-                className="p-4 hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {expense.categories?.icon || "💰"}
-                      </span>
-                      <div>
-                        <p className="font-semibold">
-                          {expense.merchant || "Sem descrição"}
+          <div
+            ref={parentRef}
+            className="h-[600px] overflow-auto rounded-lg"
+            role="list"
+            aria-label="Lista de despesas"
+          >
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const expense = expenses[virtualRow.index];
+                return (
+                  <Card
+                    key={expense.id}
+                    className="p-4 hover:shadow-lg transition-shadow absolute top-0 left-0 w-full"
+                    style={{
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    role="listitem"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl" role="img" aria-label={expense.categories?.name || "Categoria"}>
+                            {expense.categories?.icon || "💰"}
+                          </span>
+                          <div>
+                            <p className="font-semibold">
+                              {expense.merchant || "Sem descrição"}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {expense.categories?.name} •{" "}
+                              {format(new Date(expense.date), "dd/MM/yyyy", {
+                                locale: ptBR,
+                              })}
+                              {expense.payment_method && ` • ${expense.payment_method}`}
+                            </p>
+                            {expense.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {expense.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <p className="text-xl font-bold text-primary">
+                          R$ {Number(expense.amount).toFixed(2)}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {expense.categories?.name} •{" "}
-                          {format(new Date(expense.date), "dd/MM/yyyy", {
-                            locale: ptBR,
-                          })}
-                          {expense.payment_method && ` • ${expense.payment_method}`}
-                        </p>
-                        {expense.notes && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {expense.notes}
-                          </p>
-                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/expenses/${expense.id}/edit`)}
+                            aria-label={`Editar despesa ${expense.merchant || 'sem descrição'}`}
+                            title="Editar despesa"
+                          >
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(expense.id)}
+                            aria-label={`Excluir despesa ${expense.merchant || 'sem descrição'}`}
+                            title="Excluir despesa"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <p className="text-xl font-bold text-primary">
-                      R$ {Number(expense.amount).toFixed(2)}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate(`/expenses/${expense.id}/edit`)}
-                        aria-label={`Editar despesa ${expense.merchant || 'sem descrição'}`}
-                        title="Editar despesa"
-                      >
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteId(expense.id)}
-                        aria-label={`Excluir despesa ${expense.merchant || 'sem descrição'}`}
-                        title="Excluir despesa"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                  </Card>
+                );
+              })}
+            </div>
           </div>
+        )}
+
+        {/* Performance info for debugging */}
+        {expenses.length > 100 && (
+          <Card className="p-4 bg-muted">
+            <p className="text-sm text-muted-foreground">
+              ⚡ Virtual scrolling ativo: renderizando apenas{" "}
+              {rowVirtualizer.getVirtualItems().length} de {expenses.length} despesas
+            </p>
+          </Card>
         )}
       </div>
 
