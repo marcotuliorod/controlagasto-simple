@@ -14,6 +14,8 @@ import { useBillingCycle } from "@/hooks/useBillingCycle";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 interface ExpenseData {
   id: string;
@@ -354,9 +356,42 @@ export default function Reports() {
         </Card>
 
         {isLoading ? (
-          <Card className="p-6">
-            <p className="text-center">Carregando...</p>
-          </Card>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="p-6">
+                  <Skeleton className="h-4 w-32 mb-4" />
+                  <Skeleton className="h-10 w-full" />
+                </Card>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {[1, 2].map((i) => (
+                <Card key={i} className="p-6">
+                  <Skeleton className="h-6 w-48 mb-4" />
+                  <Skeleton className="h-[300px] w-full" />
+                </Card>
+              ))}
+            </div>
+
+            <Card className="p-6">
+              <Skeleton className="h-6 w-48 mb-4" />
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            </Card>
+          </>
+        ) : expenses.length === 0 ? (
+          <EmptyState
+            icon={TrendingDown}
+            title="Nenhuma despesa no período"
+            description="Ajuste as datas ou adicione despesas para visualizar relatórios detalhados"
+            actionLabel="Voltar ao Dashboard"
+            onAction={() => navigate("/")}
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -445,9 +480,13 @@ export default function Reports() {
                 {selectedCategory ? "Despesas Filtradas" : "Todas as Despesas"}
               </h3>
               {filteredExpenses.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma despesa no período selecionado
-                </p>
+                <div className="py-8">
+                  <EmptyState
+                    icon={TrendingDown}
+                    title="Nenhuma despesa filtrada"
+                    description="Não há despesas nesta categoria para o período selecionado"
+                  />
+                </div>
               ) : (
                 <div className="space-y-3">
                   {filteredExpenses.map((expense) => (

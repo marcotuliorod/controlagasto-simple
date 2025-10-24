@@ -27,6 +27,8 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function Expenses() {
   const navigate = useNavigate();
@@ -190,15 +192,34 @@ export default function Expenses() {
         </Card>
 
         {isLoading ? (
-          <Card className="p-6">
-            <p className="text-center text-muted-foreground">Carregando...</p>
-          </Card>
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Card key={i} className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <Skeleton className="w-10 h-10 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                    <Skeleton className="h-8 w-8 rounded" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         ) : expenses.length === 0 ? (
-          <Card className="p-6">
-            <p className="text-center text-muted-foreground">
-              Nenhuma despesa encontrada
-            </p>
-          </Card>
+          <EmptyState
+            icon={Search}
+            title="Nenhuma despesa encontrada"
+            description="Tente ajustar os filtros ou adicione sua primeira despesa"
+            actionLabel="Adicionar Despesa"
+            onAction={() => navigate("/add-expense")}
+          />
         ) : (
           <div className="space-y-3">
             {expenses.map((expense) => (

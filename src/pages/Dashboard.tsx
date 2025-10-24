@@ -20,6 +20,8 @@ import { InsightsCard } from "@/components/InsightsCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { FinancialHealthScore } from "@/components/FinancialHealthScore";
 import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Expense {
   id: string;
@@ -241,11 +243,7 @@ export default function Dashboard() {
   }, [progressPercent]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -416,12 +414,13 @@ export default function Dashboard() {
             </div>
 
             {recentExpenses.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhum gasto registrado ainda</p>
-                <Button onClick={() => navigate("/add-expense")} variant="link" className="mt-2">
-                  Adicione seu primeiro gasto
-                </Button>
-              </div>
+              <EmptyState
+                icon={Receipt}
+                title="Nenhuma despesa ainda"
+                description="Comece registrando sua primeira despesa para acompanhar seus gastos"
+                actionLabel="Adicionar Despesa"
+                onAction={() => navigate("/add-expense")}
+              />
             ) : (
               <div className="space-y-3">
                 {recentExpenses.map((expense) => (
