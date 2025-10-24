@@ -813,16 +813,28 @@ export type Database = {
         }[]
       }
       check_scheduled_exports: { Args: never; Returns: undefined }
-      create_audit_log: {
-        Args: {
-          p_action: string
-          p_after_data?: Json
-          p_before_data?: Json
-          p_entity: string
-          p_entity_id: string
-        }
-        Returns: undefined
-      }
+      create_audit_log:
+        | {
+            Args: {
+              p_action: string
+              p_after_data?: Json
+              p_before_data?: Json
+              p_entity: string
+              p_entity_id: string
+              p_user_id?: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_action: string
+              p_after_data?: Json
+              p_before_data?: Json
+              p_entity: string
+              p_entity_id: string
+            }
+            Returns: undefined
+          }
       get_billing_period: {
         Args: { p_reference_date: string; p_user_id: string }
         Returns: {
