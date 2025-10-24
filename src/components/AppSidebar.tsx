@@ -14,6 +14,9 @@ import {
   Calculator,
   MessageCircle,
   Shield,
+  Repeat,
+  FileOutput,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,9 +47,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
     { title: "Quiz", url: "/quiz", icon: Brain },
   ];
 
+const advancedItems = [
+  { title: "Despesas Recorrentes", url: "/recurring-expenses", icon: Repeat, badge: "Novo" },
+  { title: "Exportações Agendadas", url: "/scheduled-exports", icon: FileOutput, badge: "Novo" },
+  { title: "Notificações", url: "/notification-settings", icon: Bell, badge: "Novo" },
+];
+
 const accountItems = [
   { title: "Perfil & Metas", url: "/account/profile", icon: User },
-  { title: "Audit Logs", url: "/audit-logs", icon: Shield, badge: "Novo" },
+  { title: "Audit Logs", url: "/audit-logs", icon: Shield },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
@@ -88,6 +97,40 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainItems.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        className={getNavClassName(isActive)}
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!isCollapsed && (
+                          <span className="flex items-center gap-2">
+                            {item.title}
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Recursos Avançados</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {advancedItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { TagInput } from "@/components/TagInput";
 import {
   Select,
   SelectContent,
@@ -35,6 +36,7 @@ export default function EditExpense() {
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: expense, isLoading: isLoadingExpense } = useQuery({
@@ -78,6 +80,7 @@ export default function EditExpense() {
       setMerchant(expense.merchant || "");
       setPaymentMethod(expense.payment_method || "");
       setNotes(expense.notes || "");
+      setTags(expense.tags || []);
     }
   }, [expense]);
 
@@ -108,6 +111,7 @@ export default function EditExpense() {
           merchant: merchant || null,
           payment_method: paymentMethod || null,
           notes: notes || null,
+          tags: tags.length > 0 ? tags : null,
         })
         .eq("id", id);
 
@@ -260,6 +264,15 @@ export default function EditExpense() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Adicione observações sobre esta despesa..."
                 rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagInput
+                tags={tags}
+                onChange={setTags}
+                placeholder="Adicionar tag..."
               />
             </div>
 

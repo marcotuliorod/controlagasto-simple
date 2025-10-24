@@ -31,6 +31,9 @@ const ChatAssistant = lazy(() => import("./pages/ChatAssistant"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const ScheduledExports = lazy(() => import("./pages/ScheduledExports"));
+const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
+const RecurringExpenses = lazy(() => import("./pages/RecurringExpenses"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Layout wrapper
@@ -87,6 +90,9 @@ const App = () => (
               <Route path="/accounts" element={<AppLayout><Accounts /></AppLayout>} />
               <Route path="/audit-logs" element={<AppLayout><AuditLogs /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
+              <Route path="/scheduled-exports" element={<AppLayout><ScheduledExports /></AppLayout>} />
+              <Route path="/notification-settings" element={<AppLayout><NotificationSettings /></AppLayout>} />
+              <Route path="/recurring-expenses" element={<AppLayout><RecurringExpenses /></AppLayout>} />
               <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
               <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
               

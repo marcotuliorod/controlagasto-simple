@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { TagInput } from "@/components/TagInput";
 import {
   Select,
   SelectContent,
@@ -44,6 +45,7 @@ export default function AddExpense() {
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notes, setNotes] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [receiptPath, setReceiptPath] = useState("");
   const [signedReceiptUrl, setSignedReceiptUrl] = useState("");
 
@@ -182,6 +184,7 @@ export default function AddExpense() {
         merchant: merchant || null,
         payment_method: paymentMethod || null,
         notes: notes || null,
+        tags: tags.length > 0 ? tags : null,
         receipt_url: receiptPath || null,
         source: receiptPath ? "ocr" : "manual",
       });
@@ -324,6 +327,15 @@ export default function AddExpense() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagInput
+                tags={tags}
+                onChange={setTags}
+                placeholder="Adicionar tag..."
               />
             </div>
 
