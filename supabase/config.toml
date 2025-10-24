@@ -26,3 +26,12 @@ verify_jwt = true
 
 [functions.get-vapid-public-key]
 verify_jwt = false
+
+[functions.process-scheduled-exports]
+verify_jwt = false
+
+[functions.process-recurring-expenses]
+verify_jwt = false
+
+[functions.chat-assistant]
+verify_jwt = true
