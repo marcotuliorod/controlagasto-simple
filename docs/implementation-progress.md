@@ -51,21 +51,28 @@
 
 ---
 
-## 📝 TODO - Week 1 Remaining (Day 3-7)
+## 📝 TODO - Week 1 Remaining (Day 2-7)
 
-### Day 3-4: Bug Fixes & Edge Cases
+### ✅ Day 1 COMPLETED (2025-10-24)
+- [x] **CRITICAL: Memory Leak Fix**
+  - Fixed realtime subscription leak in Dashboard
+  - Removed `getCurrentCycle` from loadData dependencies
+  - Prevents infinite recreation of subscriptions
+
+### Day 2-3: Performance Optimization
+- [ ] Run bundle analyzer (`ANALYZE=true npm run build`)
+- [ ] Implement code splitting (lazy load heavy pages)
+- [ ] Optimize images (WebP, lazy loading)
+- [ ] Review React Query staleTime settings
+- [ ] Verify database indexes
+
+### Day 4-5: Bug Fixes & Edge Cases
 - [ ] Test billing cycle edge cases (February, 28/29/30/31 days)
 - [ ] Test timezone handling across all date operations
 - [ ] Test memory leaks (create/delete 100 expenses rapidly)
 - [ ] Verify delete account flow (all data deleted)
 
-### Day 5-6: Performance Tuning
-- [ ] Run bundle analyzer (`ANALYZE=true npm run build`)
-- [ ] Optimize images (WebP, lazy loading)
-- [ ] Review React Query staleTime settings
-- [ ] Verify database indexes
-
-### Day 7: Accessibility Audit
+### Day 6-7: Accessibility Audit
 - [ ] Run WAVE and axe DevTools
 - [ ] Test keyboard navigation completely
 - [ ] Verify ARIA labels

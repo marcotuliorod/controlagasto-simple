@@ -76,8 +76,9 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get current billing cycle
-      const { start: cycleStart, end: cycleEnd, label: cycleLabel } = getCurrentCycle();
+      // Get current billing cycle - memoize to prevent recreating loadData
+      const billingCycle = getCurrentCycle();
+      const { start: cycleStart, end: cycleEnd, label: cycleLabel } = billingCycle;
 
       console.log(`🔍 Dashboard: Buscando despesas de ${cycleStart} até ${cycleEnd} (exclusivo)`);
       
@@ -194,7 +195,7 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [getCurrentCycle]);
+  }, []); // Remove getCurrentCycle dependency to prevent memory leak
 
   // ✅ Hook centralizado para Realtime (evita WebSocket errors)
   useExpensesRealtime({
