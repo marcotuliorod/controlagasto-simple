@@ -812,6 +812,7 @@ export type Database = {
           total_score: number
         }[]
       }
+      check_scheduled_exports: { Args: never; Returns: undefined }
       create_audit_log: {
         Args: {
           p_action: string

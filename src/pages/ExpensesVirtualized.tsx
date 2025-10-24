@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
+import { AdvancedFilters, type FilterValues } from "@/components/AdvancedFilters";
 
 export default function ExpensesVirtualized() {
   const navigate = useNavigate();
@@ -39,6 +40,13 @@ export default function ExpensesVirtualized() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [advancedFilters, setAdvancedFilters] = useState<FilterValues>({
+    categories: [],
+    tags: [],
+    minAmount: "",
+    maxAmount: "",
+    paymentMethods: [],
+  });
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -58,7 +66,7 @@ export default function ExpensesVirtualized() {
   });
 
   const { data: expenses = [], isLoading } = useQuery({
-    queryKey: ["expenses", searchQuery, selectedCategory, selectedPayment, dateFrom, dateTo],
+    queryKey: ["expenses", searchQuery, selectedCategory, selectedPayment, dateFrom, dateTo, advancedFilters],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
@@ -75,6 +83,27 @@ export default function ExpensesVirtualized() {
 
       if (selectedPayment && selectedPayment !== "all") {
         query = query.eq("payment_method", selectedPayment);
+      }
+      
+      // Advanced filters
+      if (advancedFilters.categories.length > 0) {
+        query = query.in("category_id", advancedFilters.categories);
+      }
+      
+      if (advancedFilters.tags.length > 0) {
+        query = query.overlaps("tags", advancedFilters.tags);
+      }
+      
+      if (advancedFilters.minAmount) {
+        query = query.gte("amount", parseFloat(advancedFilters.minAmount));
+      }
+      
+      if (advancedFilters.maxAmount) {
+        query = query.lte("amount", parseFloat(advancedFilters.maxAmount));
+      }
+      
+      if (advancedFilters.paymentMethods.length > 0) {
+        query = query.in("payment_method", advancedFilters.paymentMethods);
       }
 
       if (dateFrom) {
@@ -145,6 +174,14 @@ export default function ExpensesVirtualized() {
         <h1 className="text-3xl font-bold">Minhas Despesas</h1>
 
         <Card className="p-6 space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Filtros</h2>
+            <AdvancedFilters 
+              currentFilters={advancedFilters}
+              onApply={setAdvancedFilters}
+            />
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
