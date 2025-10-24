@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Bell, Save } from "lucide-react";
@@ -117,25 +117,22 @@ export default function NotificationSettings() {
                 Receba alertas quando suas despesas atingirem um percentual do orçamento
               </p>
             </div>
-            <div className="space-y-3">
-              <Label>
-                Alertar quando atingir: <span className="font-bold">{preferences.budget_alert_threshold}%</span>
+            <div className="space-y-2">
+              <Label htmlFor="threshold">
+                Alertar quando atingir (%)
               </Label>
-              <Slider
-                value={[preferences.budget_alert_threshold]}
-                onValueChange={([value]) =>
-                  setPreferences({ ...preferences, budget_alert_threshold: value })
+              <Input
+                id="threshold"
+                type="number"
+                min="50"
+                max="100"
+                step="5"
+                value={preferences.budget_alert_threshold}
+                onChange={(e) =>
+                  setPreferences({ ...preferences, budget_alert_threshold: parseInt(e.target.value) || 80 })
                 }
-                min={50}
-                max={100}
-                step={5}
-                className="w-full"
+                className="w-32"
               />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>50%</span>
-                <span>75%</span>
-                <span>100%</span>
-              </div>
             </div>
           </div>
 
@@ -163,24 +160,22 @@ export default function NotificationSettings() {
                 Receba lembretes quando não registrar despesas
               </p>
             </div>
-            <div className="space-y-3">
-              <Label>
-                Lembrar após: <span className="font-bold">{preferences.expense_reminder_days} dias</span>
+            <div className="space-y-2">
+              <Label htmlFor="reminderDays">
+                Lembrar após (dias)
               </Label>
-              <Slider
-                value={[preferences.expense_reminder_days]}
-                onValueChange={([value]) =>
-                  setPreferences({ ...preferences, expense_reminder_days: value })
+              <Input
+                id="reminderDays"
+                type="number"
+                min="1"
+                max="7"
+                step="1"
+                value={preferences.expense_reminder_days}
+                onChange={(e) =>
+                  setPreferences({ ...preferences, expense_reminder_days: parseInt(e.target.value) || 3 })
                 }
-                min={1}
-                max={7}
-                step={1}
-                className="w-full"
+                className="w-32"
               />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>1 dia</span>
-                <span>7 dias</span>
-              </div>
             </div>
           </div>
 

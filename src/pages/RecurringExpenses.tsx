@@ -303,10 +303,10 @@ export default function RecurringExpenses() {
                         <Repeat className="w-4 h-4" />
                         <span>{frequencyLabels[rec.frequency as keyof typeof frequencyLabels]}</span>
                       </div>
-                      {rec.categories && (
+                      {rec.category_id && categories.find(c => c.id === rec.category_id) && (
                         <div className="flex items-center gap-1">
-                          <span>{rec.categories.icon}</span>
-                          <span>{rec.categories.name}</span>
+                          <span>{categories.find(c => c.id === rec.category_id)?.icon}</span>
+                          <span>{categories.find(c => c.id === rec.category_id)?.name}</span>
                         </div>
                       )}
                     </div>

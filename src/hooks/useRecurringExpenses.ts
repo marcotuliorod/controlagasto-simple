@@ -28,7 +28,7 @@ export const useRecurringExpenses = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recurring_expenses")
-        .select("*, categories(name, icon), accounts(name)")
+        .select("*")
         .order("next_occurrence", { ascending: true });
 
       if (error) throw error;
