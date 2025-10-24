@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { useBillingCycle } from "@/hooks/useBillingCycle";
 import { InsightsCard } from "@/components/InsightsCard";
 import { NotificationsCard } from "@/components/NotificationsCard";
 import { FinancialHealthScore } from "@/components/FinancialHealthScore";
+import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
 
 interface Expense {
   id: string;
@@ -61,33 +62,6 @@ export default function Dashboard() {
   // Fetch category goals
   const { data: categoryGoals = [] } = useCurrentMonthCategoryGoals();
 
-  useEffect(() => {
-    checkAuth();
-    loadData();
-
-    // 🚀 OTIMIZAÇÃO: Realtime leve - apenas invalidar ao invés de recarregar tudo
-    const channel = supabase
-      .channel('dashboard-expenses-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'expenses'
-        },
-        (payload) => {
-          console.log('🔄 Dashboard: Despesa alterada, atualizando...', payload);
-          // Recarregar apenas quando necessário
-          loadData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -95,7 +69,7 @@ export default function Dashboard() {
     }
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -218,7 +192,18 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [getCurrentCycle]);
+
+  // ✅ Hook centralizado para Realtime (evita WebSocket errors)
+  useExpensesRealtime({
+    channelName: 'dashboard-expenses',
+    onUpdate: loadData,
+  });
+
+  useEffect(() => {
+    checkAuth();
+    loadData();
+  }, [loadData]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

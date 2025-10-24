@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ import { Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
 
 export default function Expenses() {
   const navigate = useNavigate();
@@ -96,29 +97,15 @@ export default function Expenses() {
     },
   });
 
-  // Subscrever a mudanças em tempo real na tabela expenses
-  useEffect(() => {
-    const channel = supabase
-      .channel('expenses-page-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'expenses'
-        },
-        (payload) => {
-          console.log('Expense changed in list:', payload);
-          // Invalidar queries para recarregar dados
-          queryClient.invalidateQueries({ queryKey: ["expenses"] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+  // ✅ Hook centralizado para Realtime (evita WebSocket errors)
+  const invalidateExpenses = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["expenses"] });
   }, [queryClient]);
+
+  useExpensesRealtime({
+    channelName: 'expenses-list',
+    onUpdate: invalidateExpenses,
+  });
 
   const handleDelete = async () => {
     if (!deleteId) return;
