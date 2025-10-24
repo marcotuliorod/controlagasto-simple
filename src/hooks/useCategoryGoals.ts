@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getCurrentMonth } from "@/lib/currencyUtils";
+import { useBillingCycle } from "./useBillingCycle";
 
 export interface CategoryGoal {
   id: string;
-  user_id: string;
   category_id: string;
   month: string;
   limit_amount: number;
   category?: {
+    id: string;
     name: string;
     icon: string;
     color: string;
@@ -17,13 +17,14 @@ export interface CategoryGoal {
 }
 
 /**
- * Buscar metas de categorias do mês atual
+ * Hook to fetch category goals for the current billing cycle
  */
 export function useCurrentMonthCategoryGoals() {
-  const currentMonth = getCurrentMonth();
-
+  const { getCurrentCycle } = useBillingCycle();
+  const currentCycle = getCurrentCycle().label;
+  
   return useQuery({
-    queryKey: ["categoryGoals", currentMonth],
+    queryKey: ["categoryGoals", currentCycle],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -31,9 +32,18 @@ export function useCurrentMonthCategoryGoals() {
 
       const { data, error } = await supabase
         .from("category_goals")
-        .select("*, category:categories(name, icon, color)")
+        .select(`
+          id,
+          category_id,
+          month,
+          limit_amount,
+          created_at,
+          updated_at,
+          category:categories(id, name, icon, color)
+        `)
         .eq("user_id", user.id)
-        .eq("month", currentMonth);
+        .eq("month", currentCycle)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data as CategoryGoal[];

@@ -17,12 +17,16 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useBillingCycle } from "@/hooks/useBillingCycle";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function EditExpense() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { accounts } = useAccounts();
+  const { getDateCycle, getCycleRange } = useBillingCycle();
 
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
@@ -151,6 +155,22 @@ export default function EditExpense() {
 
         <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {date && (
+              <div className="bg-muted/50 border rounded-md p-3">
+                <p className="text-sm font-medium">📅 Ciclo desta despesa</p>
+                <p className="text-sm text-muted-foreground">
+                  {(() => {
+                    const cycle = getDateCycle(date);
+                    const [year, month] = cycle.split('-').map(Number);
+                    const { start, end } = getCycleRange(year, month);
+                    const endDate = new Date(end);
+                    endDate.setDate(endDate.getDate() - 1);
+                    return `${format(new Date(start), 'MMM/yyyy', { locale: ptBR })} (${format(new Date(start), 'dd/MM')} - ${format(endDate, 'dd/MM')})`;
+                  })()}
+                </p>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="amount">Valor (R$)</Label>
               <Input

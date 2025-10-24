@@ -5,11 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, TrendingDown, FileSpreadsheet } from "lucide-react";
+import { Download, TrendingDown, FileSpreadsheet, Calendar, Info } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import html2pdf from "html2pdf.js";
 import { exportToXLSX } from "@/lib/exportUtils";
+import { useBillingCycle } from "@/hooks/useBillingCycle";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ExpenseData {
   id: string;
@@ -27,6 +31,7 @@ const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'
 
 export default function Reports() {
   const navigate = useNavigate();
+  const { getCurrentCycle, hasCustomCycle, cycleDay } = useBillingCycle();
   const [isLoading, setIsLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState(() => {
     const date = new Date();
@@ -289,25 +294,63 @@ export default function Reports() {
         </div>
 
         <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Data Inicial</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                max={dateTo}
-              />
+          <div className="space-y-4">
+            <Button
+              variant={hasCustomCycle ? "default" : "outline"}
+              onClick={() => {
+                if (hasCustomCycle) {
+                  const { start, end } = getCurrentCycle();
+                  const endDate = new Date(end);
+                  endDate.setDate(endDate.getDate() - 1);
+                  setDateFrom(start);
+                  setDateTo(endDate.toISOString().split('T')[0]);
+                  toast.info(`Ciclo personalizado aplicado (dia ${cycleDay})`);
+                }
+              }}
+              disabled={!hasCustomCycle}
+              className="w-full md:w-auto"
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              {hasCustomCycle ? `Ciclo Atual (dia ${cycleDay})` : 'Ciclo Mensal (padrão)'}
+              {hasCustomCycle && (
+                <TooltipProvider>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="ml-2 h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        Seu ciclo: {format(new Date(getCurrentCycle().start), 'dd/MM', { locale: ptBR })} -{' '}
+                        {format(new Date(new Date(getCurrentCycle().end).setDate(new Date(getCurrentCycle().end).getDate() - 1)), 'dd/MM', { locale: ptBR })}
+                      </p>
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
+              )}
+            </Button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data Inicial</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  max={dateTo}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Final</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Data Final</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                min={dateFrom}
-                max={new Date().toISOString().split('T')[0]}
-              />
+          </div>
             </div>
           </div>
         </Card>

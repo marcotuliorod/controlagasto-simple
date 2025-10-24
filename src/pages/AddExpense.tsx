@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Camera, Loader2, Eye } from "lucide-react";
+import { useBillingCycle } from "@/hooks/useBillingCycle";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Category {
   id: string;
@@ -27,6 +30,7 @@ interface Category {
 
 export default function AddExpense() {
   const navigate = useNavigate();
+  const { getDateCycle, getCycleRange } = useBillingCycle();
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -184,7 +188,18 @@ export default function AddExpense() {
 
       if (error) throw error;
 
-      toast.success("Despesa adicionada com sucesso!");
+      // Show cycle feedback
+      const cycle = getDateCycle(date);
+      const [year, month] = cycle.split('-').map(Number);
+      const { start, end } = getCycleRange(year, month);
+      const endDate = new Date(end);
+      endDate.setDate(endDate.getDate() - 1);
+      
+      toast.success(
+        `Despesa adicionada ao ciclo ${format(new Date(start), 'MMM/yyyy', { locale: ptBR })} ` +
+        `(${format(new Date(start), 'dd/MM')} - ${format(endDate, 'dd/MM')})`
+      );
+
       navigate("/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Erro ao adicionar despesa");

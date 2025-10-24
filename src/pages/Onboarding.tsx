@@ -12,6 +12,8 @@ const Onboarding = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [monthlyGoal, setMonthlyGoal] = useState("");
+  const [billingCycleDay, setBillingCycleDay] = useState<number>(1);
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   const handleComplete = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +29,13 @@ const Onboarding = () => {
         throw new Error("Meta inválida");
       }
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ monthly_goal: goal })
-        .eq("id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ 
+        monthly_goal: goal,
+        billing_cycle_day: billingCycleDay 
+      })
+      .eq("id", user.id);
 
       if (error) throw error;
 
@@ -78,6 +83,66 @@ const Onboarding = () => {
             <p className="text-sm text-muted-foreground">
               Você receberá alertas ao atingir 80% e 100% desta meta
             </p>
+          </div>
+
+          <div className="space-y-4 border-t pt-4">
+            <div>
+              <h3 className="font-semibold mb-2">Quando você recebe seu salário?</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Configuraremos seu ciclo financeiro baseado nesse dia
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 5, 10, 15].map((day) => (
+                <Button
+                  key={day}
+                  type="button"
+                  variant={billingCycleDay === day && !showCustomInput ? "default" : "outline"}
+                  onClick={() => {
+                    setBillingCycleDay(day);
+                    setShowCustomInput(false);
+                  }}
+                >
+                  Dia {day}
+                </Button>
+              ))}
+            </div>
+            
+            <Button
+              type="button"
+              variant={showCustomInput ? "default" : "outline"}
+              onClick={() => setShowCustomInput(!showCustomInput)}
+              className="w-full"
+            >
+              Outro dia (1-28)
+            </Button>
+            
+            {showCustomInput && (
+              <Input
+                type="number"
+                min={1}
+                max={28}
+                value={billingCycleDay}
+                onChange={(e) => setBillingCycleDay(Math.min(28, Math.max(1, parseInt(e.target.value) || 1)))}
+                placeholder="Digite o dia (1-28)"
+              />
+            )}
+            
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+              <p className="text-sm">
+                ℹ️ Seus relatórios e metas seguirão este ciclo. Exemplo:
+                {billingCycleDay > 1 ? (
+                  <>
+                    <br/><strong>Dia {billingCycleDay}:</strong> Ciclo de {billingCycleDay}/Jan a {billingCycleDay > 1 ? billingCycleDay - 1 : 31}/Fev
+                  </>
+                ) : (
+                  <>
+                    <br/><strong>Dia 1:</strong> Ciclo mensal padrão (01/Jan a 31/Jan)
+                  </>
+                )}
+              </p>
+            </div>
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>

@@ -8,8 +8,11 @@ import { Trash2, Plus, Target, Check, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentMonthCategoryGoals, useUpsertCategoryGoal, useDeleteCategoryGoal } from "@/hooks/useCategoryGoals";
-import { formatCurrencyBR, parseCurrencyBR, getCurrentMonth } from "@/lib/currencyUtils";
+import { formatCurrencyBR, parseCurrencyBR } from "@/lib/currencyUtils";
 import { toast } from "sonner";
+import { useBillingCycle } from "@/hooks/useBillingCycle";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Category {
   id: string;
@@ -19,7 +22,8 @@ interface Category {
 }
 
 export default function CategoryGoalsManager() {
-  const currentMonth = getCurrentMonth();
+  const { getCurrentCycle, getCycleRange } = useBillingCycle();
+  const currentCycle = getCurrentCycle();
   const { data: categoryGoals = [], isLoading: goalsLoading } = useCurrentMonthCategoryGoals();
   const upsertGoal = useUpsertCategoryGoal();
   const deleteGoal = useDeleteCategoryGoal();
@@ -65,7 +69,7 @@ export default function CategoryGoalsManager() {
 
     await upsertGoal.mutateAsync({
       categoryId: selectedCategoryId,
-      month: currentMonth,
+      month: currentCycle.label,
       limitAmount,
     });
 
@@ -105,6 +109,12 @@ export default function CategoryGoalsManager() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="bg-muted/50 border rounded-md p-3 mb-4">
+          <p className="text-sm">
+            📅 Metas para o ciclo: <strong>{format(new Date(currentCycle.start), 'MMM/yyyy', { locale: ptBR })}</strong>
+            {' '}({format(new Date(currentCycle.start), 'dd/MM')} - {format(new Date(currentCycle.end).setDate(new Date(currentCycle.end).getDate() - 1) as any, 'dd/MM')})
+          </p>
+        </div>
         <div className="space-y-4">
           {categoryGoals.length === 0 && !showAddForm ? (
             <p className="text-sm text-muted-foreground text-center py-4">
