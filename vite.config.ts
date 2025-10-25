@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => ({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: null,
       includeAssets: ['icon-192.png', 'icon-512.png', 'splash-640x1136.png'],
       manifest: {
         id: '/',
