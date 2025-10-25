@@ -3,37 +3,32 @@ import App from "./App.tsx";
 import "./index.css";
 import { registerSW } from 'virtual:pwa-register';
 
-// Register service worker with enhanced debugging
+// Register service worker with Safari compatibility
 console.log('[PWA] 🚀 Iniciando registro do Service Worker...');
 
-const updateSW = registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    console.log('[PWA] 🔄 Nova versão disponível');
-    if (confirm('Nova versão disponível! Recarregar para atualizar?')) {
-      updateSW(true);
-    }
-  },
-  onOfflineReady() {
-    console.log('[PWA] ✅ App pronto para funcionar offline');
-  },
-  onRegisteredSW(swUrl, registration) {
-    console.log('[PWA] ✅ Service Worker registrado com sucesso');
-    console.log('[PWA] 📍 URL:', swUrl);
-    if (registration) {
-      console.log('[PWA] 📦 Escopo:', registration.scope);
-      console.log('[PWA] 🔄 Estado:', registration.active?.state);
-      console.log('[PWA] 📊 Registro completo:', registration);
-    }
-  },
-  onRegisterError(error) {
-    console.error('[PWA] ❌ Erro ao registrar Service Worker:', error);
-    console.error('[PWA] 📋 Detalhes do erro:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-  },
-});
+try {
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      console.log('[PWA] 🔄 Nova versão disponível');
+      if (confirm('Nova versão disponível! Recarregar para atualizar?')) {
+        updateSW(true);
+      }
+    },
+    onOfflineReady() {
+      console.log('[PWA] ✅ App pronto para funcionar offline');
+    },
+    onRegisteredSW(swUrl, registration) {
+      console.log('[PWA] ✅ Service Worker registrado');
+    },
+    onRegisterError(error) {
+      console.warn('[PWA] ⚠️ Service Worker não registrado:', error.message);
+      console.log('[PWA] 📱 App continuará funcionando normalmente');
+    },
+  });
+} catch (error) {
+  console.warn('[PWA] ⚠️ PWA não disponível neste navegador');
+  console.log('[PWA] 📱 App funcionando normalmente sem PWA');
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
