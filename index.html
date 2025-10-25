@@ -40,40 +40,59 @@
       }
       #root { min-height: 100vh; }
     </style>
+    
+    <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Meus Gastos" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    
+    <!-- SEO Meta Tags -->
     <title>Entenda seus Gastos - Controle Financeiro Inteligente</title>
-    <meta name="description" content="💰 Descrição do Projeto – “Entenda seus Gastos”
-🧭 Visão Geral
-O Entenda seus Gastos é um aplicativo de educação e controle financeiro pessoal criado para ajudar pessoas a compreender e melhorar sua relação com o dinheiro de forma simples, prática e intuitiva.
-Seu principal diferencial é permitir que o usuário registre seus gastos apenas fotografando o cupom fiscal, automatizando o processo de controle financeiro e oferecendo insights educativos personalizados.
-O projeto nasceu com o objetivo de promover a educação financeira no dia a dia, ajudando o usuário a entender seus hábitos de consumo e a planejar melhor suas finanças pessoais — sem precisar de planilhas, cadastros complexos ou integração bancária.">
-    <meta name="author" content="Lovable" />
-
+    <meta name="description" content="Controle seus gastos fotografando cupons fiscais. Registre, visualize padrões e tome decisões financeiras inteligentes de forma simples e segura.">
+    <meta name="keywords" content="controle financeiro, gastos pessoais, educação financeira, gestão financeira, orçamento pessoal, finanças pessoais">
+    <meta name="author" content="Lovable">
+    <link rel="canonical" href="https://entendaseusgastos.lovable.app/">
     
-    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://entendaseusgastos.lovable.app/">
+    <meta property="og:title" content="Entenda seus Gastos - Controle Financeiro Inteligente">
+    <meta property="og:description" content="Controle seus gastos fotografando cupons fiscais. Registre, visualize padrões e tome decisões financeiras inteligentes de forma simples e segura.">
     <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/nPUCJxe2xgVXonq8XmHB3b00mdi2/social-images/social-1761241042949-ChatGPT Image 23 de out. de 2025, 14_37_06.png">
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
+    <meta name="twitter:title" content="Entenda seus Gastos - Controle Financeiro Inteligente">
+    <meta name="twitter:description" content="Controle seus gastos fotografando cupons fiscais. Registre, visualize padrões e tome decisões financeiras inteligentes de forma simples e segura.">
     <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/nPUCJxe2xgVXonq8XmHB3b00mdi2/social-images/social-1761241042949-ChatGPT Image 23 de out. de 2025, 14_37_06.png">
-    <meta property="og:title" content="Entenda seus Gastos">
-  <meta name="twitter:title" content="Entenda seus Gastos">
-  <meta property="og:description" content="💰 Descrição do Projeto – “Entenda seus Gastos”
-🧭 Visão Geral
-O Entenda seus Gastos é um aplicativo de educação e controle financeiro pessoal criado para ajudar pessoas a compreender e melhorar sua relação com o dinheiro de forma simples, prática e intuitiva.
-Seu principal diferencial é permitir que o usuário registre seus gastos apenas fotografando o cupom fiscal, automatizando o processo de controle financeiro e oferecendo insights educativos personalizados.
-O projeto nasceu com o objetivo de promover a educação financeira no dia a dia, ajudando o usuário a entender seus hábitos de consumo e a planejar melhor suas finanças pessoais — sem precisar de planilhas, cadastros complexos ou integração bancária.">
-  <meta name="twitter:description" content="💰 Descrição do Projeto – “Entenda seus Gastos”
-🧭 Visão Geral
-O Entenda seus Gastos é um aplicativo de educação e controle financeiro pessoal criado para ajudar pessoas a compreender e melhorar sua relação com o dinheiro de forma simples, prática e intuitiva.
-Seu principal diferencial é permitir que o usuário registre seus gastos apenas fotografando o cupom fiscal, automatizando o processo de controle financeiro e oferecendo insights educativos personalizados.
-O projeto nasceu com o objetivo de promover a educação financeira no dia a dia, ajudando o usuário a entender seus hábitos de consumo e a planejar melhor suas finanças pessoais — sem precisar de planilhas, cadastros complexos ou integração bancária.">
-</head>
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Entenda seus Gastos",
+      "description": "Aplicativo de controle financeiro pessoal com registro de gastos por foto de cupom fiscal",
+      "url": "https://entendaseusgastos.lovable.app/",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      },
+      "featureList": [
+        "Registro de gastos por foto",
+        "Visualização de padrões de consumo",
+        "Insights financeiros personalizados",
+        "Segurança de dados"
+      ]
+    }
+    </script>
+  </head>
 
   <body>
     <div id="root"></div>
