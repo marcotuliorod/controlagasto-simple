@@ -1,42 +1,54 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from 'workbox-core';
-import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
 
 declare let self: ServiceWorkerGlobalScope;
 
-console.log('[Service Worker] 🚀 SW unified version - Safari compatible');
+const SW_VERSION = '1.0.0';
+console.log(`[SW] 🚀 Versão ${SW_VERSION} - Cross-browser compatible`);
 
-// Ativar novo SW imediatamente
+// Ativar novo SW imediatamente e assumir controle
 self.skipWaiting();
 clientsClaim();
 
-// Limpar caches antigos
+// Limpar caches antigos automaticamente
 cleanupOutdatedCaches();
 
-// Precache de arquivos gerados pelo build
+// Precache de arquivos gerados pelo Vite
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Estratégia Network First para navegação (SPA fallback)
-const handler = createHandlerBoundToURL('/index.html');
-const navigationRoute = new NavigationRoute(handler, {
-  denylist: [
-    /^\/api\//,
-    /^\/rest\//,
-    /^\/auth\//,
-    /^\/storage\//,
-    /\.(?:png|jpg|jpeg|svg|gif|webp|ico|css|js|json|woff|woff2)$/,
-  ],
-});
-registerRoute(navigationRoute);
-
-// Network First para index.html (evita servir versão antiga do cache)
+// Strategy: Network First para navegação (garante SPA routing)
 registerRoute(
-  ({ request }) => request.mode === 'navigate' || request.destination === 'document',
+  ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
-    cacheName: 'navigation-cache',
-    plugins: [],
+    cacheName: `navigation-v${SW_VERSION}`,
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 50,
+        maxAgeSeconds: 24 * 60 * 60, // 24 horas
+      }),
+    ],
+  })
+);
+
+// Strategy: Cache First para assets estáticos
+registerRoute(
+  ({ request }) => 
+    request.destination === 'style' ||
+    request.destination === 'script' ||
+    request.destination === 'font' ||
+    request.destination === 'image',
+  new CacheFirst({
+    cacheName: `assets-v${SW_VERSION}`,
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 100,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 dias
+      }),
+    ],
   })
 );
 

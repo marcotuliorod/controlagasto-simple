@@ -10,6 +10,7 @@ import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import AppLayout from "./components/AppLayout"; // Importação síncrona - CRÍTICO para Context
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -40,9 +41,6 @@ const AccountDashboard = lazy(() => import("./pages/AccountDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Health = lazy(() => import("./pages/Health"));
 
-// Layout wrapper
-const AppLayout = lazy(() => import("./components/AppLayout"));
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -64,7 +62,12 @@ const App = () => (
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <TooltipProvider>
           <PWAInstallProvider>
-            <BrowserRouter>
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
               <Toaster />
               <Sonner />
               <InstallPWA />
