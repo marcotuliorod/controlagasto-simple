@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Activity } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Activity, Trash2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface HealthCheck {
   name: string;
@@ -18,6 +20,36 @@ export default function Health() {
   useEffect(() => {
     runHealthChecks();
   }, []);
+
+  const handleUnregisterSW = async () => {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(reg => reg.unregister()));
+      toast.success('Service Workers desregistrados', {
+        description: 'Recarregue a página para aplicar as mudanças'
+      });
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (error) {
+      toast.error('Erro ao desregistrar', {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  };
+
+  const handleClearCaches = async () => {
+    try {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
+      toast.success('Caches limpos', {
+        description: `${cacheNames.length} cache(s) removido(s). Recarregando...`
+      });
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (error) {
+      toast.error('Erro ao limpar caches', {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  };
 
   const runHealthChecks = async () => {
     const results: HealthCheck[] = [];
@@ -204,6 +236,38 @@ export default function Health() {
               </div>
             ))
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ferramentas de Diagnóstico</CardTitle>
+          <CardDescription>
+            Use estas ferramentas se a aplicação estiver com problemas de cache ou Service Worker
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-3">
+            <Button
+              onClick={handleUnregisterSW}
+              variant="destructive"
+              className="flex-1"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Desregistrar Service Workers
+            </Button>
+            <Button
+              onClick={handleClearCaches}
+              variant="outline"
+              className="flex-1"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Limpar Todos os Caches
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            ⚠️ Após usar essas ferramentas, a página será recarregada automaticamente
+          </p>
         </CardContent>
       </Card>
 

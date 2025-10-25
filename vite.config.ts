@@ -32,24 +32,11 @@ export default defineConfig(({ mode }) => ({
       brotliSize: true,
     }),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/mnznxdewqjyhvrctllgh\.supabase\.co\/rest\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 300, // 5 min
-              },
-            },
-          },
-        ],
-      },
+      injectRegister: 'auto',
       includeAssets: ['icon-192.png', 'icon-512.png', 'splash-640x1136.png'],
       manifest: {
         id: '/',
