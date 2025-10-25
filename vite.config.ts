@@ -124,9 +124,8 @@ export default defineConfig(({ mode }) => ({
             if (id.includes('date-fns')) {
               return 'date-vendor';
             }
-            if (id.includes('lucide-react')) {
-              return 'icons-vendor';
-            }
+            // Note: lucide-react icons are intentionally NOT split to avoid 
+            // network dependency chains. Icons load with their components.
             // Other node_modules go into vendor chunk
             return 'vendor';
           }
