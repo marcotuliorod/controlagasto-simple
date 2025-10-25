@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -37,6 +38,7 @@ const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const RecurringExpenses = lazy(() => import("./pages/RecurringExpenses"));
 const AccountDashboard = lazy(() => import("./pages/AccountDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Health = lazy(() => import("./pages/Health"));
 
 // Layout wrapper
 const AppLayout = lazy(() => import("./components/AppLayout"));
@@ -57,21 +59,23 @@ const LoadingFallback = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <TooltipProvider>
-        <PWAInstallProvider>
-          <BrowserRouter>
-            <Toaster />
-            <Sonner />
-            <InstallPWA />
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <TooltipProvider>
+          <PWAInstallProvider>
+            <BrowserRouter>
+              <Toaster />
+              <Sonner />
+              <InstallPWA />
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/health" element={<Health />} />
               
               {/* Onboarding route */}
               <Route element={<RequireOnboarding />}>
@@ -109,6 +113,7 @@ const App = () => (
     </TooltipProvider>
   </ThemeProvider>
 </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
