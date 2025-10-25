@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Download, Send, Share, Check } from "lucide-react";
+import { Bell, Download, Send, Share, Check, Database, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -8,11 +8,14 @@ import { usePWAInstall } from "@/providers/PWAInstallProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import PushOnboarding from "@/components/PushOnboarding";
+import { useNavigate } from "react-router-dom";
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { isSupported, isSubscribed, subscribe, unsubscribe, sendTestNotification } = usePushNotifications();
   const { canInstall, isIOS, isStandalone, requestInstall, diagnostics } = usePWAInstall();
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [swStatus, setSwStatus] = useState<'checking' | 'active' | 'error'>('checking');
 
   useEffect(() => {
@@ -55,6 +58,26 @@ export default function Settings() {
 
   const handleDismissOnboarding = () => {
     toast.info("Você pode ativar as notificações mais tarde nas configurações");
+  };
+
+  const handleSeedExpenses = async (count: number) => {
+    setIsSeeding(true);
+    toast.info(`Gerando ${count} despesas de teste...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-expenses', {
+        body: { count },
+      });
+
+      if (error) throw error;
+
+      toast.success(data.message || `${count} despesas criadas com sucesso!`);
+    } catch (error: any) {
+      console.error('Erro ao gerar despesas:', error);
+      toast.error(error.message || 'Erro ao gerar despesas de teste');
+    } finally {
+      setIsSeeding(false);
+    }
   };
 
   return (
@@ -292,6 +315,75 @@ export default function Settings() {
               </Card>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Database className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Dados de Teste</CardTitle>
+              <CardDescription>
+                Gere despesas automáticas para testar o sistema
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Crie despesas de teste distribuídas nos últimos 90 dias para visualizar gráficos e relatórios.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              onClick={() => handleSeedExpenses(10)}
+              disabled={isSeeding}
+              variant="outline"
+              size="sm"
+            >
+              {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : "10 despesas"}
+            </Button>
+            <Button
+              onClick={() => handleSeedExpenses(30)}
+              disabled={isSeeding}
+              variant="outline"
+              size="sm"
+            >
+              {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : "30 despesas"}
+            </Button>
+            <Button
+              onClick={() => handleSeedExpenses(50)}
+              disabled={isSeeding}
+              variant="outline"
+              size="sm"
+            >
+              {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : "50 despesas"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <FileSpreadsheet className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Importação de Despesas</CardTitle>
+              <CardDescription>
+                Importe despesas em massa de arquivos CSV ou Excel
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => navigate('/import-expenses')}
+            variant="outline"
+            className="w-full"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Arquivo
+          </Button>
         </CardContent>
       </Card>
     </div>

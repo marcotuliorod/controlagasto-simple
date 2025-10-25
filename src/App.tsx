@@ -24,6 +24,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
 const AccountProfile = lazy(() => import("./pages/AccountProfile"));
 const Education = lazy(() => import("./pages/Education"));
+const ImportExpenses = lazy(() => import("./pages/ImportExpenses"));
 const Quiz = lazy(() => import("./pages/Quiz"));
 const FinancialHealth = lazy(() => import("./pages/FinancialHealth"));
 const Simulator = lazy(() => import("./pages/Simulator"));
@@ -97,7 +98,8 @@ const App = () => (
               <Route path="/recurring-expenses" element={<AppLayout><RecurringExpenses /></AppLayout>} />
               <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
               <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
-              
+              <Route path="/import-expenses" element={<AppLayout><ImportExpenses /></AppLayout>} />
+
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
