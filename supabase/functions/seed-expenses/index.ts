@@ -137,8 +137,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in seed-expenses:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
-      JSON.stringify({ error: error.message || 'Erro desconhecido' }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
