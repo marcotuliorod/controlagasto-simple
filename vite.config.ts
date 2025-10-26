@@ -53,7 +53,6 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#3B82F6',
         background_color: '#0B1220',
         display: 'standalone',
-        orientation: 'portrait-primary',
         scope: '/',
         start_url: '/?source=pwa',
         prefer_related_applications: false,
