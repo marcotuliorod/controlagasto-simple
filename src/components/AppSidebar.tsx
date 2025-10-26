@@ -17,6 +17,7 @@ import {
   Repeat,
   FileOutput,
   Bell,
+  X,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarHeader,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -78,16 +80,29 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Wallet className="h-5 w-5" />
-          </div>
-          {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold">Entenda Gastos</span>
-              <span className="text-xs text-muted-foreground">Finanças Pessoais</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Wallet className="h-5 w-5" />
             </div>
-          )}
+            {!isCollapsed && (
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold">Entenda Gastos</span>
+                <span className="text-xs text-muted-foreground">Finanças Pessoais</span>
+              </div>
+            )}
+          </div>
+          {/* Botão fechar visível apenas no mobile */}
+          <SidebarTrigger className="md:hidden" asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              aria-label="Fechar menu"
+              className="focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </SidebarTrigger>
         </div>
       </SidebarHeader>
 
