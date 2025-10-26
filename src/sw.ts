@@ -7,8 +7,15 @@ import { ExpirationPlugin } from 'workbox-expiration';
 
 declare let self: ServiceWorkerGlobalScope;
 
-const SW_VERSION = '1.0.0';
-console.log(`[SW] 🚀 Versão ${SW_VERSION} - Cross-browser compatible`);
+const SW_VERSION = '1.0.1';
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+console.log(`[SW] 🚀 Versão ${SW_VERSION}`, {
+  browser: isSafari ? 'Safari' : 'Other',
+  platform: isIOS ? 'iOS' : 'Other',
+  compatible: 'IIFE format'
+});
 
 // Ativar novo SW imediatamente e assumir controle
 self.skipWaiting();
@@ -20,6 +27,10 @@ cleanupOutdatedCaches();
 // Precache de arquivos gerados pelo Vite
 precacheAndRoute(self.__WB_MANIFEST);
 
+if (isSafari || isIOS) {
+  console.log('[SW] 🍎 Safari/iOS detectado - usando estratégias otimizadas');
+}
+
 // Strategy: Network First para navegação (garante SPA routing)
 registerRoute(
   ({ request }) => request.mode === 'navigate',
@@ -30,6 +41,15 @@ registerRoute(
         maxEntries: 50,
         maxAgeSeconds: 24 * 60 * 60, // 24 horas
       }),
+      {
+        handlerDidError: async ({ error, request }) => {
+          console.error('[SW] ❌ Navigation error:', error);
+          // Retornar página offline ou cache
+          const cache = await caches.open(`navigation-v${SW_VERSION}`);
+          const cachedResponse = await cache.match('/');
+          return cachedResponse || Response.error();
+        }
+      }
     ],
   })
 );
@@ -131,6 +151,15 @@ self.addEventListener('notificationclick', (event) => {
   });
 
   event.waitUntil(promiseChain);
+});
+
+// Global error handlers for robustness
+self.addEventListener('error', (event) => {
+  console.error('[SW] 💥 Unhandled error:', event.error);
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('[SW] 💥 Unhandled rejection:', event.reason);
 });
 
 console.log('[Service Worker] ✅ Unified SW loaded - Safari compatible');
