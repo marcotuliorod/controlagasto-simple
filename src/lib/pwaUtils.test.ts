@@ -13,8 +13,8 @@ describe('PWA Configuration', () => {
     expect(pkg.dependencies).toHaveProperty('workbox-core');
   });
 
-  it('should have service worker file', () => {
-    const swPath = path.resolve(__dirname, '../../public/sw.js');
+  it('should have service worker source file', () => {
+    const swPath = path.resolve(__dirname, '../sw.ts');
     expect(fs.existsSync(swPath)).toBe(true);
   });
 

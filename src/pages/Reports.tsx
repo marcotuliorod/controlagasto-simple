@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import html2pdf from "html2pdf.js";
 import { exportToXLSX } from "@/lib/exportUtils";
+import DOMPurify from "dompurify";
 import { useBillingCycle } from "@/hooks/useBillingCycle";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -198,7 +199,12 @@ export default function Reports() {
 
       // Criar elemento temporário para renderizar HTML
       const element = document.createElement('div');
-      element.innerHTML = data.html;
+      // Sanitize HTML to prevent XSS attacks
+      element.innerHTML = DOMPurify.sanitize(data.html, {
+        ALLOWED_TAGS: ['div', 'p', 'span', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'h1', 'h2', 'h3', 'style'],
+        ALLOWED_ATTR: ['class', 'style', 'colspan'],
+        ALLOW_DATA_ATTR: false
+      });
       element.style.position = 'absolute';
       element.style.left = '-9999px';
       document.body.appendChild(element);

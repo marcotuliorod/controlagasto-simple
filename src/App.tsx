@@ -1,7 +1,6 @@
-import React, { Suspense, lazy } from "react";
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -9,6 +8,8 @@ import { Loader2 } from "lucide-react";
 import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import AppLayout from "./components/AppLayout"; // Importação síncrona - CRÍTICO para Context
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -24,6 +25,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const DeleteAccount = lazy(() => import("./pages/DeleteAccount"));
 const AccountProfile = lazy(() => import("./pages/AccountProfile"));
 const Education = lazy(() => import("./pages/Education"));
+const ImportExpenses = lazy(() => import("./pages/ImportExpenses"));
 const Quiz = lazy(() => import("./pages/Quiz"));
 const FinancialHealth = lazy(() => import("./pages/FinancialHealth"));
 const Simulator = lazy(() => import("./pages/Simulator"));
@@ -36,9 +38,7 @@ const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const RecurringExpenses = lazy(() => import("./pages/RecurringExpenses"));
 const AccountDashboard = lazy(() => import("./pages/AccountDashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-
-// Layout wrapper
-const AppLayout = lazy(() => import("./components/AppLayout"));
+const Health = lazy(() => import("./pages/Health"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,21 +56,27 @@ const LoadingFallback = () => (
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <TooltipProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <PWAInstallProvider>
-          <BrowserRouter>
-            <Toaster />
-            <Sonner />
-            <InstallPWA />
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
+              <Toaster />
+              <Sonner />
+              <InstallPWA />
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/health" element={<Health />} />
               
               {/* Onboarding route */}
               <Route element={<RequireOnboarding />}>
@@ -97,16 +103,17 @@ const App = () => (
               <Route path="/recurring-expenses" element={<AppLayout><RecurringExpenses /></AppLayout>} />
               <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
               <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
-              
+              <Route path="/import-expenses" element={<AppLayout><ImportExpenses /></AppLayout>} />
+
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </BrowserRouter>
       </PWAInstallProvider>
-    </TooltipProvider>
   </ThemeProvider>
 </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

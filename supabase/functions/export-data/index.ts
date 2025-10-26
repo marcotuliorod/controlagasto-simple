@@ -23,27 +23,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     
-    // Extract token from "Bearer <token>"
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Decode JWT to extract userId from 'sub' claim
-    let userId: string;
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error("Invalid JWT format");
-      
-      // Decode the payload (second part)
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      userId = payload.sub;
-      
-      console.log(`✅ JWT decoded successfully. User ID: ${userId}`);
-      
-      if (!userId) throw new Error("Missing 'sub' claim in JWT");
-    } catch (decodeError) {
-      console.error("❌ Failed to decode JWT:", decodeError);
-      throw new Error("Token inválido");
-    }
-    
+    // Create Supabase client with user's auth token
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { 
         headers: { Authorization: authHeader }
@@ -52,6 +32,17 @@ serve(async (req) => {
         persistSession: false,
       }
     });
+
+    // Verify JWT and extract user ID using Supabase's secure auth verification
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error("❌ Auth verification failed:", authError);
+      throw new Error("Não autorizado");
+    }
+    
+    const userId = user.id;
+    console.log(`✅ User authenticated: ${userId}`);
 
     // Calcular endExclusive (alinhar com UI: inclusivo-exclusivo)
     let endExclusive = null;
