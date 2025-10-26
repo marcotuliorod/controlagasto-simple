@@ -93,16 +93,15 @@ export function AppSidebar() {
             )}
           </div>
           {/* Botão fechar visível apenas no mobile */}
-          <SidebarTrigger className="md:hidden" asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              aria-label="Fechar menu"
-              className="focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </SidebarTrigger>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => document.querySelector<HTMLButtonElement>('[data-sidebar-trigger]')?.click()}
+            aria-label="Fechar menu"
+            className="md:hidden focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
       </SidebarHeader>
 

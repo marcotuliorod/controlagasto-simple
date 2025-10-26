@@ -28,11 +28,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <main id="main-content" className="flex-1 pb-16 md:pb-0 overflow-x-hidden" role="main">
           {/* Mobile trigger */}
           <header className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-card/95 backdrop-blur px-4">
-            <SidebarTrigger className="h-10 w-10" aria-label="Abrir menu de navegação" />
+            <SidebarTrigger aria-label="Abrir menu de navegação" />
             <h1 className="text-sm font-semibold flex-1 text-center">Entenda Gastos</h1>
-            <div className="w-10">
-              <GlobalSearch />
-            </div>
+            <ThemeToggle />
           </header>
 
           {/* Page content */}
