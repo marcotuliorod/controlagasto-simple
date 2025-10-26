@@ -4,7 +4,6 @@ import { AppSidebar } from "@/components/AppSidebar";
 import BottomNav from "@/components/BottomNav";
 import FABAddExpense from "@/components/FABAddExpense";
 import { GlobalSearch } from "@/components/GlobalSearch";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -27,10 +26,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Main Content - Semantic HTML with ID for skip link */}
         <main id="main-content" className="flex-1 pb-16 md:pb-0 overflow-x-hidden" role="main">
           {/* Mobile trigger */}
-          <header className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-card/95 backdrop-blur px-4">
+          <header className="md:hidden sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card/95 backdrop-blur px-4">
             <SidebarTrigger aria-label="Abrir menu de navegação" />
-            <h1 className="text-sm font-semibold flex-1 text-center">Entenda Gastos</h1>
-            <ThemeToggle />
+            <h1 className="text-sm font-semibold">Entenda Gastos</h1>
           </header>
 
           {/* Page content */}

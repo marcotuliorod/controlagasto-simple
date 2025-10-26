@@ -32,15 +32,16 @@ export default defineConfig(({ mode }) => ({
       brotliSize: true,
     }),
     VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
       registerType: 'prompt',
-      injectRegister: false,
+      strategies: 'injectManifest',
+      srcDir: 'public',
+      filename: 'sw.js',
       injectManifest: {
-        rollupFormat: 'iife',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-        injectionPoint: 'self.__WB_MANIFEST'
+        swSrc: 'public/sw.js',
+        swDest: 'dist/sw.js',
+        globDirectory: 'dist',
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
       },
       includeAssets: ['icon-192.png', 'icon-512.png', 'splash-640x1136.png'],
       manifest: {
@@ -53,6 +54,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#3B82F6',
         background_color: '#0B1220',
         display: 'standalone',
+        orientation: 'portrait-primary',
         scope: '/',
         start_url: '/?source=pwa',
         prefer_related_applications: false,
@@ -87,6 +89,7 @@ export default defineConfig(({ mode }) => ({
       },
       devOptions: {
         enabled: true,
+        type: 'module',
         navigateFallback: 'index.html',
       }
     })
@@ -95,40 +98,5 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
-  build: {
-    cssCodeSplit: true,
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            // Split vendor chunks by package
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-vendor';
-            }
-            if (id.includes('@tanstack')) {
-              return 'query-vendor';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'ui-vendor';
-            }
-            if (id.includes('recharts')) {
-              return 'chart-vendor';
-            }
-            if (id.includes('react-hook-form') || id.includes('zod')) {
-              return 'form-vendor';
-            }
-            if (id.includes('date-fns')) {
-              return 'date-vendor';
-            }
-            // Note: lucide-react icons are intentionally NOT split to avoid 
-            // network dependency chains. Icons load with their components.
-            // Other node_modules go into vendor chunk
-            return 'vendor';
-          }
-        },
-      },
-    },
-    chunkSizeWarningLimit: 1000,
   },
 }));
