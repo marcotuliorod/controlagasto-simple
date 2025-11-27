@@ -171,7 +171,7 @@ export default function ScheduledExports() {
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-lg">{exp.name}</h3>
-                      <Badge variant={exp.is_active ? "default" : "secondary"}>
+                      <Badge variant={exp.is_active ? "default" : "outline"}>
                         {exp.is_active ? "Ativo" : "Pausado"}
                       </Badge>
                     </div>

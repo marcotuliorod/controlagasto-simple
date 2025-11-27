@@ -65,7 +65,7 @@ export default function Settings() {
       />
       
       <div>
-        <h1 className="text-3xl font-bold">Configurações</h1>
+        <h1 className="text-3xl font-medium">Configurações</h1>
         <p className="text-muted-foreground mt-2">
           Gerencie suas preferências e configurações do app
         </p>

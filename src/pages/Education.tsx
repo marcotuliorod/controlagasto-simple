@@ -164,7 +164,7 @@ export default function Education() {
                     <Badge variant="outline" className="text-xs">
                       {categoryLabels[item.category as keyof typeof categoryLabels]}
                     </Badge>
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="default" className="text-xs">
                       {levelLabels[item.level as keyof typeof levelLabels]}
                     </Badge>
                   </div>
@@ -194,7 +194,7 @@ export default function Education() {
                   <Badge variant="outline">
                     {categoryLabels[selectedContent.category as keyof typeof categoryLabels]}
                   </Badge>
-                  <Badge variant="secondary">
+                  <Badge variant="default">
                     {levelLabels[selectedContent.level as keyof typeof levelLabels]}
                   </Badge>
                 </div>

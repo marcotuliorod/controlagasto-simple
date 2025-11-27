@@ -24,7 +24,7 @@ export default function FABAddExpense() {
     <>
       <Button
         onClick={() => setQuickAddOpen(true)}
-        className="fixed bottom-20 md:bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-hover z-50 transition-all"
+        className="fixed bottom-20 md:bottom-6 right-6 h-14 w-14 rounded-full z-50 transition-all duration-150 hover:scale-105"
         size="icon"
         aria-label="Adicionar nova despesa. Atalho: Ctrl ou Cmd + N"
         title="Adicionar despesa (Ctrl/Cmd + N)"

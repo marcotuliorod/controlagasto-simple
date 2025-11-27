@@ -12,7 +12,7 @@ const navItems = [
 export default function BottomNav() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-card border-t z-40 md:hidden safe-area-inset-bottom"
+      className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border/50 z-40 md:hidden safe-area-inset-bottom"
       aria-label="Navegação principal"
     >
       <div className="flex justify-around items-center h-16 max-w-screen-sm mx-auto">
@@ -21,7 +21,7 @@ export default function BottomNav() {
             key={item.path}
             to={item.path}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+              `flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all duration-150 ${
                 isActive
                   ? "text-primary font-medium"
                   : "text-muted-foreground hover:text-foreground"

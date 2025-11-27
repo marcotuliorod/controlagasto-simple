@@ -28,26 +28,20 @@ export function EmptyState({
     <Card className={cn("p-8 md:p-12", !prefersReducedMotion && "animate-fade-in")}>
       <div className="flex flex-col items-center text-center space-y-4 max-w-md mx-auto">
         {illustration || (
-          <div className={cn(
-            "rounded-full bg-gradient-to-br from-muted to-muted/50 p-6",
-            !prefersReducedMotion && "animate-scale-in"
-          )}>
+          <div className={cn("rounded-full bg-muted p-6", !prefersReducedMotion && "animate-scale-in")}>
             <Icon className="w-12 h-12 text-muted-foreground" />
           </div>
         )}
         
         <div className="space-y-2">
-          <h3 className="text-xl font-semibold">{title}</h3>
+          <h3 className="text-xl font-medium">{title}</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {description}
           </p>
         </div>
 
         {actionLabel && onAction && (
-          <Button 
-            onClick={onAction} 
-            className={cn("mt-4", !prefersReducedMotion && "hover:scale-105 transition-transform")}
-          >
+          <Button onClick={onAction} className={cn("mt-4", !prefersReducedMotion && "hover:scale-105 transition-all duration-150")}>
             {actionLabel}
           </Button>
         )}

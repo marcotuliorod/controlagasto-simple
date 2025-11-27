@@ -229,23 +229,23 @@ export default function AddExpense() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
-      <header className="gradient-primary text-white p-6">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b p-6">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/dashboard")}
-            className="text-white hover:bg-white/20"
+            className="hover:bg-muted"
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-2xl font-bold">Adicionar Despesa</h1>
+          <h1 className="text-2xl font-medium">Adicionar Despesa</h1>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto p-6">
-        <Card className="p-6 shadow-card">
+        <Card className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="amount" className="flex items-center gap-2">
