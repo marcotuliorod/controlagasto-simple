@@ -257,7 +257,7 @@ export default function Reports() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <TrendingDown className="w-8 h-8 text-primary" />
-            <h1 className="text-3xl font-bold">Relatórios Avançados</h1>
+            <h1 className="text-3xl font-medium">Relatórios Avançados</h1>
           </div>
           <div className="flex gap-2">
             <Button

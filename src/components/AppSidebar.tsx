@@ -72,19 +72,19 @@ export function AppSidebar() {
 
   const getNavClassName = (isActive: boolean) =>
     isActive
-      ? "bg-primary/10 text-primary font-medium hover:bg-primary/15"
+      ? "bg-muted text-foreground font-medium"
       : "hover:bg-muted/50";
 
   return (
     <Sidebar collapsible="icon" className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Wallet className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted">
+            <Wallet className="h-5 w-5 text-foreground" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold">Entenda Gastos</span>
+              <span className="text-sm font-medium">Entenda Gastos</span>
               <span className="text-xs text-muted-foreground">Finanças Pessoais</span>
             </div>
           )}
@@ -111,7 +111,7 @@ export function AppSidebar() {
                           <span className="flex items-center gap-2">
                             {item.title}
                             {item.badge && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                              <Badge variant="outline" className="text-xs px-1.5 py-0">
                                 {item.badge}
                               </Badge>
                             )}
@@ -145,7 +145,7 @@ export function AppSidebar() {
                           <span className="flex items-center gap-2">
                             {item.title}
                             {item.badge && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                              <Badge variant="outline" className="text-xs px-1.5 py-0">
                                 {item.badge}
                               </Badge>
                             )}

@@ -290,7 +290,7 @@ export default function RecurringExpenses() {
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-lg">{rec.merchant}</h3>
-                      <Badge variant={rec.is_active ? "default" : "secondary"}>
+                      <Badge variant={rec.is_active ? "default" : "outline"}>
                         {rec.is_active ? "Ativo" : "Pausado"}
                       </Badge>
                     </div>

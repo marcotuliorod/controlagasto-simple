@@ -8,87 +8,78 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 150 30% 98%;
-    --foreground: 158 40% 15%;
+    /* Rinesk-inspired Ultra Minimalist Palette */
+    --background: 0 0% 99%;
+    --foreground: 195 5% 26%;
 
     --card: 0 0% 100%;
-    --card-foreground: 158 40% 15%;
+    --card-foreground: 195 5% 26%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 158 40% 15%;
+    --popover-foreground: 195 5% 26%;
 
-    --primary: 158 64% 52%;
+    --primary: 202 35% 62%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 158 64% 42%;
+    --primary-hover: 202 35% 55%;
 
-    --secondary: 200 95% 45%;
+    --secondary: 183 15% 36%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 200 95% 35%;
+    --secondary-hover: 183 15% 30%;
 
-    --muted: 150 20% 94%;
-    --muted-foreground: 158 20% 40%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 183 15% 36%;
 
-    --accent: 200 80% 50%;
+    --accent: 202 35% 62%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 45% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 158 64% 52%;
-    --warning: 38 92% 50%;
-    --info: 200 95% 45%;
+    --success: 100 18% 56%;
+    --warning: 38 70% 55%;
+    --info: 202 35% 62%;
 
-    --border: 150 20% 88%;
-    --input: 150 20% 90%;
-    --ring: 158 64% 52%;
+    --border: 0 0% 92%;
+    --input: 0 0% 94%;
+    --ring: 202 35% 62%;
 
-    --radius: 0.75rem;
-
-    --gradient-primary: linear-gradient(135deg, hsl(158 64% 52%), hsl(200 95% 45%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(150 30% 97%));
-    --shadow-card: 0 4px 20px -2px hsl(158 64% 52% / 0.1);
-    --shadow-hover: 0 8px 30px -4px hsl(158 64% 52% / 0.2);
+    --radius: 0.375rem;
   }
 
   .dark {
-    --background: 158 30% 8%;
-    --foreground: 150 20% 90%;
+    --background: 150 10% 8%;
+    --foreground: 0 0% 90%;
 
-    --card: 158 25% 12%;
-    --card-foreground: 150 20% 90%;
+    --card: 150 8% 12%;
+    --card-foreground: 0 0% 88%;
 
-    --popover: 158 25% 12%;
-    --popover-foreground: 150 20% 90%;
+    --popover: 150 8% 12%;
+    --popover-foreground: 0 0% 88%;
 
-    --primary: 158 64% 52%;
+    --primary: 202 35% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 158 64% 62%;
+    --primary-hover: 202 35% 48%;
 
-    --secondary: 200 95% 45%;
+    --secondary: 183 12% 40%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 200 95% 55%;
+    --secondary-hover: 183 12% 35%;
 
-    --muted: 158 25% 18%;
-    --muted-foreground: 150 15% 60%;
+    --muted: 150 8% 16%;
+    --muted-foreground: 183 12% 55%;
 
-    --accent: 200 80% 50%;
+    --accent: 202 35% 55%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 45% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 158 64% 52%;
-    --warning: 38 92% 50%;
-    --info: 200 95% 45%;
+    --success: 100 18% 56%;
+    --warning: 38 70% 55%;
+    --info: 202 35% 55%;
 
-    --border: 158 25% 20%;
-    --input: 158 25% 18%;
-    --ring: 158 64% 52%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(158 64% 42%), hsl(200 95% 35%));
-    --gradient-card: linear-gradient(180deg, hsl(158 25% 12%), hsl(158 30% 10%));
-    --shadow-card: 0 4px 20px -2px hsl(158 64% 52% / 0.2);
-    --shadow-hover: 0 8px 30px -4px hsl(158 64% 52% / 0.3);
+    --border: 150 8% 18%;
+    --input: 150 8% 16%;
+    --ring: 202 35% 55%;
   }
 }
 
@@ -170,22 +161,6 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  .gradient-primary {
-    background: var(--gradient-primary);
-  }
-  
-  .gradient-card {
-    background: var(--gradient-card);
-  }
-
-  .shadow-card {
-    box-shadow: var(--shadow-card);
-  }
-
-  .shadow-hover {
-    box-shadow: var(--shadow-hover);
-  }
-
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }

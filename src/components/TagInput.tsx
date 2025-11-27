@@ -37,7 +37,7 @@ export const TagInput = ({ tags, onChange, placeholder = "Adicionar tag..." }: T
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2 min-h-[2.5rem] p-2 border rounded-md bg-background">
         {tags.map((tag, index) => (
-          <Badge key={index} variant="secondary" className="gap-1">
+          <Badge key={index} variant="default" className="gap-1">
             {tag}
             <button
               type="button"

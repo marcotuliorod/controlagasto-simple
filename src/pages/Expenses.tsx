@@ -134,7 +134,7 @@ export default function Expenses() {
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Minhas Despesas</h1>
+        <h1 className="text-3xl font-medium">Minhas Despesas</h1>
 
         <Card className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -225,7 +225,7 @@ export default function Expenses() {
             {expenses.map((expense) => (
               <Card
                 key={expense.id}
-                className="p-4 hover:shadow-lg transition-shadow"
+                className="p-4 hover:bg-muted/30 transition-all duration-150"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">

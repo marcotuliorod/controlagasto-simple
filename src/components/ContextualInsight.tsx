@@ -44,14 +44,7 @@ export function ContextualInsight({
   const Icon = icons[type];
 
   return (
-    <Card
-      className={cn(
-        "p-4 border-l-4",
-        colors[type],
-        !prefersReducedMotion && "animate-slide-up",
-        className
-      )}
-    >
+    <Card className={cn("p-4 border-l-4", colors[type], !prefersReducedMotion && "animate-slide-up", className)}>
       <div className="flex gap-3">
         <Icon className={cn("w-5 h-5 flex-shrink-0 mt-0.5", iconColors[type])} />
         <div className="flex-1 space-y-1">

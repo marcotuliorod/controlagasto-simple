@@ -262,15 +262,15 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <header className="gradient-primary text-white p-6 rounded-lg shadow-card">
+        <header className="bg-card p-6 rounded-md border border-border/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Wallet className="w-8 h-8" />
+              <Wallet className="w-8 h-8 text-primary" />
               <div>
-                <h1 className="text-2xl font-bold">{getContextualGreeting(userName)}</h1>
+                <h1 className="text-2xl font-medium">{getContextualGreeting(userName)}</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="w-4 h-4 text-white/80" />
-                  <p className="text-white/80 text-sm">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <p className="text-muted-foreground text-sm">
                     {(() => {
                       const { start, end } = getCurrentCycle();
                       const startDate = new Date(start);
@@ -280,7 +280,7 @@ export default function Dashboard() {
                     })()}
                   </p>
                   {hasCustomCycle && (
-                    <Badge variant="secondary" className="ml-1 text-xs bg-white/20 text-white border-white/30">
+                    <Badge variant="outline" className="ml-1 text-xs">
                       Ciclo Personalizado
                     </Badge>
                   )}
@@ -293,12 +293,12 @@ export default function Dashboard() {
         {notifications.length > 0 && (
           <div className="space-y-3">
             {notifications.map((notif) => (
-              <Card key={notif.id} className="p-4 border-l-4 border-l-orange-500 bg-orange-50 dark:bg-orange-950/20">
+              <Card key={notif.id} className="p-4 border-l-4 border-l-warning bg-warning/5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 flex-1">
-                    <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-sm">Alerta de Meta - 80%</p>
+                      <p className="font-medium text-sm">Alerta de Meta - 80%</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         Você atingiu {notif.payload.percentage}% da sua meta mensal 
                         (R$ {Number(notif.payload.spent).toFixed(2)} de R$ {Number(notif.payload.limit).toFixed(2)})
@@ -318,10 +318,10 @@ export default function Dashboard() {
           </div>
         )}
 
-        <Card className="p-6 shadow-card">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold">Meta do Mês</h2>
+            <h2 className="text-xl font-medium">Meta do Mês</h2>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
@@ -341,7 +341,7 @@ export default function Dashboard() {
               <p className="text-sm font-medium">
                 {progressMessage.icon} {getContextualMessage(progressPercent, daysLeft)}
               </p>
-              <Badge variant={progressPercent >= 100 ? "destructive" : "secondary"}>
+              <Badge variant={progressPercent >= 100 ? "destructive" : "default"}>
                 {progressPercent.toFixed(0)}%
               </Badge>
             </div>
@@ -379,12 +379,12 @@ export default function Dashboard() {
 
         <NotificationsCard />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {categoryTotals.length > 0 && (
-            <Card className="p-6 shadow-card">
+            <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
-                <PieChart className="w-5 h-5 text-secondary" />
-                <h2 className="text-xl font-semibold">Top Categorias</h2>
+                <PieChart className="w-5 h-5 text-primary" />
+                <h2 className="text-xl font-medium">Top Categorias</h2>
               </div>
               <div className="space-y-3">
                 {categoryTotals.map((cat) => {
@@ -437,11 +437,11 @@ export default function Dashboard() {
             </Card>
           )}
 
-          <Card className="p-6 shadow-card">
+          <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-info" />
-                <h2 className="text-xl font-semibold">Últimos Gastos</h2>
+                <Receipt className="w-5 h-5 text-primary" />
+                <h2 className="text-xl font-medium">Últimos Gastos</h2>
               </div>
             </div>
 
