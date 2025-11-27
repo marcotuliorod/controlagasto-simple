@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
-import { ScreenReaderAnnouncer, useScreenReaderAnnouncer } from "./components/ScreenReaderAnnouncer";
+import { ScreenReaderAnnouncer } from "./components/ScreenReaderAnnouncer";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -57,8 +57,6 @@ const LoadingFallback = () => (
 );
 
 const App = () => {
-  const { message, politeness } = useScreenReaderAnnouncer();
-  
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -68,7 +66,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <InstallPWA />
-              <ScreenReaderAnnouncer message={message} politeness={politeness} />
+              <ScreenReaderAnnouncer />
               <Suspense fallback={<LoadingFallback />}>
               <Routes>
               {/* Public routes */}
