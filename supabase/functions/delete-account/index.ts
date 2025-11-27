@@ -57,47 +57,133 @@ serve(async (req) => {
       console.log(`${files.length} arquivo(s) deletado(s) do storage`);
     }
 
-    // 2. Delete notifications
+    // 2. Delete chat_messages (before chat_conversations)
+    const { error: chatMsgError } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('user_id', user.id);
+    if (chatMsgError) console.error("Erro ao deletar chat_messages:", chatMsgError);
+
+    // 3. Delete chat_conversations
+    const { error: chatConvError } = await supabase
+      .from('chat_conversations')
+      .delete()
+      .eq('user_id', user.id);
+    if (chatConvError) console.error("Erro ao deletar chat_conversations:", chatConvError);
+
+    // 4. Delete quiz_responses
+    const { error: quizError } = await supabase
+      .from('quiz_responses')
+      .delete()
+      .eq('user_id', user.id);
+    if (quizError) console.error("Erro ao deletar quiz_responses:", quizError);
+
+    // 5. Delete user_content_progress
+    const { error: progressError } = await supabase
+      .from('user_content_progress')
+      .delete()
+      .eq('user_id', user.id);
+    if (progressError) console.error("Erro ao deletar user_content_progress:", progressError);
+
+    // 6. Delete financial_health_scores
+    const { error: healthError } = await supabase
+      .from('financial_health_scores')
+      .delete()
+      .eq('user_id', user.id);
+    if (healthError) console.error("Erro ao deletar financial_health_scores:", healthError);
+
+    // 7. Delete category_goals (before categories)
+    const { error: catGoalsError } = await supabase
+      .from('category_goals')
+      .delete()
+      .eq('user_id', user.id);
+    if (catGoalsError) console.error("Erro ao deletar category_goals:", catGoalsError);
+
+    // 8. Delete recurring_expenses (before accounts/categories)
+    const { error: recurringError } = await supabase
+      .from('recurring_expenses')
+      .delete()
+      .eq('user_id', user.id);
+    if (recurringError) console.error("Erro ao deletar recurring_expenses:", recurringError);
+
+    // 9. Delete notification_preferences
+    const { error: notifPrefError } = await supabase
+      .from('notification_preferences')
+      .delete()
+      .eq('user_id', user.id);
+    if (notifPrefError) console.error("Erro ao deletar notification_preferences:", notifPrefError);
+
+    // 10. Delete push_subscriptions
+    const { error: pushError } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', user.id);
+    if (pushError) console.error("Erro ao deletar push_subscriptions:", pushError);
+
+    // 11. Delete saved_filters
+    const { error: filtersError } = await supabase
+      .from('saved_filters')
+      .delete()
+      .eq('user_id', user.id);
+    if (filtersError) console.error("Erro ao deletar saved_filters:", filtersError);
+
+    // 12. Delete scheduled_exports
+    const { error: exportsError } = await supabase
+      .from('scheduled_exports')
+      .delete()
+      .eq('user_id', user.id);
+    if (exportsError) console.error("Erro ao deletar scheduled_exports:", exportsError);
+
+    // 13. Delete notifications
     const { error: notifError } = await supabase
       .from('notifications')
       .delete()
       .eq('user_id', user.id);
-    
     if (notifError) console.error("Erro ao deletar notifications:", notifError);
 
-    // 3. Delete expenses
+    // 14. Delete expenses (before accounts)
     const { error: expensesError } = await supabase
       .from('expenses')
       .delete()
       .eq('user_id', user.id);
-    
     if (expensesError) console.error("Erro ao deletar expenses:", expensesError);
 
-    // 4. Delete monthly_goals
+    // 15. Delete monthly_goals
     const { error: goalsError } = await supabase
       .from('monthly_goals')
       .delete()
       .eq('user_id', user.id);
-    
     if (goalsError) console.error("Erro ao deletar monthly_goals:", goalsError);
 
-    // 5. Delete user categories (keep defaults)
+    // 16. Delete accounts (after expenses)
+    const { error: accountsError } = await supabase
+      .from('accounts')
+      .delete()
+      .eq('user_id', user.id);
+    if (accountsError) console.error("Erro ao deletar accounts:", accountsError);
+
+    // 17. Delete user categories (after expenses/category_goals)
     const { error: categoriesError } = await supabase
       .from('categories')
       .delete()
       .eq('user_id', user.id);
-    
     if (categoriesError) console.error("Erro ao deletar categories:", categoriesError);
 
-    // 6. Delete profile
+    // 18. Delete audit_logs (before auth user)
+    const { error: auditError } = await supabase
+      .from('audit_logs')
+      .delete()
+      .eq('user_id', user.id);
+    if (auditError) console.error("Erro ao deletar audit_logs:", auditError);
+
+    // 19. Delete profile
     const { error: profileError } = await supabase
       .from('profiles')
       .delete()
       .eq('id', user.id);
-    
     if (profileError) console.error("Erro ao deletar profile:", profileError);
 
-    // 7. Delete auth user
+    // 20. Delete auth user
     const { error: deleteUserError } = await supabase.auth.admin.deleteUser(user.id);
     
     if (deleteUserError) {
