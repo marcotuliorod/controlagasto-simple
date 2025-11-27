@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
+import { ScreenReaderAnnouncer, useScreenReaderAnnouncer } from "./components/ScreenReaderAnnouncer";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -55,16 +56,20 @@ const LoadingFallback = () => (
   </div>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <TooltipProvider>
-        <PWAInstallProvider>
-          <BrowserRouter>
-            <Toaster />
-            <Sonner />
-            <InstallPWA />
-            <Suspense fallback={<LoadingFallback />}>
+const App = () => {
+  const { message, politeness } = useScreenReaderAnnouncer();
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <TooltipProvider>
+          <PWAInstallProvider>
+            <BrowserRouter>
+              <Toaster />
+              <Sonner />
+              <InstallPWA />
+              <ScreenReaderAnnouncer message={message} politeness={politeness} />
+              <Suspense fallback={<LoadingFallback />}>
               <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
@@ -107,6 +112,7 @@ const App = () => (
     </TooltipProvider>
   </ThemeProvider>
 </QueryClientProvider>
-);
+  );
+};
 
 export default App;

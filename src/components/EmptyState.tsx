@@ -2,6 +2,8 @@ import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -20,11 +22,16 @@ export function EmptyState({
   onAction,
   illustration,
 }: EmptyStateProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <Card className="p-8 md:p-12">
+    <Card className={cn("p-8 md:p-12", !prefersReducedMotion && "animate-fade-in")}>
       <div className="flex flex-col items-center text-center space-y-4 max-w-md mx-auto">
         {illustration || (
-          <div className="rounded-full bg-muted p-6">
+          <div className={cn(
+            "rounded-full bg-gradient-to-br from-muted to-muted/50 p-6",
+            !prefersReducedMotion && "animate-scale-in"
+          )}>
             <Icon className="w-12 h-12 text-muted-foreground" />
           </div>
         )}
@@ -37,7 +44,10 @@ export function EmptyState({
         </div>
 
         {actionLabel && onAction && (
-          <Button onClick={onAction} className="mt-4">
+          <Button 
+            onClick={onAction} 
+            className={cn("mt-4", !prefersReducedMotion && "hover:scale-105 transition-transform")}
+          >
             {actionLabel}
           </Button>
         )}
