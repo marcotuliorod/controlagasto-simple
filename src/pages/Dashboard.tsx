@@ -22,6 +22,10 @@ import { FinancialHealthScore } from "@/components/FinancialHealthScore";
 import { useExpensesRealtime } from "@/hooks/useExpensesRealtime";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { getContextualGreeting, getContextualMessage } from "@/lib/greeting";
+import { AnimatedProgress } from "@/components/AnimatedProgress";
+import { ContextualInsight } from "@/components/ContextualInsight";
+import { useContextualInsight } from "@/hooks/useContextualInsight";
 
 interface Expense {
   id: string;
@@ -214,6 +218,28 @@ export default function Dashboard() {
 
   const progressPercent = monthlyGoal > 0 ? (totalSpent / monthlyGoal) * 100 : 0;
   const remaining = monthlyGoal - totalSpent;
+  
+  // Calculate days left in cycle
+  const daysLeft = useMemo(() => {
+    const { end } = getCurrentCycle();
+    const today = new Date();
+    const endDate = new Date(end);
+    const diffTime = endDate.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [getCurrentCycle]);
+
+  // Get contextual insights
+  const allExpensesForInsights = useMemo(() => 
+    recentExpenses.map(e => ({
+      amount: e.amount,
+      category_id: undefined,
+      date: e.date,
+      merchant: e.merchant,
+    })),
+    [recentExpenses]
+  );
+  
+  const insights = useContextualInsight(allExpensesForInsights, monthlyGoal);
 
   const progressColor = useMemo(() => {
     if (progressPercent < 60) return "bg-primary";
@@ -237,28 +263,31 @@ export default function Dashboard() {
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <header className="gradient-primary text-white p-6 rounded-lg shadow-card">
-          <div className="flex items-center gap-3">
-            <Wallet className="w-8 h-8" />
-            <div>
-              <h1 className="text-2xl font-bold">Olá, {userName}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="w-4 h-4 text-white/80" />
-                <p className="text-white/80 text-sm">
-                  {(() => {
-                    const { start, end } = getCurrentCycle();
-                    const startDate = new Date(start);
-                    const endDate = new Date(end);
-                    endDate.setDate(endDate.getDate() - 1); // Make end inclusive for display
-                    return `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`;
-                  })()}
-                </p>
-                {hasCustomCycle && (
-                  <Badge variant="secondary" className="ml-1 text-xs bg-white/20 text-white border-white/30">
-                    Ciclo Personalizado
-                  </Badge>
-                )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-8 h-8" />
+              <div>
+                <h1 className="text-2xl font-bold">{getContextualGreeting(userName)}</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <Calendar className="w-4 h-4 text-white/80" />
+                  <p className="text-white/80 text-sm">
+                    {(() => {
+                      const { start, end } = getCurrentCycle();
+                      const startDate = new Date(start);
+                      const endDate = new Date(end);
+                      endDate.setDate(endDate.getDate() - 1);
+                      return `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`;
+                    })()}
+                  </p>
+                  {hasCustomCycle && (
+                    <Badge variant="secondary" className="ml-1 text-xs bg-white/20 text-white border-white/30">
+                      Ciclo Personalizado
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
+            <AnimatedProgress value={Math.min(progressPercent, 100)} size="md" />
           </div>
         </header>
         {notifications.length > 0 && (
@@ -310,7 +339,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">
-                {progressMessage.icon} {progressMessage.text}
+                {progressMessage.icon} {getContextualMessage(progressPercent, daysLeft)}
               </p>
               <Badge variant={progressPercent >= 100 ? "destructive" : "secondary"}>
                 {progressPercent.toFixed(0)}%
@@ -329,6 +358,22 @@ export default function Dashboard() {
         </Card>
 
         <FinancialHealthScore />
+
+        {/* Contextual Insights */}
+        {insights.length > 0 && (
+          <div className="space-y-3">
+            {insights.map((insight, index) => (
+              <ContextualInsight
+                key={index}
+                type={insight.type}
+                title={insight.title}
+                message={insight.message}
+                action={insight.action}
+                onAction={insight.action === "Adicionar despesa" ? () => navigate("/add-expense") : undefined}
+              />
+            ))}
+          </div>
+        )}
 
         <InsightsCard />
 
