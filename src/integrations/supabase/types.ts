@@ -821,7 +821,6 @@ export type Database = {
               p_before_data?: Json
               p_entity: string
               p_entity_id: string
-              p_user_id?: string
             }
             Returns: undefined
           }
@@ -832,6 +831,7 @@ export type Database = {
               p_before_data?: Json
               p_entity: string
               p_entity_id: string
+              p_user_id?: string
             }
             Returns: undefined
           }
