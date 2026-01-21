@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import BottomNav from "@/components/BottomNav";
 import FABAddExpense from "@/components/FABAddExpense";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { OnboardingWelcomeModal } from "@/components/gamification/OnboardingWelcomeModal";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -45,6 +46,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         
         {/* Global Search (Cmd+K) */}
         <GlobalSearch />
+        
+        {/* Onboarding Modal (gamification) */}
+        <OnboardingWelcomeModal />
       </div>
     </SidebarProvider>
   );
