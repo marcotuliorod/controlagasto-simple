@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { TransactionClassification } from "@/lib/bankPatterns";
 
 export interface ParsedTransaction {
   date: string;
@@ -20,11 +21,20 @@ export interface ParsedTransaction {
   categoryId?: string | null;
 }
 
+// Extended transaction with classification for smart filtering
+export interface ClassifiedTransaction extends ParsedTransaction {
+  classification?: TransactionClassification;
+  originalDescription?: string;
+  documentNumber?: string;
+}
+
 export interface ImportResult {
   success: boolean;
-  transactions: ParsedTransaction[];
+  transactions: ClassifiedTransaction[];
   totalCount: number;
   duplicatesCount: number;
+  excludedCount?: number;
+  reviewCount?: number;
   columns?: string[];
   previewRows?: string[][];
   needsMapping: boolean;
@@ -34,6 +44,11 @@ export interface ImportResult {
   error?: string;
   alreadyImported?: boolean;
   pdfNotSupported?: boolean;
+  detectedBank?: {
+    name: string;
+    code: string;
+    displayName: string;
+  } | null;
 }
 
 export interface ColumnMapping {

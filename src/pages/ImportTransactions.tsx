@@ -6,12 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FileUploadZone } from "@/components/import/FileUploadZone";
 import { ColumnMapper } from "@/components/import/ColumnMapper";
-import { ImportPreviewTable } from "@/components/import/ImportPreviewTable";
+import { TransactionFilterTabs } from "@/components/import/TransactionFilterTabs";
+import { TransferReviewDialog } from "@/components/import/TransferReviewDialog";
+import { BankDetectionBadge } from "@/components/import/BankDetectionBadge";
 import { ImportSummary } from "@/components/import/ImportSummary";
-import { useImportTransactions, ParsedTransaction, ColumnMapping } from "@/hooks/useImportTransactions";
+import { useImportTransactions, ClassifiedTransaction, ColumnMapping } from "@/hooks/useImportTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import { triggerCelebration } from "@/components/feedback/Celebration";
+// Simplified bank info from API (without patterns regex)
+interface DetectedBankInfo {
+  name: string;
+  code: string;
+  displayName: string;
+}
 
 type Step = 'upload' | 'mapping' | 'preview' | 'summary';
 
@@ -23,12 +31,14 @@ export default function ImportTransactions() {
   const [step, setStep] = useState<Step>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [accountId, setAccountId] = useState<string>('');
-  const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
+  const [transactions, setTransactions] = useState<ClassifiedTransaction[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; icon: string; color: string }>>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
   const [autoMapping, setAutoMapping] = useState<Partial<ColumnMapping>>({});
   const [fileHash, setFileHash] = useState<string>('');
+  const [detectedBank, setDetectedBank] = useState<BankInfo | null>(null);
+  const [showTransferReview, setShowTransferReview] = useState(false);
 
   useEffect(() => {
     if (accounts && accounts.length > 0 && !accountId) {
@@ -47,9 +57,10 @@ export default function ImportTransactions() {
       setAutoMapping(result.autoMapping || {});
       setStep('mapping');
     } else {
-      setTransactions(result.transactions.map(t => ({ ...t, selected: !t.isDuplicate })));
+      setTransactions(result.transactions.map(t => ({ ...t, selected: t.classification === 'expense' && !t.isDuplicate })));
       setCategories(result.categories || []);
       setFileHash(result.fileHash || '');
+      setDetectedBank(result.detectedBank || null);
       setStep('preview');
     }
   };
@@ -65,10 +76,26 @@ export default function ImportTransactions() {
       accountId 
     });
 
-    setTransactions(result.transactions.map(t => ({ ...t, selected: !t.isDuplicate })));
+    setTransactions(result.transactions.map(t => ({ ...t, selected: t.classification === 'expense' && !t.isDuplicate })));
     setCategories(result.categories || []);
     setFileHash(result.fileHash || '');
+    setDetectedBank(result.detectedBank || null);
     setStep('preview');
+  };
+
+  const handleTransferDecisions = (decisions: Array<{ originalRow: number; decision: 'expense' | 'ignore' }>) => {
+    const updated = transactions.map(t => {
+      const decision = decisions.find(d => d.originalRow === t.originalRow);
+      if (decision) {
+        return {
+          ...t,
+          classification: decision.decision === 'expense' ? 'expense' as const : 'ignore' as const,
+          selected: decision.decision === 'expense'
+        };
+      }
+      return t;
+    });
+    setTransactions(updated);
   };
 
   const handleImport = async () => {
@@ -94,7 +121,10 @@ export default function ImportTransactions() {
     setTransactions([]);
     setColumns([]);
     setPreviewRows([]);
+    setDetectedBank(null);
   };
+
+  const transfersForReview = transactions.filter(t => t.classification === 'transfer' && !t.isDuplicate);
 
   return (
     <div className="container max-w-4xl py-6 space-y-6">
@@ -150,7 +180,7 @@ export default function ImportTransactions() {
                 <span>Processando arquivo...</span>
                 {selectedFile?.name.toLowerCase().endsWith('.pdf') && (
                   <span className="text-sm text-muted-foreground">
-                    PDFs podem levar alguns segundos a mais para processar...
+                    PDFs podem levar até 1 minuto para processar com IA...
                   </span>
                 )}
               </div>
@@ -182,11 +212,17 @@ export default function ImportTransactions() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <ImportPreviewTable
+            {detectedBank && (
+              <BankDetectionBadge bank={detectedBank} />
+            )}
+
+            <TransactionFilterTabs
               transactions={transactions}
               categories={categories}
               onTransactionsChange={setTransactions}
+              onOpenTransferReview={() => setShowTransferReview(true)}
             />
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleReset}>Cancelar</Button>
               <Button onClick={() => setStep('summary')}>
@@ -207,6 +243,13 @@ export default function ImportTransactions() {
           isImporting={importTransactions.isPending}
         />
       )}
+
+      <TransferReviewDialog
+        open={showTransferReview}
+        onOpenChange={setShowTransferReview}
+        transfers={transfersForReview}
+        onDecisions={handleTransferDecisions}
+      />
     </div>
   );
 }
