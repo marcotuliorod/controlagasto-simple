@@ -13,7 +13,7 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
     if (!lovableApiKey) {
@@ -21,26 +21,36 @@ serve(async (req) => {
     }
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing authorization header');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const token = authHeader.replace("Bearer ", "");
     
-    // Decode JWT to extract userId
-    let userId: string;
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error("Invalid JWT format");
-      
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      userId = payload.sub;
-      
-      if (!userId) throw new Error("Missing 'sub' claim in JWT");
-    } catch (decodeError) {
-      console.error("❌ Failed to decode JWT:", decodeError);
-      throw new Error("Token inválido");
+    // Create service client for token verification
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
+    
+    // Properly verify JWT using Supabase auth
+    const { data: userData, error: authError } = await serviceClient.auth.getUser(token);
+    
+    if (authError || !userData?.user) {
+      console.error("❌ Auth verification failed:", authError);
+      return new Response(
+        JSON.stringify({ error: "Token inválido" }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    
+    const userId = userData.user.id;
+    console.log(`✅ User verified. User ID: ${userId}`);
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // Create user-scoped client for RLS
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false }
     });
