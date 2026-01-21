@@ -6,6 +6,115 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple PDF generator class - creates valid PDF 1.4 documents
+class SimplePDF {
+  private objects: string[] = [];
+  private pages: number[] = [];
+  private content: string[] = [];
+  private objectOffsets: number[] = [];
+  private currentY = 800;
+  private pageHeight = 842;
+  private pageWidth = 595;
+  private margin = 50;
+  private lineHeight = 14;
+  private fontSize = 10;
+
+  constructor() {
+    // Initialize with required PDF objects
+  }
+
+  private escapeText(text: string): string {
+    if (!text) return '';
+    return text
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)')
+      .replace(/[\x00-\x1F\x7F-\xFF]/g, '');
+  }
+
+  addTitle(text: string): void {
+    this.content.push(`BT /F1 18 Tf ${this.margin} ${this.currentY} Td (${this.escapeText(text)}) Tj ET`);
+    this.currentY -= 30;
+  }
+
+  addSubtitle(text: string): void {
+    this.content.push(`BT /F1 12 Tf ${this.margin} ${this.currentY} Td (${this.escapeText(text)}) Tj ET`);
+    this.currentY -= 20;
+  }
+
+  addText(text: string, indent = 0): void {
+    if (this.currentY < 50) {
+      this.newPage();
+    }
+    const x = this.margin + indent;
+    this.content.push(`BT /F1 ${this.fontSize} Tf ${x} ${this.currentY} Td (${this.escapeText(text)}) Tj ET`);
+    this.currentY -= this.lineHeight;
+  }
+
+  addLine(): void {
+    this.content.push(`${this.margin} ${this.currentY + 5} m ${this.pageWidth - this.margin} ${this.currentY + 5} l S`);
+    this.currentY -= 10;
+  }
+
+  addSpace(height = 10): void {
+    this.currentY -= height;
+    if (this.currentY < 50) {
+      this.newPage();
+    }
+  }
+
+  private newPage(): void {
+    this.currentY = 800;
+  }
+
+  generate(): Uint8Array {
+    const contentStream = this.content.join('\n');
+    
+    // Object 1: Catalog
+    const catalog = '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n';
+    
+    // Object 2: Pages
+    const pages = '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n';
+    
+    // Object 3: Page
+    const page = `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${this.pageWidth} ${this.pageHeight}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n`;
+    
+    // Object 4: Content stream
+    const streamContent = contentStream;
+    const contentObj = `4 0 obj\n<< /Length ${streamContent.length} >>\nstream\n${streamContent}\nendstream\nendobj\n`;
+    
+    // Object 5: Font
+    const font = '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n';
+    
+    // Build PDF
+    let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+    const offset1 = pdf.length;
+    pdf += catalog;
+    const offset2 = pdf.length;
+    pdf += pages;
+    const offset3 = pdf.length;
+    pdf += page;
+    const offset4 = pdf.length;
+    pdf += contentObj;
+    const offset5 = pdf.length;
+    pdf += font;
+    
+    const xrefOffset = pdf.length;
+    pdf += 'xref\n0 6\n';
+    pdf += '0000000000 65535 f \n';
+    pdf += `${offset1.toString().padStart(10, '0')} 00000 n \n`;
+    pdf += `${offset2.toString().padStart(10, '0')} 00000 n \n`;
+    pdf += `${offset3.toString().padStart(10, '0')} 00000 n \n`;
+    pdf += `${offset4.toString().padStart(10, '0')} 00000 n \n`;
+    pdf += `${offset5.toString().padStart(10, '0')} 00000 n \n`;
+    
+    pdf += 'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n';
+    pdf += xrefOffset + '\n%%EOF';
+    
+    return new TextEncoder().encode(pdf);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -60,14 +169,13 @@ serve(async (req) => {
     const average = count > 0 ? total / count : 0;
 
     // Group by category
-    const categoryTotals: Record<string, { total: number; count: number; name: string; color: string }> = {};
+    const categoryTotals: Record<string, { total: number; count: number; name: string }> = {};
     expenses?.forEach(exp => {
       const catId = exp.category_id || 'uncategorized';
       const catName = exp.categories?.name || 'Sem categoria';
-      const catColor = exp.categories?.color || '#6b7280';
       
       if (!categoryTotals[catId]) {
-        categoryTotals[catId] = { total: 0, count: 0, name: catName, color: catColor };
+        categoryTotals[catId] = { total: 0, count: 0, name: catName };
       }
       categoryTotals[catId].total += Number(exp.amount);
       categoryTotals[catId].count += 1;
@@ -77,140 +185,66 @@ serve(async (req) => {
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.total - a.total);
 
-    // HTML escape function to prevent XSS
-    const escapeHtml = (str: string | null | undefined): string => {
-      if (!str) return '';
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    };
+    // Generate PDF
+    const pdf = new SimplePDF();
+    
+    // Header
+    pdf.addTitle('Relatorio de Gastos');
+    const startFormatted = new Date(startDate).toLocaleDateString('pt-BR');
+    const endFormatted = new Date(new Date(endDate).getTime() - 86400000).toLocaleDateString('pt-BR');
+    pdf.addSubtitle(`Periodo: ${startFormatted} ate ${endFormatted}`);
+    pdf.addLine();
+    pdf.addSpace(10);
+    
+    // Summary
+    pdf.addSubtitle('Resumo');
+    pdf.addText(`Total de Gastos: R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+    pdf.addText(`Quantidade de Despesas: ${count}`);
+    pdf.addText(`Media por Gasto: R$ ${average.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`);
+    pdf.addSpace(15);
+    
+    // Categories
+    pdf.addSubtitle('Gastos por Categoria');
+    pdf.addLine();
+    categoryData.forEach(cat => {
+      const pct = total > 0 ? ((cat.total / total) * 100).toFixed(1) : '0.0';
+      pdf.addText(`${cat.name}: R$ ${cat.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${pct}%) - ${cat.count} itens`);
+    });
+    pdf.addSpace(15);
+    
+    // Expense details (first 30)
+    pdf.addSubtitle('Detalhamento de Gastos');
+    pdf.addLine();
+    const maxItems = Math.min(expenses?.length || 0, 30);
+    for (let i = 0; i < maxItems; i++) {
+      const exp = expenses![i];
+      const date = new Date(exp.date).toLocaleDateString('pt-BR');
+      const merchant = exp.merchant || '-';
+      const cat = exp.categories?.name || 'Sem categoria';
+      const amount = Number(exp.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      pdf.addText(`${date} | ${cat} | ${merchant.substring(0, 25)} | R$ ${amount}`);
+    }
+    
+    if ((expenses?.length || 0) > 30) {
+      pdf.addText(`... e mais ${(expenses?.length || 0) - 30} gastos`);
+    }
+    
+    pdf.addSpace(20);
+    pdf.addLine();
+    const now = new Date();
+    pdf.addText(`Relatorio gerado em ${now.toLocaleDateString('pt-BR')} as ${now.toLocaleTimeString('pt-BR')}`);
+    pdf.addText('Entenda Seus Gastos - Educacao Financeira Pessoal');
 
-    // Generate HTML for PDF
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; color: #1f2937; }
-    .header { border-bottom: 3px solid #10b981; padding-bottom: 20px; margin-bottom: 30px; }
-    h1 { color: #10b981; font-size: 32px; margin-bottom: 10px; }
-    .subtitle { color: #6b7280; font-size: 14px; }
-    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 30px 0; }
-    .summary-card { background: #f3f4f6; padding: 20px; border-radius: 8px; }
-    .summary-card h3 { color: #6b7280; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; }
-    .summary-card .value { color: #1f2937; font-size: 24px; font-weight: bold; }
-    .section { margin: 40px 0; }
-    .section h2 { color: #1f2937; font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #f9fafb; text-align: left; padding: 12px; font-size: 12px; color: #6b7280; text-transform: uppercase; }
-    td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
-    .category-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-    .amount { font-weight: 600; color: #1f2937; }
-    .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #9ca3af; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Relatório de Gastos</h1>
-    <p class="subtitle">Período: ${new Date(startDate).toLocaleDateString('pt-BR')} até ${new Date(new Date(endDate).getTime() - 86400000).toLocaleDateString('pt-BR')}</p>
-  </div>
+    // Generate PDF bytes
+    const pdfBytes = pdf.generate();
+    
+    // Encode to base64
+    const base64 = btoa(String.fromCharCode(...pdfBytes));
 
-  <div class="summary">
-    <div class="summary-card">
-      <h3>Total de Gastos</h3>
-      <div class="value">R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-    </div>
-    <div class="summary-card">
-      <h3>Quantidade</h3>
-      <div class="value">${count}</div>
-    </div>
-    <div class="summary-card">
-      <h3>Média por Gasto</h3>
-      <div class="value">R$ ${average.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Gastos por Categoria</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Categoria</th>
-          <th>Quantidade</th>
-          <th>Total</th>
-          <th>% do Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${categoryData.map(cat => `
-          <tr>
-            <td>
-              <span class="category-badge" style="background-color: ${escapeHtml(cat.color)}20; color: ${escapeHtml(cat.color)};">
-                ${escapeHtml(cat.name)}
-              </span>
-            </td>
-            <td>${cat.count}</td>
-            <td class="amount">R$ ${cat.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${((cat.total / total) * 100).toFixed(1)}%</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="section">
-    <h2>Detalhamento de Gastos</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Categoria</th>
-          <th>Estabelecimento</th>
-          <th>Valor</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${expenses?.slice(0, 50).map(exp => `
-          <tr>
-            <td>${new Date(exp.date).toLocaleDateString('pt-BR')}</td>
-            <td>
-              <span class="category-badge" style="background-color: ${escapeHtml(exp.categories?.color) || '#6b7280'}20; color: ${escapeHtml(exp.categories?.color) || '#6b7280'};">
-                ${escapeHtml(exp.categories?.name) || 'Sem categoria'}
-              </span>
-            </td>
-            <td>${escapeHtml(exp.merchant) || '-'}</td>
-            <td class="amount">R$ ${Number(exp.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          </tr>
-        `).join('')}
-        ${(expenses?.length || 0) > 50 ? `
-          <tr>
-            <td colspan="4" style="text-align: center; color: #6b7280; font-style: italic;">
-              ... e mais ${(expenses?.length || 0) - 50} gastos
-            </td>
-          </tr>
-        ` : ''}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="footer">
-    <p>Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
-    <p>Entenda Seus Gastos - Educação Financeira Pessoal</p>
-  </div>
-</body>
-</html>
-    `;
-
-    // Return HTML that can be converted to PDF on client side
     return new Response(
       JSON.stringify({ 
         success: true, 
-        html,
+        pdf: base64,
         summary: {
           total,
           count,
