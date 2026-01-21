@@ -11,7 +11,7 @@ import { ImportSummary } from "@/components/import/ImportSummary";
 import { useImportTransactions, ParsedTransaction, ColumnMapping } from "@/hooks/useImportTransactions";
 import { useAccounts } from "@/hooks/useAccounts";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
-import confetti from "canvas-confetti";
+import { triggerCelebration } from "@/components/feedback/Celebration";
 
 type Step = 'upload' | 'mapping' | 'preview' | 'summary';
 
@@ -82,7 +82,7 @@ export default function ImportTransactions() {
       fileType: getFileType(selectedFile) || 'csv'
     });
 
-    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    triggerCelebration("achievement");
     setTimeout(() => {
       navigate('/expenses');
     }, 1500);
