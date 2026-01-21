@@ -36,6 +36,7 @@ const ScheduledExports = lazy(() => import("./pages/ScheduledExports"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const RecurringExpenses = lazy(() => import("./pages/RecurringExpenses"));
 const AccountDashboard = lazy(() => import("./pages/AccountDashboard"));
+const ImportTransactions = lazy(() => import("./pages/ImportTransactions"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Layout wrapper
@@ -98,6 +99,7 @@ const App = () => {
               <Route path="/scheduled-exports" element={<AppLayout><ScheduledExports /></AppLayout>} />
               <Route path="/notification-settings" element={<AppLayout><NotificationSettings /></AppLayout>} />
               <Route path="/recurring-expenses" element={<AppLayout><RecurringExpenses /></AppLayout>} />
+              <Route path="/import-transactions" element={<AppLayout><ImportTransactions /></AppLayout>} />
               <Route path="/account/profile" element={<AppLayout><AccountProfile /></AppLayout>} />
               <Route path="/account/delete" element={<AppLayout><DeleteAccount /></AppLayout>} />
               

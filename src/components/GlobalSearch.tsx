@@ -132,6 +132,10 @@ export const GlobalSearch = () => {
             <Search className="mr-2 h-4 w-4" />
             Exportações Agendadas
           </CommandItem>
+          <CommandItem onSelect={() => { navigate("/import-transactions"); setOpen(false); }}>
+            <Search className="mr-2 h-4 w-4" />
+            Importar Extrato
+          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>
