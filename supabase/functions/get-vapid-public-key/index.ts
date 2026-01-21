@@ -50,7 +50,30 @@ Deno.serve(async (req) => {
       throw new Error("Missing Supabase credentials");
     }
 
+    // Require authentication - verify the request has a valid auth token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('❌ Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate JWT token using service client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error('❌ Invalid token:', userError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log('✅ Authenticated user requesting VAPID key:', user.id);
 
     // Check if VAPID keys already exist
     const { data: existingKeys, error: fetchError } = await supabase
