@@ -10,7 +10,6 @@ import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
 import { ScreenReaderAnnouncer } from "./components/ScreenReaderAnnouncer";
-import { OnboardingWelcomeModal } from "./components/gamification/OnboardingWelcomeModal";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -68,8 +67,6 @@ const App = () => {
               <Toaster />
               <Sonner />
               <InstallPWA />
-              <ScreenReaderAnnouncer />
-              <OnboardingWelcomeModal />
               <ScreenReaderAnnouncer />
               <Suspense fallback={<LoadingFallback />}>
               <Routes>
