@@ -18,7 +18,7 @@ type Step = 'upload' | 'mapping' | 'preview' | 'summary';
 export default function ImportTransactions() {
   const navigate = useNavigate();
   const { processFile, importTransactions, savedMappings, saveMapping, getFileType } = useImportTransactions();
-  const { accounts } = useAccounts();
+  const { accounts = [], isLoading: isLoadingAccounts } = useAccounts();
 
   const [step, setStep] = useState<Step>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -31,7 +31,7 @@ export default function ImportTransactions() {
   const [fileHash, setFileHash] = useState<string>('');
 
   useEffect(() => {
-    if (accounts.length > 0 && !accountId) {
+    if (accounts && accounts.length > 0 && !accountId) {
       setAccountId(accounts[0].id);
     }
   }, [accounts, accountId]);
