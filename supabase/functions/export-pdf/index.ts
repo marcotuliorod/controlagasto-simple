@@ -77,6 +77,17 @@ serve(async (req) => {
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.total - a.total);
 
+    // HTML escape function to prevent XSS
+    const escapeHtml = (str: string | null | undefined): string => {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
     // Generate HTML for PDF
     const html = `
 <!DOCTYPE html>
@@ -139,8 +150,8 @@ serve(async (req) => {
         ${categoryData.map(cat => `
           <tr>
             <td>
-              <span class="category-badge" style="background-color: ${cat.color}20; color: ${cat.color};">
-                ${cat.name}
+              <span class="category-badge" style="background-color: ${escapeHtml(cat.color)}20; color: ${escapeHtml(cat.color)};">
+                ${escapeHtml(cat.name)}
               </span>
             </td>
             <td>${cat.count}</td>
@@ -168,11 +179,11 @@ serve(async (req) => {
           <tr>
             <td>${new Date(exp.date).toLocaleDateString('pt-BR')}</td>
             <td>
-              <span class="category-badge" style="background-color: ${exp.categories?.color || '#6b7280'}20; color: ${exp.categories?.color || '#6b7280'};">
-                ${exp.categories?.name || 'Sem categoria'}
+              <span class="category-badge" style="background-color: ${escapeHtml(exp.categories?.color) || '#6b7280'}20; color: ${escapeHtml(exp.categories?.color) || '#6b7280'};">
+                ${escapeHtml(exp.categories?.name) || 'Sem categoria'}
               </span>
             </td>
-            <td>${exp.merchant || '-'}</td>
+            <td>${escapeHtml(exp.merchant) || '-'}</td>
             <td class="amount">R$ ${Number(exp.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         `).join('')}
