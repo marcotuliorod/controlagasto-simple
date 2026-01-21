@@ -116,7 +116,7 @@ export default function ImportTransactions() {
               Upload do Arquivo
             </CardTitle>
             <CardDescription>
-              Selecione um arquivo CSV ou OFX do seu banco
+              Selecione um arquivo CSV, OFX ou PDF do seu banco
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -141,13 +141,18 @@ export default function ImportTransactions() {
               selectedFile={selectedFile}
               onClear={() => setSelectedFile(null)}
               isLoading={processFile.isPending}
-              acceptedFormats={['.csv', '.ofx', '.qfx']}
+              acceptedFormats={['.csv', '.ofx', '.qfx', '.pdf']}
             />
 
             {processFile.isPending && (
-              <div className="flex items-center justify-center gap-2 py-4">
+              <div className="flex flex-col items-center justify-center gap-2 py-4">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 <span>Processando arquivo...</span>
+                {selectedFile?.name.toLowerCase().endsWith('.pdf') && (
+                  <span className="text-sm text-muted-foreground">
+                    PDFs podem levar alguns segundos a mais para processar...
+                  </span>
+                )}
               </div>
             )}
           </CardContent>

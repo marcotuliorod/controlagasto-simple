@@ -228,6 +228,174 @@ function parseOFX(content: string): ParsedTransaction[] {
   return transactions;
 }
 
+// Parse PDF using Lovable AI (Gemini 2.5 Flash)
+async function parsePDFWithAI(
+  pdfBase64: string,
+  userCategories: any[],
+  historicalMerchants: Record<string, string>
+): Promise<ParsedTransaction[]> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  
+  if (!LOVABLE_API_KEY) {
+    console.error("LOVABLE_API_KEY not configured");
+    throw new Error("Configuração de IA não encontrada. Contate o suporte.");
+  }
+
+  console.log("Calling Lovable AI for PDF extraction...");
+
+  const systemPrompt = `Você é um especialista em extrair transações de extratos bancários e faturas de cartão de crédito brasileiros.
+
+Analise o documento PDF e extraia TODAS as transações financeiras em formato JSON.
+
+IMPORTANTE:
+- Extraia APENAS transações individuais (compras, pagamentos, débitos)
+- IGNORE saldos, totais, subtotais, IOF, encargos mensais isolados e informações de cabeçalho
+- Datas devem estar no formato YYYY-MM-DD
+- Valores devem ser números positivos (sem R$, sem vírgula decimal)
+- Para faturas de cartão: todas as compras são "debit"
+- Para extratos bancários: saídas são "debit", entradas são "credit"
+- Se houver parcelas (ex: "2/12"), inclua na descrição
+
+Retorne APENAS um JSON válido no formato:
+{
+  "transactions": [
+    {
+      "date": "2024-01-15",
+      "description": "SUPERMERCADO CARREFOUR 2/3",
+      "amount": 150.50,
+      "type": "debit"
+    }
+  ]
+}
+
+Se não conseguir identificar transações, retorne: {"transactions": []}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Extraia todas as transações deste extrato/fatura bancária:"
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:application/pdf;base64,${pdfBase64}`
+                }
+              }
+            ]
+          }
+        ]
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI API error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error("Limite de requisições atingido. Tente novamente em alguns minutos.");
+      }
+      if (response.status === 402) {
+        throw new Error("Créditos de IA esgotados. Entre em contato com o suporte.");
+      }
+      throw new Error("Erro ao processar PDF com IA. Tente exportar em formato CSV.");
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    
+    console.log("AI response received, parsing...");
+
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonStr = content;
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+
+    // Try to parse JSON
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error("Failed to parse AI response as JSON:", jsonStr);
+      throw new Error("Não foi possível extrair dados do PDF. Tente um arquivo CSV.");
+    }
+
+    if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
+      console.error("Invalid response structure:", parsed);
+      return [];
+    }
+
+    console.log(`AI extracted ${parsed.transactions.length} transactions`);
+
+    // Convert AI response to ParsedTransaction format
+    const transactions: ParsedTransaction[] = [];
+    let rowNum = 0;
+
+    for (const tx of parsed.transactions) {
+      rowNum++;
+      
+      // Skip credits (income) - we only import expenses
+      if (tx.type === 'credit') continue;
+
+      // Validate required fields
+      if (!tx.date || !tx.description || tx.amount === undefined) {
+        console.warn(`Skipping invalid transaction at row ${rowNum}:`, tx);
+        continue;
+      }
+
+      // Parse and validate date
+      const dateMatch = String(tx.date).match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!dateMatch) {
+        console.warn(`Invalid date format at row ${rowNum}:`, tx.date);
+        continue;
+      }
+      const date = tx.date;
+
+      // Parse amount
+      const amount = typeof tx.amount === 'number' ? tx.amount : parseFloat(String(tx.amount).replace(',', '.'));
+      if (isNaN(amount) || amount <= 0) {
+        console.warn(`Invalid amount at row ${rowNum}:`, tx.amount);
+        continue;
+      }
+
+      const merchant = extractMerchant(tx.description);
+      const suggestedCategory = suggestCategory(tx.description, merchant, userCategories, historicalMerchants);
+
+      transactions.push({
+        date,
+        description: tx.description,
+        merchant,
+        amount: Math.abs(amount),
+        type: 'debit',
+        suggestedCategory,
+        isDuplicate: false,
+        originalRow: rowNum
+      });
+    }
+
+    console.log(`Returning ${transactions.length} valid expense transactions`);
+    return transactions;
+
+  } catch (error) {
+    console.error("Error in parsePDFWithAI:", error);
+    throw error;
+  }
+}
+
 // Extract merchant name from description
 function extractMerchant(description: string): string {
   if (!description) return '';
@@ -527,16 +695,30 @@ serve(async (req) => {
       };
 
     } else if (fileType === 'pdf') {
-      // PDF parsing is complex - for now, suggest using CSV or OFX
-      // In a full implementation, would use pdf-parse library
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Arquivos PDF ainda não são suportados. Por favor, exporte seu extrato em formato CSV ou OFX.',
-          pdfNotSupported: true
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log('Processing PDF file with AI extraction...');
+      
+      const transactions = await parsePDFWithAI(fileContent, categories || [], historicalMerchants);
+      
+      if (transactions.length === 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Não foi possível identificar transações neste PDF. Verifique se é um extrato bancário ou fatura válida.',
+            pdfNoTransactions: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const checkedTransactions = await checkDuplicates(transactions, existingExpenses || []);
+      const duplicatesCount = checkedTransactions.filter(t => t.isDuplicate).length;
+
+      result = {
+        transactions: checkedTransactions,
+        totalCount: checkedTransactions.length,
+        duplicatesCount,
+        needsMapping: false
+      };
 
     } else {
       throw new Error(`Formato não suportado: ${fileType}`);
