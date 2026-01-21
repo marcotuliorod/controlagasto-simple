@@ -6,7 +6,174 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Common Brazilian bank CSV patterns
+// =============================================================================
+// BANK DETECTION AND CLASSIFICATION
+// =============================================================================
+
+interface BankInfo {
+  name: string;
+  code: string;
+  displayName: string;
+  patterns: RegExp[];
+}
+
+const SUPPORTED_BANKS: BankInfo[] = [
+  {
+    name: 'banco_do_brasil',
+    code: '001',
+    displayName: 'Banco do Brasil',
+    patterns: [/banco\s*do\s*brasil/i, /\bB\.?B\b/i, /BB\s*S\.?A/i]
+  },
+  {
+    name: 'itau',
+    code: '341',
+    displayName: 'Itaú',
+    patterns: [/ita[uú]/i, /itauunibanco/i]
+  },
+  {
+    name: 'bradesco',
+    code: '237',
+    displayName: 'Bradesco',
+    patterns: [/bradesco/i]
+  },
+  {
+    name: 'nubank',
+    code: '260',
+    displayName: 'Nubank',
+    patterns: [/nubank/i, /nu\s*pagamentos/i]
+  },
+  {
+    name: 'caixa',
+    code: '104',
+    displayName: 'Caixa Econômica Federal',
+    patterns: [/caixa\s*econ[ôo]mica/i, /\bcef\b/i]
+  },
+  {
+    name: 'santander',
+    code: '033',
+    displayName: 'Santander',
+    patterns: [/santander/i]
+  }
+];
+
+type TransactionClassification = 'expense' | 'income' | 'investment' | 'transfer' | 'government' | 'ignore';
+
+// Patterns for auto-exclusion
+const AUTO_EXCLUDE_PATTERNS = {
+  investment: [
+    /apl\.?\s*bb\s*fundos/i,
+    /resg\.?\s*bb\s*fundos/i,
+    /aplica[çc][ãa]o\s*(cdb|lci|lca|tesouro|fundos)/i,
+    /resgate\s*(cdb|lci|lca|tesouro|fundos)/i,
+    /poupan[çc]a\s*(aplica|resgate)/i,
+    /fundos?\s*(exclusivo|investimento)/i,
+    /tesouro\s*direto/i,
+  ],
+  government: [
+    /repasse/i,
+    /fpe\/fpm/i,
+    /fpe\s*\/?\s*fpm/i,
+    /deb\.?\s*distribui[çc][ãa]o/i,
+    /distribui[çc][ãa]o\s*estadual/i,
+    /icms.*recebimento/i,
+    /recebimento\s*de\s*icms/i,
+    /sispag\s*sal[áa]rios/i,
+  ],
+  income: [
+    /transfer[êe]ncia\s+recebida/i,
+    /trfctu\s*recebida/i,
+    /cr[ée]dito\s+(sal[áa]rio|rend)/i,
+    /dep[óo]sito\s+(recebido|cheque)/i,
+    /pix\s+recebido/i,
+    /ted\s+recebido/i,
+  ],
+  ignore: [
+    /saldo\s*(anterior|final|em\s*c\/c|inicial)/i,
+    /^s\s*a\s*l\s*d\s*o$/i,
+    /total\s*(geral|mensal)/i,
+    /subtotal/i,
+  ],
+};
+
+// Patterns for transfers that need review
+const TRANSFER_PATTERNS = [
+  /transfer[êe]ncia\s*(enviada)?/i,
+  /\+?\s*transfer[êe]ncia/i,
+  /trfctu/i,
+  /ted\s+(enviado|efetuado)/i,
+  /pix\s+(enviado|efetuado)/i,
+];
+
+// Patterns for definite expenses
+const EXPENSE_PATTERNS = [
+  /pagamentos?\s*diversos/i,
+  /saque\s+(sem\s+cart[ãa]o|atm)/i,
+  /tarifa\s*(banc[áa]ria|mensal)/i,
+  /deb\s*aut/i,
+  /compra\s+cart[ãa]o/i,
+  /pag\s+(boleto|titulo|conta)/i,
+];
+
+function detectBank(content: string): BankInfo | null {
+  for (const bank of SUPPORTED_BANKS) {
+    if (bank.patterns.some(p => p.test(content))) {
+      return bank;
+    }
+  }
+  return null;
+}
+
+function classifyTransaction(
+  description: string,
+  type: 'debit' | 'credit'
+): TransactionClassification {
+  // 1. Always ignore balance lines
+  if (AUTO_EXCLUDE_PATTERNS.ignore.some(p => p.test(description))) {
+    return 'ignore';
+  }
+  
+  // 2. Investments
+  if (AUTO_EXCLUDE_PATTERNS.investment.some(p => p.test(description))) {
+    return 'investment';
+  }
+  
+  // 3. Government operations
+  if (AUTO_EXCLUDE_PATTERNS.government.some(p => p.test(description))) {
+    return 'government';
+  }
+  
+  // 4. Explicit income patterns
+  if (AUTO_EXCLUDE_PATTERNS.income.some(p => p.test(description))) {
+    return 'income';
+  }
+  
+  // 5. Credits are generally income
+  if (type === 'credit') {
+    return 'income';
+  }
+  
+  // 6. Check for transfer patterns (needs review)
+  if (TRANSFER_PATTERNS.some(p => p.test(description))) {
+    return 'transfer';
+  }
+  
+  // 7. Explicit expense patterns
+  if (EXPENSE_PATTERNS.some(p => p.test(description))) {
+    return 'expense';
+  }
+  
+  // 8. Default: if debit, probably expense
+  if (type === 'debit') {
+    return 'expense';
+  }
+  
+  return 'ignore';
+}
+
+// =============================================================================
+// COLUMN PATTERNS AND CATEGORY KEYWORDS
+// =============================================================================
+
 const COLUMN_PATTERNS: Record<string, string[]> = {
   date: ['data', 'date', 'data lançamento', 'data lancamento', 'dt. lançamento', 'dt lancamento', 'data movimento', 'data transação', 'data transacao'],
   description: ['descrição', 'descricao', 'description', 'histórico', 'historico', 'memo', 'lançamento', 'lancamento', 'detalhe', 'estabelecimento', 'nome'],
@@ -15,7 +182,6 @@ const COLUMN_PATTERNS: Record<string, string[]> = {
   balance: ['saldo', 'balance', 'saldo final'],
 };
 
-// Keyword-based category suggestions
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Alimentação': ['ifood', 'uber eats', 'rappi', 'restaurante', 'lanchonete', 'padaria', 'supermercado', 'mercado', 'açougue', 'hortifruti', 'pizza', 'burger', 'mcdonald', 'subway', 'starbucks', 'café', 'bar', 'pub'],
   'Transporte': ['uber', '99', 'cabify', 'lyft', 'taxi', 'posto', 'combustivel', 'combustível', 'estacionamento', 'pedágio', 'pedagio', 'onibus', 'ônibus', 'metro', 'metrô', 'trem', 'bike', 'patinete'],
@@ -26,6 +192,10 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Compras': ['amazon', 'mercado livre', 'magalu', 'magazine luiza', 'americanas', 'shopee', 'aliexpress', 'shein', 'renner', 'c&a', 'riachuelo', 'zara', 'h&m', 'nike', 'adidas'],
   'Serviços': ['assinatura', 'mensalidade', 'anuidade', 'seguro', 'banco', 'tarifa', 'iof', 'juros'],
 };
+
+// =============================================================================
+// INTERFACES
+// =============================================================================
 
 interface ParsedTransaction {
   date: string;
@@ -42,25 +212,33 @@ interface ParsedTransaction {
   isDuplicate: boolean;
   duplicateReason?: string;
   originalRow?: number;
+  classification?: TransactionClassification;
+  originalDescription?: string;
+  documentNumber?: string;
 }
 
 interface ImportResult {
   transactions: ParsedTransaction[];
   totalCount: number;
   duplicatesCount: number;
+  excludedCount: number;
+  reviewCount: number;
   columns?: string[];
   previewRows?: string[][];
   needsMapping: boolean;
+  detectedBank?: BankInfo | null;
 }
 
-// Parse CSV content
+// =============================================================================
+// PARSING FUNCTIONS
+// =============================================================================
+
 function parseCSV(content: string): { headers: string[]; rows: string[][] } {
   const lines = content.trim().split(/\r?\n/);
   if (lines.length < 2) {
     throw new Error('CSV file must have at least a header and one data row');
   }
 
-  // Detect delimiter (comma, semicolon, or tab)
   const firstLine = lines[0];
   let delimiter = ',';
   if (firstLine.includes(';') && !firstLine.includes(',')) {
@@ -100,7 +278,6 @@ function parseCSV(content: string): { headers: string[]; rows: string[][] } {
   return { headers, rows };
 }
 
-// Auto-detect column mapping
 function autoDetectMapping(headers: string[]): Record<string, number> {
   const mapping: Record<string, number> = {};
 
@@ -119,7 +296,6 @@ function autoDetectMapping(headers: string[]): Record<string, number> {
   return mapping;
 }
 
-// Parse Brazilian date formats
 function parseDate(dateStr: string): string | null {
   if (!dateStr) return null;
 
@@ -148,23 +324,18 @@ function parseDate(dateStr: string): string | null {
   return null;
 }
 
-// Parse Brazilian amount formats
 function parseAmount(amountStr: string): number | null {
   if (!amountStr) return null;
 
-  // Remove currency symbols and whitespace
   let cleaned = amountStr.replace(/[R$\s]/gi, '').trim();
   
-  // Handle parentheses for negative (common in accounting)
   const isNegative = cleaned.startsWith('(') && cleaned.endsWith(')') || cleaned.startsWith('-');
   cleaned = cleaned.replace(/[()]/g, '').replace(/^-/, '');
 
-  // Brazilian format: 1.234,56 -> convert to 1234.56
+  // Brazilian format: 1.234,56
   if (cleaned.includes(',') && cleaned.includes('.')) {
-    // Has both, assume Brazilian format
     cleaned = cleaned.replace(/\./g, '').replace(',', '.');
   } else if (cleaned.includes(',') && !cleaned.includes('.')) {
-    // Only comma, check if it's decimal separator
     const parts = cleaned.split(',');
     if (parts.length === 2 && parts[1].length <= 2) {
       cleaned = cleaned.replace(',', '.');
@@ -179,11 +350,8 @@ function parseAmount(amountStr: string): number | null {
   return isNegative ? -Math.abs(amount) : Math.abs(amount);
 }
 
-// Parse OFX content
 function parseOFX(content: string): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
-  
-  // Find all STMTTRN blocks
   const stmttrnRegex = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
   let match;
   let rowNum = 0;
@@ -203,7 +371,6 @@ function parseOFX(content: string): ParsedTransaction[] {
     const memo = getTag('MEMO');
     const description = memo || name;
 
-    // Parse OFX date format YYYYMMDD
     let formattedDate = '';
     if (dateStr.length >= 8) {
       const year = dateStr.substring(0, 4);
@@ -213,14 +380,19 @@ function parseOFX(content: string): ParsedTransaction[] {
     }
 
     if (formattedDate && amount !== 0) {
+      const txType = amount < 0 ? 'debit' : 'credit';
+      const classification = classifyTransaction(description, txType);
+      
       transactions.push({
         date: formattedDate,
         description,
         merchant: name || extractMerchant(description),
         amount: Math.abs(amount),
-        type: amount < 0 ? 'debit' : 'credit',
+        type: txType,
         isDuplicate: false,
         originalRow: rowNum,
+        classification,
+        originalDescription: description,
       });
     }
   }
@@ -228,12 +400,15 @@ function parseOFX(content: string): ParsedTransaction[] {
   return transactions;
 }
 
-// Parse PDF using Lovable AI (Gemini 2.5 Flash)
+// =============================================================================
+// PDF PARSING WITH AI
+// =============================================================================
+
 async function parsePDFWithAI(
   pdfBase64: string,
   userCategories: any[],
   historicalMerchants: Record<string, string>
-): Promise<{ transactions: ParsedTransaction[]; error?: string }> {
+): Promise<{ transactions: ParsedTransaction[]; error?: string; detectedBank?: BankInfo | null }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
   if (!LOVABLE_API_KEY) {
@@ -244,40 +419,46 @@ async function parsePDFWithAI(
   console.log("Calling Lovable AI for PDF extraction...");
   console.log("PDF base64 length:", pdfBase64.length);
 
-  const systemPrompt = `Você é um especialista em extrair transações de extratos bancários e faturas de cartão de crédito brasileiros.
+  const systemPrompt = `Você é um especialista em extrair transações de extratos bancários e faturas de cartão brasileiros.
 
-Analise o documento PDF e extraia TODAS as transações financeiras em formato JSON.
+INSTRUÇÕES CRÍTICAS:
+1. Extraia TODAS as transações financeiras (compras, pagamentos, débitos, depósitos, transferências)
+2. IGNORE linhas de saldo (saldo anterior, saldo final, etc.)
+3. IGNORE subtotais e totalizadores
+4. Datas devem estar no formato YYYY-MM-DD
+5. Valores devem ser números positivos (sem R$, use ponto como decimal)
+6. Identifique corretamente o tipo: "debit" (saída) ou "credit" (entrada)
+7. Para faturas de cartão de crédito: todas são "debit"
+8. Para extratos: D = debit (saída), C = credit (entrada)
 
-IMPORTANTE:
-- Extraia APENAS transações individuais (compras, pagamentos, débitos, depósitos)
-- IGNORE saldos, totais, subtotais, IOF, encargos mensais isolados e informações de cabeçalho
-- Datas devem estar no formato YYYY-MM-DD
-- Valores devem ser números positivos (sem R$, sem vírgula decimal - use ponto)
-- Para faturas de cartão: todas as compras são "debit"
-- Para extratos bancários: saídas são "debit", entradas são "credit"
-- Se houver parcelas (ex: "2/12"), inclua na descrição
+CLASSIFICAÇÃO DE TRANSAÇÕES:
+- Investimentos (Aplicação/Resgate Fundos, CDB, Poupança) → type: "investment"
+- Transferências enviadas → type: "debit" (serão revisadas)
+- Transferências recebidas → type: "credit"
+- Pagamentos diversos, saques, tarifas → type: "debit"
+- Repasses governamentais (FPE, FPM, ICMS) → ignorar
 
-Retorne APENAS um JSON válido no formato:
+Retorne APENAS um JSON válido:
 {
   "transactions": [
     {
       "date": "2024-01-15",
       "description": "SUPERMERCADO CARREFOUR 2/3",
       "amount": 150.50,
-      "type": "debit"
+      "type": "debit",
+      "documentNumber": "123456"
     }
   ]
 }
 
-Se não conseguir identificar transações, retorne: {"transactions": []}`;
+Se não identificar transações, retorne: {"transactions": []}`;
 
   try {
-    // Create AbortController for timeout (90 seconds for large PDFs)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.log("Timeout triggered - aborting request");
       controller.abort();
-    }, 90000);
+    }, 120000); // 2 minutes for large PDFs
     
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -306,7 +487,7 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
             ]
           }
         ],
-        max_tokens: 8000,
+        max_tokens: 16000, // Increased for large statements
         temperature: 0.1
       }),
     });
@@ -329,91 +510,130 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
     
-    console.log("AI response received, parsing...");
-    console.log("AI content preview:", content.substring(0, 500));
+    console.log("AI response received, length:", content.length);
+    console.log("AI content preview:", content.substring(0, 800));
 
-    // Extract JSON from response (handle markdown code blocks)
+    // Try to detect bank from the AI response
+    const detectedBank = detectBank(content);
+    console.log("Detected bank:", detectedBank?.displayName || "None");
+
+    // Robust JSON extraction
     let jsonStr = content;
+    let parsed: any = null;
+    
+    // Method 1: Try markdown code block
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
     } else {
-      // Try to find raw JSON object
-      const rawJsonMatch = content.match(/\{[\s\S]*"transactions"[\s\S]*\}/);
-      if (rawJsonMatch) {
-        jsonStr = rawJsonMatch[0];
+      // Method 2: Find raw JSON object
+      const startIdx = content.indexOf('{"transactions"');
+      if (startIdx !== -1) {
+        // Find matching closing brace
+        let depth = 0;
+        let endIdx = startIdx;
+        for (let i = startIdx; i < content.length; i++) {
+          if (content[i] === '{' || content[i] === '[') depth++;
+          if (content[i] === '}' || content[i] === ']') depth--;
+          if (depth === 0) {
+            endIdx = i + 1;
+            break;
+          }
+        }
+        jsonStr = content.substring(startIdx, endIdx);
       }
     }
 
     // Try to parse JSON
-    let parsed;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.error("Failed to parse AI response as JSON:", jsonStr.substring(0, 500));
-      return { transactions: [], error: "Não foi possível extrair dados do PDF. Tente um arquivo CSV." };
+      console.error("Failed to parse AI response as JSON, trying fallback...");
+      
+      // Fallback: try to extract individual transactions
+      const txRegex = /\{[^{}]*"date"\s*:\s*"[^"]+"\s*,\s*"description"\s*:\s*"[^"]+"\s*,\s*"amount"\s*:\s*[\d.]+\s*,\s*"type"\s*:\s*"[^"]+"/g;
+      const matches = content.match(txRegex);
+      
+      if (matches && matches.length > 0) {
+        console.log(`Fallback: Found ${matches.length} partial transactions`);
+        parsed = { transactions: [] };
+        
+        for (const match of matches) {
+          try {
+            // Complete the object and try to parse
+            const completed = match + '}';
+            const tx = JSON.parse(completed);
+            parsed.transactions.push(tx);
+          } catch (e) {
+            // Skip invalid entries
+          }
+        }
+      }
     }
 
-    if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
-      console.error("Invalid response structure:", parsed);
-      return { transactions: [] };
+    if (!parsed || !parsed.transactions || !Array.isArray(parsed.transactions)) {
+      console.error("Invalid response structure");
+      return { transactions: [], error: "Não foi possível extrair dados do PDF. Tente um arquivo CSV.", detectedBank };
     }
 
     console.log(`AI extracted ${parsed.transactions.length} transactions`);
 
-    // Convert AI response to ParsedTransaction format
+    // Convert to ParsedTransaction format with classification
     const transactions: ParsedTransaction[] = [];
     let rowNum = 0;
 
     for (const tx of parsed.transactions) {
       rowNum++;
       
-      // Validate required fields
       if (!tx.date || !tx.description || tx.amount === undefined) {
         console.warn(`Skipping invalid transaction at row ${rowNum}:`, tx);
         continue;
       }
 
-      // Parse and validate date
       const dateMatch = String(tx.date).match(/(\d{4})-(\d{2})-(\d{2})/);
       if (!dateMatch) {
         console.warn(`Invalid date format at row ${rowNum}:`, tx.date);
         continue;
       }
-      const date = tx.date;
 
-      // Parse amount
       const amount = typeof tx.amount === 'number' ? tx.amount : parseFloat(String(tx.amount).replace(',', '.'));
       if (isNaN(amount) || amount <= 0) {
         console.warn(`Invalid amount at row ${rowNum}:`, tx.amount);
         continue;
       }
 
+      const txType: 'debit' | 'credit' = tx.type === 'credit' || tx.type === 'investment' ? 'credit' : 'debit';
+      const classification = tx.type === 'investment' 
+        ? 'investment' as TransactionClassification
+        : classifyTransaction(tx.description, txType);
+      
       const merchant = extractMerchant(tx.description);
       const suggestedCategory = suggestCategory(tx.description, merchant, userCategories, historicalMerchants);
-      const isCredit = tx.type === 'credit';
 
       transactions.push({
-        date,
+        date: tx.date,
         description: tx.description,
         merchant,
         amount: Math.abs(amount),
-        type: isCredit ? 'credit' : 'debit',
+        type: txType,
         suggestedCategory,
         isDuplicate: false,
-        originalRow: rowNum
+        originalRow: rowNum,
+        classification,
+        originalDescription: tx.description,
+        documentNumber: tx.documentNumber,
       });
     }
 
     console.log(`Returning ${transactions.length} valid transactions`);
-    return { transactions };
+    return { transactions, detectedBank };
 
   } catch (error) {
     console.error("Error in parsePDFWithAI:", error);
     
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        return { transactions: [], error: "Timeout ao processar PDF. O arquivo pode ser muito grande ou complexo." };
+        return { transactions: [], error: "Timeout ao processar PDF. O arquivo pode ser muito grande." };
       }
       return { transactions: [], error: `Erro ao processar PDF: ${error.message}` };
     }
@@ -422,18 +642,33 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
   }
 }
 
-// Extract merchant name from description
+// =============================================================================
+// MERCHANT AND CATEGORY HELPERS
+// =============================================================================
+
 function extractMerchant(description: string): string {
   if (!description) return '';
   
-  // Common patterns to clean up
   let merchant = description
+    // Remove common prefixes
+    .replace(/^\+?\s*transfer[êe]ncia\s*(enviada|recebida)?/i, '')
+    .replace(/^pagamentos?\s*diversos/i, '')
+    .replace(/^sispag\s*/i, '')
+    .replace(/^deb\s*aut\s*/i, '')
+    .replace(/^compra\s+(cart[ãa]o|d[ée]bito|cr[ée]dito)\s*/i, '')
+    .replace(/^pix\s*(enviado|recebido)?\s*/i, '')
+    .replace(/^ted\s*(enviado|recebido)?\s*/i, '')
+    .replace(/^doc\s*(enviado|recebido)?\s*/i, '')
+    // Remove dates
+    .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, '')
+    // Remove document numbers
+    .replace(/\d{5,}/g, '')
+    // Normalize asterisks
     .replace(/\*+/g, ' ')
-    .replace(/\d{2}\/\d{2}/g, '') // Remove dates like 15/01
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Take first meaningful part (before common separators)
+  // Take first part before common separators
   const separators = [' - ', ' / ', ' | ', '  '];
   for (const sep of separators) {
     if (merchant.includes(sep)) {
@@ -441,15 +676,20 @@ function extractMerchant(description: string): string {
     }
   }
 
-  // Limit length
-  if (merchant.length > 50) {
-    merchant = merchant.substring(0, 50).trim();
+  // Limit length and title case
+  merchant = merchant.substring(0, 50).trim();
+  
+  if (merchant.length > 0) {
+    merchant = merchant
+      .split(' ')
+      .filter(w => w.length > 0)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
   }
 
-  return merchant;
+  return merchant || description.substring(0, 50).trim();
 }
 
-// Suggest category based on merchant/description
 function suggestCategory(
   description: string,
   merchant: string,
@@ -458,7 +698,7 @@ function suggestCategory(
 ): { id: string | null; name: string; confidence: 'high' | 'medium' | 'low' } {
   const searchText = `${description} ${merchant}`.toLowerCase();
 
-  // First, check historical data (highest confidence)
+  // First, check historical data
   const merchantLower = merchant.toLowerCase();
   if (historicalMerchants[merchantLower]) {
     const catId = historicalMerchants[merchantLower];
@@ -468,7 +708,7 @@ function suggestCategory(
     }
   }
 
-  // Then, check keyword patterns (medium confidence)
+  // Then, check keyword patterns
   for (const [categoryName, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     if (keywords.some(kw => searchText.includes(kw.toLowerCase()))) {
       const cat = userCategories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
@@ -479,11 +719,13 @@ function suggestCategory(
     }
   }
 
-  // Default to uncategorized (low confidence)
   return { id: null, name: 'Sem categoria', confidence: 'low' };
 }
 
-// Check for duplicate transactions
+// =============================================================================
+// DUPLICATE DETECTION
+// =============================================================================
+
 async function checkDuplicates(
   transactions: ParsedTransaction[],
   existingExpenses: any[]
@@ -505,7 +747,7 @@ async function checkDuplicates(
       return {
         ...tx,
         isDuplicate: true,
-        duplicateReason: `Despesa similar encontrada: ${duplicate.date} - ${duplicate.merchant} - R$ ${duplicate.amount.toFixed(2)}`
+        duplicateReason: `Similar: ${duplicate.date} - ${duplicate.merchant}`
       };
     }
 
@@ -513,7 +755,6 @@ async function checkDuplicates(
   });
 }
 
-// Generate file hash for deduplication
 async function generateFileHash(content: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(content);
@@ -521,6 +762,10 @@ async function generateFileHash(content: string): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+// =============================================================================
+// MAIN HANDLER
+// =============================================================================
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -555,11 +800,10 @@ serve(async (req) => {
 
     console.log(`Processing ${fileType} file for user ${user.id}`);
 
-    // Decode base64 content
     const content = atob(fileContent);
     const fileHash = await generateFileHash(content);
 
-    // Check if this exact file was already imported
+    // Check for existing import
     const { data: existingImport } = await supabase
       .from('import_sessions')
       .select('id')
@@ -585,7 +829,7 @@ serve(async (req) => {
       .select('id, name, icon, color')
       .or(`user_id.eq.${user.id},is_default.eq.true`);
 
-    // Fetch user's existing expenses for duplicate detection
+    // Fetch existing expenses for duplicate detection
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
     
@@ -595,7 +839,7 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .gte('date', threeMonthsAgo.toISOString().slice(0, 10));
 
-    // Build historical merchant -> category mapping
+    // Build historical merchant mapping
     const { data: historicalData } = await supabase
       .from('expenses')
       .select('merchant, category_id')
@@ -619,13 +863,10 @@ serve(async (req) => {
 
     if (fileType === 'csv') {
       const { headers, rows } = parseCSV(content);
-      
-      // Check if mapping is needed
       const autoMapping = autoDetectMapping(headers);
       const needsMapping = !autoMapping.date || !autoMapping.amount || (!autoMapping.description && !customMapping);
       
       if (needsMapping && !customMapping) {
-        // Return preview for manual mapping
         return new Response(
           JSON.stringify({
             success: true,
@@ -635,15 +876,15 @@ serve(async (req) => {
             autoMapping,
             transactions: [],
             totalCount: 0,
-            duplicatesCount: 0
+            duplicatesCount: 0,
+            excludedCount: 0,
+            reviewCount: 0,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       const mapping = customMapping || autoMapping;
-      
-      // Parse transactions
       const transactions: ParsedTransaction[] = [];
       
       rows.forEach((row, index) => {
@@ -657,7 +898,6 @@ serve(async (req) => {
         
         if (!date || amount === null) return;
 
-        // Handle debit/credit type
         let txType: 'debit' | 'credit' = amount < 0 ? 'debit' : 'credit';
         if (typeStr) {
           const typeLower = typeStr.toLowerCase();
@@ -670,9 +910,7 @@ serve(async (req) => {
           }
         }
 
-        // Skip credits (income) - we only import expenses
-        if (txType === 'credit') return;
-
+        const classification = classifyTransaction(descriptionStr, txType);
         const merchant = extractMerchant(descriptionStr);
         const suggestedCategory = suggestCategory(descriptionStr, merchant, categories || [], historicalMerchants);
 
@@ -684,40 +922,53 @@ serve(async (req) => {
           type: txType,
           suggestedCategory,
           isDuplicate: false,
-          originalRow: index + 2 // +2 for header row and 1-based index
+          originalRow: index + 2,
+          classification,
+          originalDescription: descriptionStr,
         });
       });
 
       const checkedTransactions = await checkDuplicates(transactions, existingExpenses || []);
       const duplicatesCount = checkedTransactions.filter(t => t.isDuplicate).length;
+      const excludedCount = checkedTransactions.filter(t => 
+        ['investment', 'government', 'income', 'ignore'].includes(t.classification || '')
+      ).length;
+      const reviewCount = checkedTransactions.filter(t => t.classification === 'transfer').length;
 
       result = {
         transactions: checkedTransactions,
         totalCount: checkedTransactions.length,
         duplicatesCount,
+        excludedCount,
+        reviewCount,
         columns: headers,
-        needsMapping: false
+        needsMapping: false,
+        detectedBank: detectBank(content),
       };
 
     } else if (fileType === 'ofx') {
       const transactions = parseOFX(content);
       
-      // Filter out credits and add category suggestions
-      const expenseTransactions = transactions
-        .filter(tx => tx.type === 'debit')
-        .map(tx => ({
-          ...tx,
-          suggestedCategory: suggestCategory(tx.description, tx.merchant, categories || [], historicalMerchants)
-        }));
+      const processedTransactions = transactions.map(tx => ({
+        ...tx,
+        suggestedCategory: suggestCategory(tx.description, tx.merchant, categories || [], historicalMerchants)
+      }));
 
-      const checkedTransactions = await checkDuplicates(expenseTransactions, existingExpenses || []);
+      const checkedTransactions = await checkDuplicates(processedTransactions, existingExpenses || []);
       const duplicatesCount = checkedTransactions.filter(t => t.isDuplicate).length;
+      const excludedCount = checkedTransactions.filter(t => 
+        ['investment', 'government', 'income', 'ignore'].includes(t.classification || '')
+      ).length;
+      const reviewCount = checkedTransactions.filter(t => t.classification === 'transfer').length;
 
       result = {
         transactions: checkedTransactions,
         totalCount: checkedTransactions.length,
         duplicatesCount,
-        needsMapping: false
+        excludedCount,
+        reviewCount,
+        needsMapping: false,
+        detectedBank: detectBank(content),
       };
 
     } else if (fileType === 'pdf') {
@@ -740,31 +991,35 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'Não foi possível identificar transações neste PDF. Verifique se é um extrato bancário ou fatura válida.',
+            error: 'Não foi possível identificar transações neste PDF. Verifique se é um extrato válido.',
             pdfNoTransactions: true
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      // Filter to only debits (expenses)
-      const expenseTransactions = pdfResult.transactions.filter(tx => tx.type === 'debit');
-      
-      const checkedTransactions = await checkDuplicates(expenseTransactions, existingExpenses || []);
+      const checkedTransactions = await checkDuplicates(pdfResult.transactions, existingExpenses || []);
       const duplicatesCount = checkedTransactions.filter(t => t.isDuplicate).length;
+      const excludedCount = checkedTransactions.filter(t => 
+        ['investment', 'government', 'income', 'ignore'].includes(t.classification || '')
+      ).length;
+      const reviewCount = checkedTransactions.filter(t => t.classification === 'transfer').length;
 
       result = {
         transactions: checkedTransactions,
         totalCount: checkedTransactions.length,
         duplicatesCount,
-        needsMapping: false
+        excludedCount,
+        reviewCount,
+        needsMapping: false,
+        detectedBank: pdfResult.detectedBank,
       };
 
     } else {
       throw new Error(`Formato não suportado: ${fileType}`);
     }
 
-    console.log(`Parsed ${result.totalCount} transactions, ${result.duplicatesCount} duplicates`);
+    console.log(`Parsed ${result.totalCount} transactions: ${result.duplicatesCount} duplicates, ${result.excludedCount} excluded, ${result.reviewCount} for review`);
 
     return new Response(
       JSON.stringify({
