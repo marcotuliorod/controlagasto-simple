@@ -37,7 +37,7 @@ export default function ImportTransactions() {
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
   const [autoMapping, setAutoMapping] = useState<Partial<ColumnMapping>>({});
   const [fileHash, setFileHash] = useState<string>('');
-  const [detectedBank, setDetectedBank] = useState<BankInfo | null>(null);
+  const [detectedBank, setDetectedBank] = useState<DetectedBankInfo | null>(null);
   const [showTransferReview, setShowTransferReview] = useState(false);
 
   useEffect(() => {

@@ -16,35 +16,40 @@ serve(async (req) => {
     const { from, to } = period;
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Não autorizado");
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
     // Extract token from "Bearer <token>"
     const token = authHeader.replace("Bearer ", "");
     
-    // Decode JWT to extract userId from 'sub' claim
-    let userId: string;
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error("Invalid JWT format");
-      
-      // Decode the payload (second part)
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-      userId = payload.sub;
-      
-      console.log(`✅ JWT decoded successfully. User ID: ${userId}`);
-      
-      if (!userId) throw new Error("Missing 'sub' claim in JWT");
-    } catch (decodeError) {
-      console.error("❌ Failed to decode JWT:", decodeError);
-      throw new Error("Token inválido");
+    // Create service client for token verification
+    const serviceClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
+    
+    // Properly verify JWT using Supabase auth
+    const { data: userData, error: authError } = await serviceClient.auth.getUser(token);
+    
+    if (authError || !userData?.user) {
+      console.error("❌ Auth verification failed:", authError);
+      return new Response(
+        JSON.stringify({ error: "Token inválido" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const userId = userData.user.id;
+    console.log(`✅ User verified. User ID: ${userId}`);
+    
+    // Create user-scoped client for RLS
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       global: { 
         headers: { Authorization: authHeader }
       },

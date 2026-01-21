@@ -1,9 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Building2 } from "lucide-react";
-import type { BankInfo } from "@/lib/bankPatterns";
+
+// Simplified bank info from API (without patterns regex)
+interface DetectedBankInfo {
+  name: string;
+  code: string;
+  displayName: string;
+}
 
 interface BankDetectionBadgeProps {
-  bank: BankInfo | null;
+  bank: DetectedBankInfo | null;
   className?: string;
 }
 
