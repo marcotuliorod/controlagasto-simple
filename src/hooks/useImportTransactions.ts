@@ -89,9 +89,12 @@ export function useImportTransactions() {
         throw new Error('Formato de arquivo não suportado. Use CSV, OFX ou PDF.');
       }
 
-      // Check file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error('Arquivo muito grande. O limite é 10MB.');
+      // Check file size (5MB for PDF, 10MB for others)
+      const maxSize = fileType === 'pdf' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        throw new Error(fileType === 'pdf' 
+          ? 'PDF muito grande. O limite é 5MB. Tente exportar em CSV.' 
+          : 'Arquivo muito grande. O limite é 10MB.');
       }
 
       const fileContent = await fileToBase64(file);

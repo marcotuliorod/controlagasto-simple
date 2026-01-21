@@ -233,25 +233,26 @@ async function parsePDFWithAI(
   pdfBase64: string,
   userCategories: any[],
   historicalMerchants: Record<string, string>
-): Promise<ParsedTransaction[]> {
+): Promise<{ transactions: ParsedTransaction[]; error?: string }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   
   if (!LOVABLE_API_KEY) {
     console.error("LOVABLE_API_KEY not configured");
-    throw new Error("Configuração de IA não encontrada. Contate o suporte.");
+    return { transactions: [], error: "Configuração de IA não encontrada. Contate o suporte." };
   }
 
   console.log("Calling Lovable AI for PDF extraction...");
+  console.log("PDF base64 length:", pdfBase64.length);
 
   const systemPrompt = `Você é um especialista em extrair transações de extratos bancários e faturas de cartão de crédito brasileiros.
 
 Analise o documento PDF e extraia TODAS as transações financeiras em formato JSON.
 
 IMPORTANTE:
-- Extraia APENAS transações individuais (compras, pagamentos, débitos)
+- Extraia APENAS transações individuais (compras, pagamentos, débitos, depósitos)
 - IGNORE saldos, totais, subtotais, IOF, encargos mensais isolados e informações de cabeçalho
 - Datas devem estar no formato YYYY-MM-DD
-- Valores devem ser números positivos (sem R$, sem vírgula decimal)
+- Valores devem ser números positivos (sem R$, sem vírgula decimal - use ponto)
 - Para faturas de cartão: todas as compras são "debit"
 - Para extratos bancários: saídas são "debit", entradas são "credit"
 - Se houver parcelas (ex: "2/12"), inclua na descrição
@@ -271,12 +272,20 @@ Retorne APENAS um JSON válido no formato:
 Se não conseguir identificar transações, retorne: {"transactions": []}`;
 
   try {
+    // Create AbortController for timeout (90 seconds for large PDFs)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("Timeout triggered - aborting request");
+      controller.abort();
+    }, 90000);
+    
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
@@ -296,33 +305,44 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
               }
             ]
           }
-        ]
+        ],
+        max_tokens: 8000,
+        temperature: 0.1
       }),
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI API error:", response.status, errorText);
       
       if (response.status === 429) {
-        throw new Error("Limite de requisições atingido. Tente novamente em alguns minutos.");
+        return { transactions: [], error: "Limite de requisições atingido. Tente novamente em alguns minutos." };
       }
       if (response.status === 402) {
-        throw new Error("Créditos de IA esgotados. Entre em contato com o suporte.");
+        return { transactions: [], error: "Créditos de IA esgotados. Entre em contato com o suporte." };
       }
-      throw new Error("Erro ao processar PDF com IA. Tente exportar em formato CSV.");
+      return { transactions: [], error: "Erro ao processar PDF com IA. Tente exportar em formato CSV." };
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
     
     console.log("AI response received, parsing...");
+    console.log("AI content preview:", content.substring(0, 500));
 
     // Extract JSON from response (handle markdown code blocks)
     let jsonStr = content;
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
+    } else {
+      // Try to find raw JSON object
+      const rawJsonMatch = content.match(/\{[\s\S]*"transactions"[\s\S]*\}/);
+      if (rawJsonMatch) {
+        jsonStr = rawJsonMatch[0];
+      }
     }
 
     // Try to parse JSON
@@ -330,13 +350,13 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.error("Failed to parse AI response as JSON:", jsonStr);
-      throw new Error("Não foi possível extrair dados do PDF. Tente um arquivo CSV.");
+      console.error("Failed to parse AI response as JSON:", jsonStr.substring(0, 500));
+      return { transactions: [], error: "Não foi possível extrair dados do PDF. Tente um arquivo CSV." };
     }
 
     if (!parsed.transactions || !Array.isArray(parsed.transactions)) {
       console.error("Invalid response structure:", parsed);
-      return [];
+      return { transactions: [] };
     }
 
     console.log(`AI extracted ${parsed.transactions.length} transactions`);
@@ -348,9 +368,6 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
     for (const tx of parsed.transactions) {
       rowNum++;
       
-      // Skip credits (income) - we only import expenses
-      if (tx.type === 'credit') continue;
-
       // Validate required fields
       if (!tx.date || !tx.description || tx.amount === undefined) {
         console.warn(`Skipping invalid transaction at row ${rowNum}:`, tx);
@@ -374,25 +391,34 @@ Se não conseguir identificar transações, retorne: {"transactions": []}`;
 
       const merchant = extractMerchant(tx.description);
       const suggestedCategory = suggestCategory(tx.description, merchant, userCategories, historicalMerchants);
+      const isCredit = tx.type === 'credit';
 
       transactions.push({
         date,
         description: tx.description,
         merchant,
         amount: Math.abs(amount),
-        type: 'debit',
+        type: isCredit ? 'credit' : 'debit',
         suggestedCategory,
         isDuplicate: false,
         originalRow: rowNum
       });
     }
 
-    console.log(`Returning ${transactions.length} valid expense transactions`);
-    return transactions;
+    console.log(`Returning ${transactions.length} valid transactions`);
+    return { transactions };
 
   } catch (error) {
     console.error("Error in parsePDFWithAI:", error);
-    throw error;
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        return { transactions: [], error: "Timeout ao processar PDF. O arquivo pode ser muito grande ou complexo." };
+      }
+      return { transactions: [], error: `Erro ao processar PDF: ${error.message}` };
+    }
+    
+    return { transactions: [], error: "Não foi possível processar o PDF. Tente exportar em formato CSV." };
   }
 }
 
@@ -697,9 +723,20 @@ serve(async (req) => {
     } else if (fileType === 'pdf') {
       console.log('Processing PDF file with AI extraction...');
       
-      const transactions = await parsePDFWithAI(fileContent, categories || [], historicalMerchants);
+      const pdfResult = await parsePDFWithAI(fileContent, categories || [], historicalMerchants);
       
-      if (transactions.length === 0) {
+      if (pdfResult.error) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: pdfResult.error,
+            pdfNotSupported: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (pdfResult.transactions.length === 0) {
         return new Response(
           JSON.stringify({
             success: false,
@@ -710,7 +747,10 @@ serve(async (req) => {
         );
       }
       
-      const checkedTransactions = await checkDuplicates(transactions, existingExpenses || []);
+      // Filter to only debits (expenses)
+      const expenseTransactions = pdfResult.transactions.filter(tx => tx.type === 'debit');
+      
+      const checkedTransactions = await checkDuplicates(expenseTransactions, existingExpenses || []);
       const duplicatesCount = checkedTransactions.filter(t => t.isDuplicate).length;
 
       result = {
