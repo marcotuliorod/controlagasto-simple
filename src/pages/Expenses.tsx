@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Pencil, Trash2 } from "lucide-react";
+import { Search, Pencil, Trash2, FileUp } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -134,7 +134,13 @@ export default function Expenses() {
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-3xl font-medium">Minhas Despesas</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-medium">Minhas Despesas</h1>
+          <Button onClick={() => navigate("/import-transactions")} variant="outline">
+            <FileUp className="h-4 w-4 mr-2" />
+            Importar Extrato
+          </Button>
+        </div>
 
         <Card className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

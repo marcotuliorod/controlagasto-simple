@@ -17,6 +17,7 @@ import {
   Repeat,
   FileOutput,
   Bell,
+  FileUp,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,6 +49,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
   ];
 
 const advancedItems = [
+  { title: "Importar Extrato", url: "/import-transactions", icon: FileUp, badge: "Novo" },
   { title: "Despesas Recorrentes", url: "/recurring-expenses", icon: Repeat, badge: "Novo" },
   { title: "Exportações Agendadas", url: "/scheduled-exports", icon: FileOutput, badge: "Novo" },
   { title: "Notificações", url: "/notification-settings", icon: Bell, badge: "Novo" },
