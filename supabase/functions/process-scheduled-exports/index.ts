@@ -12,11 +12,20 @@ serve(async (req) => {
   }
 
   try {
-    // Security: Verify authentication token if provided
+    // Security: Require CRON_SECRET for authentication
     const authHeader = req.headers.get('X-Cron-Secret');
     const cronSecret = Deno.env.get('CRON_SECRET');
     
-    if (cronSecret && authHeader !== cronSecret) {
+    // CRITICAL: Fail if CRON_SECRET is not configured or header doesn't match
+    if (!cronSecret) {
+      console.error('CRON_SECRET environment variable is not configured');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }), 
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!authHeader || authHeader !== cronSecret) {
       console.error('Unauthorized access attempt to process-scheduled-exports');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }), 

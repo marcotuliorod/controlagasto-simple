@@ -272,6 +272,7 @@ export type Database = {
           created_at: string | null
           date: string
           id: string
+          import_session_id: string | null
           is_transfer: boolean | null
           merchant: string | null
           notes: string | null
@@ -290,6 +291,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          import_session_id?: string | null
           is_transfer?: boolean | null
           merchant?: string | null
           notes?: string | null
@@ -308,6 +310,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           id?: string
+          import_session_id?: string | null
           is_transfer?: boolean | null
           merchant?: string | null
           notes?: string | null
@@ -332,6 +335,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_import_session_id_fkey"
+            columns: ["import_session_id"]
+            isOneToOne: false
+            referencedRelation: "import_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -375,6 +385,78 @@ export type Database = {
           quiz_performance_score?: number
           savings_score?: number
           score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      import_mappings: {
+        Row: {
+          bank_name: string
+          created_at: string | null
+          id: string
+          mapping: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bank_name: string
+          created_at?: string | null
+          id?: string
+          mapping?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bank_name?: string
+          created_at?: string | null
+          id?: string
+          mapping?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      import_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          file_hash: string | null
+          file_name: string
+          file_type: string
+          id: string
+          imported_transactions: number | null
+          skipped_duplicates: number | null
+          status: string
+          total_transactions: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          file_hash?: string | null
+          file_name: string
+          file_type: string
+          id?: string
+          imported_transactions?: number | null
+          skipped_duplicates?: number | null
+          status?: string
+          total_transactions?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          file_hash?: string | null
+          file_name?: string
+          file_type?: string
+          id?: string
+          imported_transactions?: number | null
+          skipped_duplicates?: number | null
+          status?: string
+          total_transactions?: number | null
           user_id?: string
         }
         Relationships: []

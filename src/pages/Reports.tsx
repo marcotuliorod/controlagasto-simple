@@ -9,6 +9,7 @@ import { Download, TrendingDown, FileSpreadsheet, Calendar, Info } from "lucide-
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import html2pdf from "html2pdf.js";
+import DOMPurify from "dompurify";
 import { exportToXLSX } from "@/lib/exportUtils";
 import { useBillingCycle } from "@/hooks/useBillingCycle";
 import { format } from "date-fns";
@@ -196,9 +197,14 @@ export default function Reports() {
 
       if (error) throw error;
 
-      // Criar elemento temporário para renderizar HTML
+      // Criar elemento temporário para renderizar HTML (sanitizado para prevenir XSS)
       const element = document.createElement('div');
-      element.innerHTML = data.html;
+      // Sanitize HTML to prevent XSS attacks
+      const sanitizedHtml = DOMPurify.sanitize(data.html, {
+        ALLOWED_TAGS: ['html', 'head', 'body', 'meta', 'style', 'div', 'h1', 'h2', 'h3', 'p', 'span', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+        ALLOWED_ATTR: ['class', 'style', 'colspan'],
+      });
+      element.innerHTML = sanitizedHtml;
       element.style.position = 'absolute';
       element.style.left = '-9999px';
       document.body.appendChild(element);
