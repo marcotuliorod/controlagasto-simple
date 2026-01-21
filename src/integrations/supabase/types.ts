@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      achievements: {
+        Row: {
+          created_at: string | null
+          description: string
+          icon: string | null
+          id: string
+          key: string
+          name: string
+          rarity: string | null
+          unlock_condition: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          icon?: string | null
+          id?: string
+          key: string
+          name: string
+          rarity?: string | null
+          unlock_condition?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          icon?: string | null
+          id?: string
+          key?: string
+          name?: string
+          rarity?: string | null
+          unlock_condition?: Json | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -554,26 +587,35 @@ export type Database = {
       profiles: {
         Row: {
           billing_cycle_day: number | null
+          bypass_unlock_requirements: boolean | null
           created_at: string | null
+          gamification_enabled: boolean | null
           id: string
           monthly_goal: number | null
           name: string
+          onboarding_completed: boolean | null
           updated_at: string | null
         }
         Insert: {
           billing_cycle_day?: number | null
+          bypass_unlock_requirements?: boolean | null
           created_at?: string | null
+          gamification_enabled?: boolean | null
           id: string
           monthly_goal?: number | null
           name: string
+          onboarding_completed?: boolean | null
           updated_at?: string | null
         }
         Update: {
           billing_cycle_day?: number | null
+          bypass_unlock_requirements?: boolean | null
           created_at?: string | null
+          gamification_enabled?: boolean | null
           id?: string
           monthly_goal?: number | null
           name?: string
+          onboarding_completed?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -823,6 +865,72 @@ export type Database = {
         }
         Relationships: []
       }
+      unlock_requirements: {
+        Row: {
+          created_at: string | null
+          id: string
+          menu_item_key: string
+          required_days_active: number | null
+          required_educational_category: string | null
+          required_educational_count: number | null
+          required_expense_count: number | null
+          required_quiz_category: string | null
+          required_quiz_score: number | null
+          unlock_celebration: string | null
+          unlock_level: number
+          unlock_message: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          menu_item_key: string
+          required_days_active?: number | null
+          required_educational_category?: string | null
+          required_educational_count?: number | null
+          required_expense_count?: number | null
+          required_quiz_category?: string | null
+          required_quiz_score?: number | null
+          unlock_celebration?: string | null
+          unlock_level?: number
+          unlock_message?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          menu_item_key?: string
+          required_days_active?: number | null
+          required_educational_category?: string | null
+          required_educational_count?: number | null
+          required_expense_count?: number | null
+          required_quiz_category?: string | null
+          required_quiz_score?: number | null
+          unlock_celebration?: string | null
+          unlock_level?: number
+          unlock_message?: string | null
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_key: string
+          earned_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achievement_key: string
+          earned_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achievement_key?: string
+          earned_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_content_progress: {
         Row: {
           completed: boolean
@@ -857,6 +965,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_unlocks: {
+        Row: {
+          id: string
+          menu_item_key: string
+          unlock_details: Json | null
+          unlock_method: string | null
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          menu_item_key: string
+          unlock_details?: Json | null
+          unlock_method?: string | null
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          menu_item_key?: string
+          unlock_details?: Json | null
+          unlock_method?: string | null
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       vapid_keys: {
         Row: {
