@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Download, TrendingDown, FileSpreadsheet, Calendar, Info } from "lucide-react";
 import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import html2pdf from "html2pdf.js";
-import DOMPurify from "dompurify";
 import { exportToXLSX } from "@/lib/exportUtils";
 import { useBillingCycle } from "@/hooks/useBillingCycle";
 import { format } from "date-fns";
@@ -197,32 +195,28 @@ export default function Reports() {
 
       if (error) throw error;
 
-      // Criar elemento temporário para renderizar HTML (sanitizado para prevenir XSS)
-      const element = document.createElement('div');
-      // Sanitize HTML to prevent XSS attacks
-      const sanitizedHtml = DOMPurify.sanitize(data.html, {
-        ALLOWED_TAGS: ['html', 'head', 'body', 'meta', 'style', 'div', 'h1', 'h2', 'h3', 'p', 'span', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-        ALLOWED_ATTR: ['class', 'style', 'colspan'],
-      });
-      element.innerHTML = sanitizedHtml;
-      element.style.position = 'absolute';
-      element.style.left = '-9999px';
-      document.body.appendChild(element);
+      // The edge function now returns base64-encoded PDF
+      if (!data.pdf) {
+        throw new Error("PDF data not received");
+      }
 
-      // Configurar opções do PDF
-      const opt = {
-        margin: 10,
-        filename: `despesas_${dateFrom}_${dateTo}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-      };
+      // Decode base64 to binary
+      const binaryString = atob(data.pdf);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
 
-      // Gerar e baixar PDF
-      await html2pdf().set(opt).from(element).save();
-
-      // Limpar elemento temporário
-      document.body.removeChild(element);
+      // Create blob and download
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `despesas_${dateFrom}_${dateTo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       toast.success("PDF baixado com sucesso");
     } catch (error: any) {
