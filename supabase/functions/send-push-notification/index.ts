@@ -32,12 +32,48 @@ Deno.serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
+    if (!supabaseUrl || !supabaseServiceRoleKey || !supabaseAnonKey) {
       console.error('❌ Missing environment variables');
       throw new Error('Server configuration error');
     }
 
+    // Check for CRON_SECRET header (for cron-triggered calls)
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const cronSecretHeader = req.headers.get('X-Cron-Secret');
+    const isCronCall = cronSecretHeader && cronSecret && cronSecretHeader === cronSecret;
+
+    // If not a cron call, require authentication
+    if (!isCronCall) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.error('❌ Missing or invalid Authorization header');
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate JWT token using service client
+      const supabaseAuth = createClient(supabaseUrl, supabaseServiceRoleKey);
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+      
+      if (userError || !user) {
+        console.error('❌ Invalid token:', userError?.message);
+        return new Response(
+          JSON.stringify({ error: 'Invalid token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Authenticated user:', user.id);
+    } else {
+      console.log('✅ Authenticated via CRON_SECRET');
+    }
+
+    // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // Fetch VAPID keys from database
