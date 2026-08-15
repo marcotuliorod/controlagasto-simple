@@ -76,6 +76,7 @@ describe('Settings - PWA Installation', () => {
         userAgent: 'Chrome',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });
@@ -160,6 +161,7 @@ describe('Settings - PWA Installation', () => {
         userAgent: 'iPhone',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });
@@ -170,13 +172,11 @@ describe('Settings - PWA Installation', () => {
     expect(screen.getByText(/Adicionar à Tela de Início/)).toBeTruthy();
   });
 
-  it('should show disabled button when install not available', async () => {
+  it('should show unavailable message when install not available', async () => {
     renderWithProviders(<Settings />);
 
     await waitFor(() => {
-      const button = screen.getByText('Instalação não disponível');
-      expect(button).toBeTruthy();
-      expect(button.hasAttribute('disabled')).toBe(true);
+      expect(screen.getByText(/Instalação ainda não disponível/)).toBeTruthy();
     });
   });
 
@@ -187,7 +187,7 @@ describe('Settings - PWA Installation', () => {
     renderWithProviders(<Settings />);
 
     await waitFor(() => {
-      expect(screen.getByText('Diagnóstico:')).toBeTruthy();
+      expect(screen.getByText(/Debug Info/)).toBeTruthy();
     });
   });
 });

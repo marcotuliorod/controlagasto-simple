@@ -43,6 +43,7 @@ describe('InstallPWA', () => {
         userAgent: 'Chrome',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });
@@ -82,6 +83,7 @@ describe('InstallPWA', () => {
         userAgent: 'iPhone',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });
@@ -101,6 +103,7 @@ describe('InstallPWA', () => {
         userAgent: 'iPhone',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });
@@ -152,6 +155,7 @@ describe('InstallPWA', () => {
         userAgent: 'iPhone',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });
@@ -174,6 +178,7 @@ describe('InstallPWA', () => {
         userAgent: 'iPhone',
         serviceWorker: {
           ready: Promise.resolve({}),
+          getRegistration: vi.fn().mockResolvedValue(null),
         },
       },
     });

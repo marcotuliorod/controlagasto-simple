@@ -29,6 +29,12 @@ vi.mock('./App.tsx', () => ({
 describe('main.tsx - PWA Registration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // main.tsx has top-level side effects that only run once per module
+    // instance — reset the module registry so each test gets a fresh import.
+    vi.resetModules();
+
+    // main.tsx expects index.html's #root div to already be in the DOM.
+    document.body.innerHTML = '<div id="root"></div>';
   });
 
   it('should register service worker on load', async () => {
@@ -59,16 +65,17 @@ describe('main.tsx - PWA Registration', () => {
 
     // Test onOfflineReady
     registerCall.onOfflineReady();
-    expect(consoleLogSpy).toHaveBeenCalledWith('✅ App pronto para funcionar offline');
+    expect(consoleLogSpy).toHaveBeenCalledWith('[PWA] ✅ App pronto para funcionar offline');
 
     // Test onRegisteredSW
     registerCall.onRegisteredSW('/sw.js', { scope: '/' });
-    expect(consoleLogSpy).toHaveBeenCalledWith('✅ Service Worker registrado:', '/sw.js');
+    expect(consoleLogSpy).toHaveBeenCalledWith('[PWA] ✅ Service Worker registrado com sucesso');
+    expect(consoleLogSpy).toHaveBeenCalledWith('[PWA] 📍 URL:', '/sw.js');
 
     // Test onRegisterError
     const testError = new Error('Test error');
     registerCall.onRegisterError(testError);
-    expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Erro ao registrar Service Worker:', testError);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[PWA] ❌ Erro ao registrar Service Worker:', testError);
 
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();

@@ -3,6 +3,22 @@ import { renderHook } from '@testing-library/react';
 import { useExpensesRealtime } from './useExpensesRealtime';
 import { usePushNotifications } from './usePushNotifications';
 
+const { channelMock } = vi.hoisted(() => ({
+  channelMock: {
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+    unsubscribe: vi.fn(),
+  },
+}));
+
+// Mock supabase channel
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    channel: vi.fn(() => channelMock),
+    removeChannel: vi.fn(),
+  },
+}));
+
 describe('Memory Leak Prevention Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -14,21 +30,6 @@ describe('Memory Leak Prevention Tests', () => {
 
   describe('useExpensesRealtime - Cleanup', () => {
     it('should cleanup realtime subscription on unmount', () => {
-      const unsubscribeMock = vi.fn();
-      const channelMock = {
-        on: vi.fn().mockReturnThis(),
-        subscribe: vi.fn().mockReturnThis(),
-        unsubscribe: unsubscribeMock,
-      };
-
-      // Mock supabase channel
-      vi.mock('@/integrations/supabase/client', () => ({
-        supabase: {
-          channel: vi.fn(() => channelMock),
-          removeChannel: vi.fn(),
-        },
-      }));
-
       const { unmount } = renderHook(() =>
         useExpensesRealtime({
           channelName: 'test-channel',

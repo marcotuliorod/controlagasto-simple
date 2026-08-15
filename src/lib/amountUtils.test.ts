@@ -32,15 +32,21 @@ describe('sumAmounts', () => {
 });
 
 describe('formatCurrency', () => {
+  // Intl.NumberFormat('pt-BR', ...) inserts a non-breaking space (U+00A0)
+  // between "R$" and the amount depending on the ICU data bundled with the
+  // Node/browser runtime. Normalize to a regular space so the assertion
+  // checks the visible characters, not which whitespace variant ICU chose.
+  const normalizeSpaces = (s: string) => s.replace(/\s/g, ' ');
+
   it('should format positive amounts', () => {
-    expect(formatCurrency(1234.56)).toBe('R$ 1.234,56');
+    expect(normalizeSpaces(formatCurrency(1234.56))).toBe('R$ 1.234,56');
   });
 
   it('should format zero', () => {
-    expect(formatCurrency(0)).toBe('R$ 0,00');
+    expect(normalizeSpaces(formatCurrency(0))).toBe('R$ 0,00');
   });
 
   it('should format decimal values', () => {
-    expect(formatCurrency(10.5)).toBe('R$ 10,50');
+    expect(normalizeSpaces(formatCurrency(10.5))).toBe('R$ 10,50');
   });
 });

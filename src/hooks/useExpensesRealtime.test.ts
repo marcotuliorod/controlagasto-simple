@@ -4,15 +4,19 @@ import { useExpensesRealtime } from './useExpensesRealtime';
 import * as supabaseClient from '@/integrations/supabase/client';
 
 // Mock supabase
-const mockChannel = {
-  on: vi.fn().mockReturnThis(),
-  subscribe: vi.fn().mockReturnThis(),
-};
+const { mockChannel, mockSupabase } = vi.hoisted(() => {
+  const mockChannel = {
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+  };
 
-const mockSupabase = {
-  channel: vi.fn(() => mockChannel),
-  removeChannel: vi.fn(),
-};
+  const mockSupabase = {
+    channel: vi.fn(() => mockChannel),
+    removeChannel: vi.fn(),
+  };
+
+  return { mockChannel, mockSupabase };
+});
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase,
