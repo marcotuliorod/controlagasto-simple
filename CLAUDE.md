@@ -180,7 +180,8 @@ const onSubmit = form.handleSubmit(async (values) => {
 
 **Available Functions:**
 - `process-receipt` - OCR via Lovable AI API (extracts amount, merchant, date, items)
-- `chat-assistant` - AI financial advice using OpenAI
+- `chat-assistant` - AI financial advice via Lovable AI Gateway (`LOVABLE_API_KEY`, `ai.gateway.lovable.dev`)
+- `process-import-file` - Bank statement PDF extraction via Lovable AI Gateway
 - `delete-account` - Full user data purge
 - `send-push-notification` - Web push delivery
 - `get-vapid-public-key` - VAPID key for push subscriptions
@@ -420,3 +421,5 @@ For deeper dives into specific features, see:
 - [Push Notifications](docs/push-notifications.md)
 - [Architecture](docs/architecture.md)
 - [Sprint 7 Features](docs/sprint-7-features.md) - Latest advanced features
+- [Task Criticality Policy](docs/WORKFLOW.md) - how to scope effort/review by task risk
+- [Project State](docs/STATE.md) / [Decision Context](docs/CONTEXT.md) - update at the end of a session
