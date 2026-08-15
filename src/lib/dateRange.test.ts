@@ -61,7 +61,7 @@ describe('dateRange utilities', () => {
       const result = getBillingCycleRange(2025, 1, 31);
       expect(result).toEqual({
         start: '2025-01-31',
-        end: '2025-02-31', // Will roll over to March 3 in 2025 (Feb has 28 days)
+        end: '2025-03-03', // Rolls over: Feb 2025 has 28 days, so day 31 becomes March 3
       });
     });
 

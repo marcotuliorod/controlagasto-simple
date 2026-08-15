@@ -40,10 +40,12 @@ export function getCurrentMonthRange(): { start: string; end: string } {
  * @returns Formatted date range string
  */
 export function formatDateRange(start: string, end: string): string {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em, ed] = end.split('-').map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+  const endDate = new Date(ey, em - 1, ed);
   endDate.setDate(endDate.getDate() - 1); // Make inclusive for display
-  
+
   return `${startDate.toLocaleDateString('pt-BR')} - ${endDate.toLocaleDateString('pt-BR')}`;
 }
 
@@ -125,12 +127,12 @@ export function getDateBillingCycle(
   date: string,
   cycleDay: number = 1
 ): string {
-  const d = new Date(date);
-  const day = d.getDate();
-  
-  let year = d.getFullYear();
-  let month = d.getMonth() + 1; // 1-12
-  
+  const [yearStr, monthStr, dayStr] = date.split('-');
+  const day = Number(dayStr);
+
+  let year = Number(yearStr);
+  let month = Number(monthStr); // 1-12
+
   // If date is before the cycle day, it belongs to previous month's cycle
   if (day < cycleDay) {
     month -= 1;
