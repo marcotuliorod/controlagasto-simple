@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/marcotuliorodgmail.com/Library/Mobile Documents/com~apple~CloudDocs/Projetos/Controla_Gastos_Simples/controlagasto-simple/docs/PRD.md",
+  "type": "PRD",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Product Requirements Document (PRD) - Entenda seus Gastos - Personal Finance Manager",
+  "summary": "PRD for a Brazilian personal finance PWA covering expense tracking, billing cycles, AI insights, and gamification.",
+  "scope": ["personal finance PWA", "expense tracking", "OCR receipts", "billing cycle", "AI insights", "gamification", "recurring expenses", "exports"],
+  "cross_refs": ["./DATABASE.md", "./SECURITY.md", "../CLAUDE.md", "./architecture.md", "./API.md", "./testing.md", "./HOOKS.md", "./ROUTES.md", "./FEATURES.md", "./sprint-7-features.md", "./release-notes.md", "./finalization-plan.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}
