@@ -29,7 +29,7 @@ class SimplePDF {
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)')
-      .replace(/[\x00-\x1F\x7F-\xFF]/g, '');
+      .replace(/[\x00-\x1F\x7F]/g, '');
   }
 
   addTitle(text: string): void {
