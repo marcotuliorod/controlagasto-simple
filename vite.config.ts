@@ -19,7 +19,9 @@ export default defineConfig(() => ({
   test: {
     globals: true,
     environment: 'jsdom',
-    exclude: ['**/node_modules/**', 'e2e/**', '.claude/**', '.agents/**', '.planning/**'],
+    // services/** tem runner e config próprios (Node, sem jsdom) — rodar por
+    // aqui os pegaria com o setup do frontend.
+    exclude: ['**/node_modules/**', 'e2e/**', '.claude/**', '.agents/**', '.planning/**', 'services/**'],
     setupFiles: ['./src/test/setup.ts'],
   },
   plugins: [
