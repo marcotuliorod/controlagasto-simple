@@ -19,8 +19,26 @@ serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Não autorizado");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error("Erro na verificação do token:", userError);
+      return new Response(
+        JSON.stringify({ error: "Token inválido" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log("Iniciando processamento de cupom fiscal...");
@@ -130,37 +148,28 @@ Retorne APENAS o JSON, sem explicações adicionais.`
       }
     }
 
-    // Upload image to storage (privado)
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    // Upload image to storage (privado) — user is already verified above
+    try {
+      // Convert base64 to blob
+      const base64Data = imageBase64.split(',')[1] || imageBase64;
+      const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
-    
-    if (user) {
-      try {
-        // Convert base64 to blob
-        const base64Data = imageBase64.split(',')[1] || imageBase64;
-        const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-        
-        const fileName = `${user.id}/${Date.now()}.jpg`;
-        const { data: uploadData, error: uploadError } = await supabaseClient.storage
-          .from('receipts')
-          .upload(fileName, binaryData, {
-            contentType: 'image/jpeg',
-            upsert: false
-          });
+      const fileName = `${user.id}/${Date.now()}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabaseClient.storage
+        .from('receipts')
+        .upload(fileName, binaryData, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
 
-        if (!uploadError && uploadData) {
-          // Retornar apenas o path (não URL pública)
-          extractedData.receipt_path = fileName;
-          console.log("Imagem salva no storage (privado):", fileName);
-        }
-      } catch (storageError) {
-        console.error("Erro ao salvar imagem:", storageError);
-        // Continue even if storage fails
+      if (!uploadError && uploadData) {
+        // Retornar apenas o path (não URL pública)
+        extractedData.receipt_path = fileName;
+        console.log("Imagem salva no storage (privado):", fileName);
       }
+    } catch (storageError) {
+      console.error("Erro ao salvar imagem:", storageError);
+      // Continue even if storage fails
     }
 
     return new Response(

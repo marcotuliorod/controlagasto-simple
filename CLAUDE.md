@@ -203,9 +203,22 @@ const { data, error } = await supabase.functions.invoke("process-receipt", {
 **Auth Pattern in Edge Functions:**
 ```typescript
 const authHeader = req.headers.get('Authorization');
-const token = authHeader?.replace('Bearer ', '');
-const { data: { user } } = await supabaseClient.auth.getUser(token);
+if (!authHeader?.startsWith('Bearer ')) {
+  return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+    status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+const token = authHeader.replace('Bearer ', '');
+const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+if (error || !user) {
+  return new Response(JSON.stringify({ error: 'Token inválido' }), {
+    status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 ```
+**Do this before any paid/expensive work** (AI API calls, etc.) — `process-receipt` used to only check that the header was non-empty and never checked `error`/`!user`, letting unauthenticated callers burn OCR credits (fixed).
+
+**Cron-triggered functions** (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`) use a different, correct pattern instead — no end user to authenticate, so they compare an `X-Cron-Secret` header against `Deno.env.get('CRON_SECRET')`.
 
 #### 5. Testing Patterns
 
