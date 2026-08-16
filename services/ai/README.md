@@ -47,6 +47,56 @@ Os testes de domínio e de HTTP rodam **sem chave de API e sem rede**, usando
 `providers/fake.ts` — impossível na arquitetura anterior, em que o `fetch`
 estava embutido em cada função.
 
+## Subindo o serviço
+
+O `SUPABASE_JWT_SECRET` precisa ser **o mesmo** que o GoTrue usa para assinar os
+tokens — é assim que o serviço valida o usuário. Em local, `npx supabase status`
+mostra o valor; em produção, está em Project Settings > API > JWT Secret.
+
+### Local
+
+```bash
+# 1. serviço de IA
+cd services/ai
+SUPABASE_JWT_SECRET="<jwt secret do supabase>" \
+GEMINI_API_KEY="<sua chave>" \
+npm run dev
+
+# 2. edge functions apontando para ele.
+#    host.docker.internal porque as functions rodam em container e
+#    "localhost" ali dentro seria o próprio container, não a sua máquina.
+echo 'AI_SERVICE_URL=http://host.docker.internal:8787' > supabase/functions/.env
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+### Container
+
+```bash
+docker build -t entenda-ai services/ai
+docker run -p 8787:8787 \
+  -e SUPABASE_JWT_SECRET="..." \
+  -e GEMINI_API_KEY="..." \
+  -e ALLOWED_ORIGINS="https://seu-dominio" \
+  entenda-ai
+```
+
+A imagem tem ~246MB e traz `HEALTHCHECK` em `/health`. Node 24 executa o
+TypeScript nativamente, então não há etapa de build — o que roda é o mesmo
+código que os testes exercitam.
+
+### Produção
+
+As Edge Functions do Supabase hospedado rodam na infraestrutura deles, então
+**o serviço precisa estar acessível pela internet pública, com TLS**. Não
+funciona apontar para `localhost` nem para rede privada.
+
+```bash
+npx supabase secrets set AI_SERVICE_URL=https://ai.seu-dominio.com
+```
+
+Sem esse secret, as 4 funcionalidades de IA respondem 503 com mensagem
+explícita; o resto do app continua funcionando normalmente.
+
 ## Rotas
 
 | Rota | Auth | Descrição |

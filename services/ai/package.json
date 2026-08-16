@@ -6,7 +6,7 @@
   "description": "Camada de IA provider-agnostic. O domínio não conhece nenhum fornecedor — só a interface LLMProvider.",
   "scripts": {
     "dev": "tsx watch src/http/server.ts",
-    "start": "node --experimental-strip-types src/http/server.ts",
+    "start": "node src/http/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest"
   },
