@@ -61,7 +61,7 @@ describe('main.tsx - PWA Registration', () => {
     
     await import('./main');
 
-    const registerCall = (registerSW as any).mock.calls[0][0];
+    const registerCall = vi.mocked(registerSW).mock.calls[0][0];
 
     // Test onOfflineReady
     registerCall.onOfflineReady();

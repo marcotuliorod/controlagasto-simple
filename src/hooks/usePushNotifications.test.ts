@@ -49,14 +49,15 @@ describe('usePushNotifications', () => {
   });
 
   it('should set isSupported=false when PushManager is not available', () => {
-    const originalPushManager = (window as any).PushManager;
-    delete (window as any).PushManager;
+    const windowRecord = window as unknown as Record<string, unknown>;
+    const originalPushManager = windowRecord.PushManager;
+    delete windowRecord.PushManager;
 
     const { result } = renderHook(() => usePushNotifications());
 
     expect(result.current.isSupported).toBe(false);
 
-    (window as any).PushManager = originalPushManager;
+    windowRecord.PushManager = originalPushManager;
   });
 
   it('should have subscribe and unsubscribe functions', () => {

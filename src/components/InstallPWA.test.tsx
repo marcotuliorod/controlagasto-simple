@@ -51,7 +51,7 @@ describe('InstallPWA', () => {
     // Mock document.querySelector for manifest
     vi.spyOn(document, 'querySelector').mockImplementation((selector) => {
       if (selector === 'link[rel="manifest"]') {
-        return { getAttribute: () => '/manifest.json' } as any;
+        return { getAttribute: () => '/manifest.json' } as unknown as Element;
       }
       return null;
     });
