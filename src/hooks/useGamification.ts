@@ -44,6 +44,53 @@ export interface UserAchievement {
   earned_at: string;
 }
 
+// The DB columns above are nullable at the schema level even though the app
+// always writes them (unlocked_at/earned_at default to now(), rarity
+// defaults to 'common'); default them here so the rest of the app can rely
+// on the non-null public interfaces above instead of re-checking for null.
+function toUserUnlock(row: {
+  id: string;
+  user_id: string;
+  menu_item_key: string;
+  unlocked_at: string | null;
+  unlock_method: string | null;
+  unlock_details: unknown;
+}): UserUnlock {
+  return {
+    ...row,
+    unlocked_at: row.unlocked_at ?? new Date().toISOString(),
+    unlock_details: (row.unlock_details as Record<string, unknown> | null) ?? {},
+  };
+}
+
+function toAchievement(row: {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  rarity: string | null;
+  unlock_condition: unknown;
+}): Achievement {
+  return {
+    ...row,
+    rarity: row.rarity ?? "common",
+    unlock_condition: (row.unlock_condition as Record<string, unknown> | null) ?? {},
+  };
+}
+
+function toUserAchievement(row: {
+  id: string;
+  user_id: string;
+  achievement_key: string;
+  earned_at: string | null;
+}): UserAchievement {
+  return {
+    ...row,
+    earned_at: row.earned_at ?? new Date().toISOString(),
+  };
+}
+
 export interface UnlockProgress {
   educationCompleted: number;
   educationRequired: number;
@@ -75,12 +122,12 @@ export function useUnlockRequirements() {
     queryKey: ["unlock-requirements"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("unlock_requirements" as any)
+        .from("unlock_requirements")
         .select("*")
         .order("unlock_level", { ascending: true });
 
       if (error) throw error;
-      return data as unknown as UnlockRequirement[];
+      return data ?? [];
     },
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
@@ -97,12 +144,12 @@ export function useUserUnlocks() {
       if (!user) return [];
 
       const { data, error } = await supabase
-        .from("user_unlocks" as any)
+        .from("user_unlocks")
         .select("*")
         .eq("user_id", user.id);
 
       if (error) throw error;
-      return data as unknown as UserUnlock[];
+      return (data ?? []).map(toUserUnlock);
     },
   });
 }
@@ -330,9 +377,8 @@ export function useUnlockMenuItem() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Use raw SQL via RPC or direct insert with type assertion for new tables
       const { error } = await supabase
-        .from("user_unlocks" as any)
+        .from("user_unlocks")
         .insert([{
           user_id: user.id,
           menu_item_key: menuItemKey,
@@ -363,12 +409,12 @@ export function useAchievements() {
     queryKey: ["achievements"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("achievements" as any)
+        .from("achievements")
         .select("*")
         .order("rarity", { ascending: true });
 
       if (error) throw error;
-      return data as unknown as Achievement[];
+      return (data ?? []).map(toAchievement);
     },
     staleTime: 1000 * 60 * 30,
   });
@@ -385,13 +431,13 @@ export function useUserAchievements() {
       if (!user) return [];
 
       const { data, error } = await supabase
-        .from("user_achievements" as any)
+        .from("user_achievements")
         .select("*")
         .eq("user_id", user.id)
         .order("earned_at", { ascending: false });
 
       if (error) throw error;
-      return data as unknown as UserAchievement[];
+      return (data ?? []).map(toUserAchievement);
     },
   });
 }
@@ -408,7 +454,7 @@ export function useAwardAchievement() {
       if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase
-        .from("user_achievements" as any)
+        .from("user_achievements")
         .insert([{
           user_id: user.id,
           achievement_key: achievementKey,
