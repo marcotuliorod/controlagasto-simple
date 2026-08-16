@@ -21,6 +21,8 @@ interface ExpenseData {
   amount: number;
   date: string;
   merchant: string;
+  payment_method: string | null;
+  notes: string | null;
   category: {
     id: string;
     name: string;
@@ -76,7 +78,7 @@ export default function Reports() {
       // LEFT JOIN para não perder despesas sem categoria, sem limites
       const { data, error } = await supabase
         .from("expenses")
-        .select("id, amount, date, merchant, payment_method, category_id, categories:categories!left(id, name, icon)")
+        .select("id, amount, date, merchant, payment_method, notes, category_id, categories:categories!left(id, name, icon)")
         .eq("user_id", user.id)
         .gte("date", start)
         .lt("date", endExclusive)
@@ -89,11 +91,13 @@ export default function Reports() {
 
       console.log(`✅ Relatórios: ${data?.length || 0} despesas encontradas`);
 
-      const formattedData: ExpenseData[] = (data || []).map((exp: any) => ({
+      const formattedData: ExpenseData[] = (data || []).map((exp) => ({
         id: exp.id,
         amount: Number(exp.amount || 0),
         date: exp.date,
         merchant: exp.merchant || "Sem estabelecimento",
+        payment_method: exp.payment_method,
+        notes: exp.notes,
         category: {
           id: exp.categories?.id || "",
           name: exp.categories?.name || "Outros",
@@ -106,7 +110,7 @@ export default function Reports() {
 
       setExpenses(formattedData);
       setFilteredExpenses(formattedData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar dados");
       console.error(error);
     } finally {
@@ -178,7 +182,7 @@ export default function Reports() {
       URL.revokeObjectURL(url);
 
       toast.success(`Exportado com sucesso (${format.toUpperCase()})`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao exportar dados");
       console.error(error);
     } finally {
@@ -219,7 +223,7 @@ export default function Reports() {
       URL.revokeObjectURL(url);
 
       toast.success("PDF baixado com sucesso");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao gerar PDF");
       console.error(error);
     } finally {
@@ -235,15 +239,15 @@ export default function Reports() {
         merchant: exp.merchant,
         category: exp.category?.name || 'Sem categoria',
         amount: exp.amount,
-        payment_method: (exp as any).payment_method || '',
-        notes: (exp as any).notes || ''
+        payment_method: exp.payment_method || '',
+        notes: exp.notes || ''
       }));
 
       const filename = `despesas_${dateFrom}_${dateTo}`;
       exportToXLSX(exportData, filename);
       
       toast.success("XLSX exportado com sucesso");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao exportar XLSX");
       console.error(error);
     } finally {
