@@ -191,40 +191,46 @@ export function useUnlockProgress() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      // Fetch education progress
-      const { data: educationProgress } = await supabase
-        .from("user_content_progress")
-        .select("content_id, completed")
-        .eq("user_id", user.id)
-        .eq("completed", true);
-
-      // Fetch educational content to map categories
-      const { data: educationalContent } = await supabase
-        .from("educational_content")
-        .select("id, category");
-
-      // Fetch quiz responses
-      const { data: quizResponses } = await supabase
-        .from("quiz_responses")
-        .select("question_id, is_correct");
-
-      // Fetch quiz questions for categories
-      const { data: quizQuestions } = await supabase
-        .from("quiz_questions")
-        .select("id, category");
-
-      // Fetch expense count
-      const { count: expenseCount } = await supabase
-        .from("expenses")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-
-      // Calculate days active (unique dates with expenses in last 30 days)
-      const { data: expenseDates } = await supabase
-        .from("expenses")
-        .select("date")
-        .eq("user_id", user.id)
-        .gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]);
+      // These 6 reads are all independent (scoped only by user.id or static
+      // content tables) — fetch them concurrently instead of one at a time.
+      const [
+        { data: educationProgress },
+        { data: educationalContent },
+        { data: quizResponses },
+        { data: quizQuestions },
+        { count: expenseCount },
+        { data: expenseDates },
+      ] = await Promise.all([
+        // Education progress
+        supabase
+          .from("user_content_progress")
+          .select("content_id, completed")
+          .eq("user_id", user.id)
+          .eq("completed", true),
+        // Educational content, to map categories
+        supabase
+          .from("educational_content")
+          .select("id, category"),
+        // Quiz responses
+        supabase
+          .from("quiz_responses")
+          .select("question_id, is_correct"),
+        // Quiz questions, for categories
+        supabase
+          .from("quiz_questions")
+          .select("id, category"),
+        // Expense count
+        supabase
+          .from("expenses")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        // Days active (unique dates with expenses in last 30 days)
+        supabase
+          .from("expenses")
+          .select("date")
+          .eq("user_id", user.id)
+          .gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
+      ]);
 
       const uniqueDays = new Set(expenseDates?.map(e => e.date) || []).size;
 
