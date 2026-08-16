@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AIServiceError, callAIService } from '../_shared/aiService.ts';
+import { extractPdfText } from '../_shared/pdfText.ts';
+import { isReliable, parseStatementText } from '../_shared/statementParser.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -429,8 +431,113 @@ function parseOFX(content: string): ParsedTransaction[] {
 // PDF PARSING WITH AI
 // =============================================================================
 
-async function parsePDFWithAI(
+/**
+ * Fluxo de PDF em camadas (Fase 4). A ordem importa: cada degrau só existe
+ * porque o anterior não deu conta.
+ *
+ *  1. Extrai o texto localmente. Nada sai do servidor.
+ *  2. Tenta ler as transações por regra determinística. Se der certo, NENHUMA
+ *     chamada de IA acontece — sem custo, sem latência de rede e sem enviar
+ *     titular, conta ou CPF para fora.
+ *  3. Se a regra não reconhecer o layout, manda o TEXTO para a IA, e o serviço
+ *     redige o que é dado pessoal antes de chamar o modelo.
+ *  4. Só se não houver camada de texto (PDF escaneado) o arquivo inteiro vai
+ *     para a IA com visão — que é o único caminho possível nesse caso.
+ */
+async function parsePDF(
   pdfBase64: string,
+  userCategories: UserCategory[],
+  historicalMerchants: Record<string, string>,
+  userToken: string
+): Promise<{ transactions: ParsedTransaction[]; error?: string; detectedBank?: BankInfo | null; usedAI: boolean }> {
+  let extracted: Awaited<ReturnType<typeof extractPdfText>> | null = null;
+  try {
+    extracted = await extractPdfText(pdfBase64);
+    console.log(`PDF: ${extracted.pages} página(s), ${extracted.text.length} chars, camada de texto: ${extracted.hasTextLayer}`);
+  } catch (error) {
+    // Falha na extração não é fatal: ainda dá para tentar a IA.
+    console.warn("Falha ao extrair texto do PDF, caindo para IA:", error);
+  }
+
+  if (extracted?.hasTextLayer) {
+    const parsed = parseStatementText(extracted.text);
+    const detectedBank = detectBank(extracted.text);
+
+    if (isReliable(parsed)) {
+      console.log(`Extrato lido localmente: ${parsed.transactions.length} transações, sem chamar IA`);
+      const transactions = parsed.transactions.map((tx, index) =>
+        toParsedTransaction(
+          {
+            date: tx.date,
+            description: tx.description,
+            amount: tx.amount,
+            // Sem indicador explícito, débito é o padrão — é o caso comum em
+            // fatura de cartão, onde tudo é saída.
+            type: tx.indicator === "C" ? "credit" : "debit",
+            documentNumber: null,
+          },
+          index + 1,
+          userCategories,
+          historicalMerchants
+        )
+      );
+      return { transactions, detectedBank, usedAI: false };
+    }
+
+    console.log(
+      `Regra determinística não reconheceu o layout (${parsed.transactions.length} lidas, ` +
+      `${parsed.unparsedCount} ilegíveis). Enviando texto redigido à IA.`
+    );
+    const viaText = await parseStatementViaAI(
+      { text: extracted.text },
+      userCategories,
+      historicalMerchants,
+      userToken
+    );
+    return { ...viaText, detectedBank: viaText.detectedBank ?? detectedBank, usedAI: true };
+  }
+
+  console.log("PDF sem camada de texto (provavelmente escaneado). Enviando arquivo à IA.");
+  const viaDocument = await parseStatementViaAI(
+    { mimeType: "application/pdf", data: pdfBase64 },
+    userCategories,
+    historicalMerchants,
+    userToken
+  );
+  return { ...viaDocument, usedAI: true };
+}
+
+/** Converte a transação crua no formato do app, aplicando a lógica determinística. */
+function toParsedTransaction(
+  tx: { date: string; description: string; amount: number; type: string; documentNumber: string | null },
+  rowNum: number,
+  userCategories: UserCategory[],
+  historicalMerchants: Record<string, string>
+): ParsedTransaction {
+  const txType: 'debit' | 'credit' = tx.type === 'credit' || tx.type === 'investment' ? 'credit' : 'debit';
+  const classification = tx.type === 'investment'
+    ? 'investment' as TransactionClassification
+    : classifyTransaction(tx.description, txType);
+
+  const merchant = extractMerchant(tx.description);
+
+  return {
+    date: tx.date,
+    description: tx.description,
+    merchant,
+    amount: Math.abs(tx.amount),
+    type: txType,
+    suggestedCategory: suggestCategory(tx.description, merchant, userCategories, historicalMerchants),
+    isDuplicate: false,
+    originalRow: rowNum,
+    classification,
+    originalDescription: tx.description,
+    documentNumber: tx.documentNumber ?? undefined,
+  };
+}
+
+async function parseStatementViaAI(
+  payload: { text: string } | { mimeType: string; data: string },
   userCategories: UserCategory[],
   historicalMerchants: Record<string, string>,
   userToken: string
@@ -452,7 +559,7 @@ async function parsePDFWithAI(
         documentNumber: string | null;
       }>;
       discarded: number;
-    }>("/v1/statement", { mimeType: "application/pdf", data: pdfBase64 }, userToken);
+    }>("/v1/statement", payload, userToken);
 
     const parsed = aiResult;
 
@@ -521,7 +628,7 @@ async function parsePDFWithAI(
     return { transactions, detectedBank };
 
   } catch (error) {
-    console.error("Error in parsePDFWithAI:", error);
+    console.error("Error in parseStatementViaAI:", error);
 
     if (error instanceof AIServiceError) {
       return { transactions: [], error: error.publicMessage };
@@ -870,7 +977,7 @@ serve(async (req) => {
     } else if (fileType === 'pdf') {
       console.log('Processing PDF file with AI extraction...');
       
-      const pdfResult = await parsePDFWithAI(fileContent, categories || [], historicalMerchants, token);
+      const pdfResult = await parsePDF(fileContent, categories || [], historicalMerchants, token);
       
       if (pdfResult.error) {
         return new Response(

@@ -19,9 +19,17 @@ export default defineConfig(() => ({
   test: {
     globals: true,
     environment: 'jsdom',
-    // services/** tem runner e config próprios (Node, sem jsdom) — rodar por
-    // aqui os pegaria com o setup do frontend.
-    exclude: ['**/node_modules/**', 'e2e/**', '.claude/**', '.agents/**', '.planning/**', 'services/**'],
+    // services/** roda em Node com config própria e supabase/functions/** roda
+    // em Deno (`deno test`). Nenhum dos dois funciona com o setup jsdom daqui.
+    exclude: [
+      '**/node_modules/**',
+      'e2e/**',
+      '.claude/**',
+      '.agents/**',
+      '.planning/**',
+      'services/**',
+      'supabase/**',
+    ],
     setupFiles: ['./src/test/setup.ts'],
   },
   plugins: [
