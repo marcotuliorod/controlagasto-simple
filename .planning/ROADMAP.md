@@ -24,7 +24,7 @@ pending validated demand — see `.planning/REQUIREMENTS.md` (v2 Requirements / 
 - Integer phases (1, 2, 3, 4): planned milestone work for this stabilization-and-polish cycle
 - Decimal phases (N.1, N.2): urgent insertions (none yet)
 
-- [ ] **Phase 1: Code Quality & CI Health** - Restore a green CI lint gate and add tests for the riskiest business logic
+- [x] **Phase 1: Code Quality & CI Health** - Restore a green CI lint gate and add tests for the riskiest business logic
 - [ ] **Phase 2: Dependency & Security Hardening** - Resolve known dependency vulnerabilities and verify edge-function auth consistency
 - [ ] **Phase 3: Performance & Scale Hardening** - Keep the app responsive as expense history and gamification data grow
 - [ ] **Phase 4: Guided Onboarding Experience** - Walk new users through setup and key features instead of a single static form
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Code Quality & CI Health | 0/TBD | Not started | - |
+| 1. Code Quality & CI Health | 1/1 | Complete | 2026-08-15 |
 | 2. Dependency & Security Hardening | 0/TBD | Not started | - |
 | 3. Performance & Scale Hardening | 0/TBD | Not started | - |
 | 4. Guided Onboarding Experience | 0/TBD | Not started | - |
