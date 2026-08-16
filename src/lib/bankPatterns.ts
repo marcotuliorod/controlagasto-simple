@@ -283,7 +283,7 @@ export function extractMerchantName(description: string): string {
   merchant = merchant.replace(/\*/g, ' ');
   
   // 5. Take first significant part (before common separators)
-  const parts = merchant.split(/[-\/|]/);
+  const parts = merchant.split(/[-/|]/);
   if (parts.length > 1) {
     merchant = parts[0];
   }

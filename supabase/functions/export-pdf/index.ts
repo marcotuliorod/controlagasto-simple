@@ -29,6 +29,7 @@ class SimplePDF {
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)')
+      // eslint-disable-next-line no-control-regex -- intentional: strips real control chars that would break PDF content-stream syntax
       .replace(/[\x00-\x1F\x7F]/g, '');
   }
 

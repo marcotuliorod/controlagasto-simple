@@ -35,7 +35,7 @@ export function AnimatedProgress({
       return;
     }
 
-    let start = 0;
+    const start = 0;
     const duration = 1000; // 1 second
     const startTime = Date.now();
 
