@@ -57,6 +57,23 @@ export interface CompletionRequest {
   schema?: Record<string, unknown>;
   maxOutputTokens?: number;
   temperature?: number;
+  /**
+   * Raciocínio interno do modelo.
+   *
+   * Existe porque em modelos com "thinking" os tokens de raciocínio saem do
+   * MESMO orçamento de `maxOutputTokens`, sem aparecer na resposta — o que
+   * torna `maxOutputTokens` uma abstração furada. Medido contra a API real:
+   * uma pergunta curta gastou 631 tokens de raciocínio para 53 de resposta,
+   * e com um prompt maior isso estourava o limite e truncava a resposta.
+   *
+   * - "disabled": raciocínio desligado. Use quando a resposta é limitada e
+   *   mecânica (chat conversacional, extração simples). Também corta latência.
+   * - "auto" (padrão): deixa o provedor decidir. Use quando há folga de
+   *   orçamento e a tarefa se beneficia de raciocínio.
+   *
+   * Adapters cujo provedor não tem esse conceito devem ignorar o campo.
+   */
+  reasoning?: "disabled" | "auto";
   signal?: AbortSignal;
 }
 

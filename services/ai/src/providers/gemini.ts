@@ -97,6 +97,11 @@ export function createGeminiProvider(config: GeminiConfig): LLMProvider {
         generationConfig["responseMimeType"] = "application/json";
         generationConfig["responseSchema"] = request.schema;
       }
+      if (request.reasoning === "disabled") {
+        // Sem isto, os tokens de raciocínio consomem maxOutputTokens e a
+        // resposta visível é truncada.
+        generationConfig["thinkingConfig"] = { thinkingBudget: 0 };
+      }
       if (Object.keys(generationConfig).length > 0) {
         body["generationConfig"] = generationConfig;
       }

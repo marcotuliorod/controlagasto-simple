@@ -53,9 +53,18 @@ estava embutido em cada função.
 |---|---|---|
 | `GET /health` | não | Health check para orquestrador |
 | `POST /v1/receipt` | Bearer JWT | Extrai dados de cupom fiscal (imagem ou PDF) |
+| `POST /v1/statement` | Bearer JWT | Extrai transações de extrato/fatura |
+| `POST /v1/insights` | Bearer JWT | Gera insights sobre os gastos do mês |
+| `POST /v1/chat` | Bearer JWT | Assistente financeiro conversacional |
 
-`POST /v1/receipt` recebe `{ mimeType, data }`, onde `data` é base64 puro ou
-data URL. A autenticação é validada **antes** de qualquer chamada paga.
+Todas validam o JWT **antes** de qualquer chamada paga, com teste garantindo
+que o provedor não é acionado sem token.
+
+- `/v1/receipt` e `/v1/statement` recebem `{ mimeType, data }`, com `data` em
+  base64 puro ou data URL.
+- `/v1/statement` aceita também `{ text }` — texto já extraído localmente, que
+  passa por redação de PII antes de sair. É o caminho que a Fase 4 tornará
+  padrão.
 
 ## Decisões
 
@@ -68,11 +77,17 @@ data URL. A autenticação é validada **antes** de qualquer chamada paga.
   `gemini-3.5-flash`. Como o argumento de paridade caiu, a escolha do provedor
   fica em aberto pelo mérito (custo, latência, LGPD) — e é justamente para isso
   que a arquitetura é provider-agnostic.
-- **Latência observada:** ~19s numa chamada trivial com `gemini-3.5-flash` (é um
-  modelo com raciocínio; a resposta traz `thoughtSignature`). Isso é bem mais
-  que o esperado para OCR de cupom e precisa entrar na comparação de provedores.
-  Modelos `-lite` ou um serviço de OCR dedicado tendem a ser melhores para o
-  caminho de extração.
+- **Raciocínio compete com o orçamento da resposta.** Em modelos com "thinking"
+  os tokens de raciocínio saem do mesmo `maxOutputTokens` e não aparecem na
+  resposta. Medido: uma pergunta curta gastou **631 tokens pensando para 53 de
+  resposta**; com o `maxOutputTokens: 800` herdado do código antigo, o chat
+  truncava antes de responder. Por isso o contrato expõe `reasoning`, e o chat
+  usa `"disabled"`. Sem esse campo, `maxOutputTokens` seria uma abstração furada.
+- **Latência ainda é o ponto fraco:** ~19s numa resposta de chat, mesmo com o
+  raciocínio desligado — ou seja, não era o raciocínio que causava a lentidão.
+  Para OCR de cupom (usuário esperando após fotografar) isso é ruim. Precisa
+  pesar na comparação de provedores; modelos `-lite` ou OCR dedicado tendem a
+  ser melhores no caminho de extração.
 - **API nativa do Gemini, não o shim OpenAI-compatible.** Resolve os dois pontos
   frágeis do código anterior: PDF entra como `inline_data` com mime type próprio
   (antes ia disfarçado de `image_url`), e o JSON sai via `responseSchema`,
@@ -86,8 +101,15 @@ data URL. A autenticação é validada **antes** de qualquer chamada paga.
 
 ## Estado
 
-Implementado: extração de cupom fiscal (`DocumentExtraction`), adapter Gemini,
-resiliência, redação de PII, HTTP + auth.
+As 4 capacidades estão implementadas e expostas por HTTP:
+`DocumentExtraction` (cupom), `TransactionClassification` (extrato),
+`FinancialInsights` e `FinancialAssistant` (chat).
 
-Pendente: `TransactionClassification` (extrato), `FinancialInsights`,
-`FinancialAssistant`, e a migração dos call sites do frontend (Fase 3).
+Validado contra a API real, não só contra o provider fake. No extrato, o
+conhecimento de domínio do prompt original sobreviveu à migração: `APLICACAO
+CDB DI` sai como `investment`, e `SALDO ANTERIOR`/`SALDO FINAL`/`REPASSE FPM`
+são corretamente ignorados.
+
+**Pendente:** migrar os 4 call sites do frontend (Fase 3) — o app continua
+chamando as edge functions antigas. Enquanto isso não acontecer, este serviço
+não está em uso e as chamadas ao gateway Lovable seguem ativas.

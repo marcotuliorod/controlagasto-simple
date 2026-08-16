@@ -143,3 +143,124 @@ describe("GET /health", () => {
     await expect(response.json()).resolves.toMatchObject({ status: "ok" });
   });
 });
+
+const post = (path: string, body: unknown, token?: string) =>
+  new Request(`http://localhost${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify(body),
+  });
+
+describe("POST /v1/statement", () => {
+  const STATEMENT_JSON = JSON.stringify({
+    transactions: [
+      { date: "2024-01-15", description: "MERCADO", amount: 150.5, type: "debit" },
+    ],
+  });
+
+  it("extrai transações de um PDF", async () => {
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
+    const response = await makeApp(provider).fetch(
+      post("/v1/statement", { mimeType: "application/pdf", data: "ZmFrZQ==" }, await makeToken()),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ discarded: 0 });
+  });
+
+  it("aceita texto e redige PII antes de enviar", async () => {
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
+    await makeApp(provider).fetch(
+      post("/v1/statement", { text: "CPF 123.456.789-01\n15/01/2024 MERCADO 150,50 D" }, await makeToken()),
+    );
+
+    const part = provider.calls[0]!.messages[0]!.parts[0]!;
+    const enviado = part.type === "text" ? part.text : "";
+    expect(enviado).not.toContain("123.456.789-01");
+  });
+
+  it("não aciona o provedor sem token", async () => {
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
+    const response = await makeApp(provider).fetch(
+      post("/v1/statement", { mimeType: "application/pdf", data: "ZmFrZQ==" }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(provider.calls).toHaveLength(0);
+  });
+});
+
+describe("POST /v1/insights", () => {
+  const context = {
+    currentMonth: "janeiro de 2024",
+    currentTotal: 3500,
+    previousTotal: 3000,
+    monthVariation: 16.7,
+    monthlyGoal: 4000,
+    goalProgress: 87,
+    totalExpenses: 42,
+    topCategories: [{ name: "Alimentação", total: 1200 }],
+    categoryGoals: [],
+  };
+
+  it("gera insights", async () => {
+    const provider = createFakeProvider({
+      respondWith: JSON.stringify({ insights: [{ type: "tip", message: "💡 dica" }] }),
+    });
+    const response = await makeApp(provider).fetch(
+      post("/v1/insights", context, await makeToken()),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ fallback: false });
+  });
+
+  it("não aciona o provedor sem token", async () => {
+    const provider = createFakeProvider({ respondWith: "{}" });
+    const response = await makeApp(provider).fetch(post("/v1/insights", context));
+
+    expect(response.status).toBe(401);
+    expect(provider.calls).toHaveLength(0);
+  });
+});
+
+describe("POST /v1/chat", () => {
+  const body = {
+    question: "Como estão meus gastos?",
+    context: {
+      totalSpent: 3500,
+      monthlyGoal: 4000,
+      percentageUsed: 87,
+      topCategories: [],
+      recentExpenses: [],
+    },
+  };
+
+  it("responde a pergunta", async () => {
+    const provider = createFakeProvider({ respondWith: "Você está dentro da meta." });
+    const response = await makeApp(provider).fetch(post("/v1/chat", body, await makeToken()));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ message: "Você está dentro da meta." });
+  });
+
+  it("não vaza o nome do usuário para o modelo", async () => {
+    const provider = createFakeProvider({ respondWith: "ok" });
+    await makeApp(provider).fetch(
+      post("/v1/chat", { ...body, userName: "Maria Silva" }, await makeToken()),
+    );
+
+    expect(provider.calls[0]!.system ?? "").not.toContain("Maria Silva");
+  });
+
+  it("não aciona o provedor sem token", async () => {
+    const provider = createFakeProvider({ respondWith: "ok" });
+    const response = await makeApp(provider).fetch(post("/v1/chat", body));
+
+    expect(response.status).toBe(401);
+    expect(provider.calls).toHaveLength(0);
+  });
+});
