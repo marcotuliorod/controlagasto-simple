@@ -21,7 +21,13 @@ import type {
 import { AIError } from "../shared/errors.ts";
 
 const DEFAULT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_MODEL = "gemini-2.5-flash";
+/**
+ * NÃO usar gemini-2.5-flash (o modelo do gateway antigo): a API responde
+ * 404 "no longer available to new users" para chaves novas — verificado
+ * contra a API real em 16/08/2026. Ou seja, a ideia de provar paridade
+ * usando exatamente o mesmo modelo não é mais possível.
+ */
+const DEFAULT_MODEL = "gemini-3.5-flash";
 
 export interface GeminiConfig {
   apiKey: string;

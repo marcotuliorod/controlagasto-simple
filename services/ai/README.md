@@ -27,7 +27,7 @@ Nenhum arquivo em `domain/` importa de `providers/` além de `providers/types.ts
 | `SUPABASE_JWT_SECRET` | sim | — | Segredo HS256 do GoTrue, para validar o token do usuário |
 | `GEMINI_API_KEY` | sim (com `AI_PROVIDER=gemini`) | — | Chave do provedor. **Nunca** vai ao browser |
 | `AI_PROVIDER` | não | `gemini` | Adapter a usar |
-| `AI_MODEL` | não | `gemini-2.5-flash` | Sobrescreve o modelo |
+| `AI_MODEL` | não | `gemini-3.5-flash` | Sobrescreve o modelo |
 | `PORT` | não | `8787` | Porta HTTP |
 | `ALLOWED_ORIGINS` | não | `http://localhost:8080` | Origens de CORS, separadas por vírgula |
 
@@ -59,9 +59,20 @@ data URL. A autenticação é validada **antes** de qualquer chamada paga.
 
 ## Decisões
 
-- **Adapter inicial Gemini** porque `gemini-2.5-flash` já era o modelo que rodava
-  por baixo do gateway antigo. Assim a migração prova paridade de plataforma sem
-  misturar com mudança de qualidade do modelo.
+- **Adapter inicial Gemini.** A justificativa original era usar exatamente
+  `gemini-2.5-flash`, o modelo que rodava por baixo do gateway antigo, para
+  provar paridade sem misturar troca de plataforma com mudança de qualidade.
+  **Isso não é mais possível:** verificado contra a API real em 16/08/2026, esse
+  modelo responde `404 "no longer available to new users"` para chaves novas —
+  o acesso do gateway Lovable é grandfathered. O padrão passou a ser
+  `gemini-3.5-flash`. Como o argumento de paridade caiu, a escolha do provedor
+  fica em aberto pelo mérito (custo, latência, LGPD) — e é justamente para isso
+  que a arquitetura é provider-agnostic.
+- **Latência observada:** ~19s numa chamada trivial com `gemini-3.5-flash` (é um
+  modelo com raciocínio; a resposta traz `thoughtSignature`). Isso é bem mais
+  que o esperado para OCR de cupom e precisa entrar na comparação de provedores.
+  Modelos `-lite` ou um serviço de OCR dedicado tendem a ser melhores para o
+  caminho de extração.
 - **API nativa do Gemini, não o shim OpenAI-compatible.** Resolve os dois pontos
   frágeis do código anterior: PDF entra como `inline_data` com mime type próprio
   (antes ia disfarçado de `image_url`), e o JSON sai via `responseSchema`,
