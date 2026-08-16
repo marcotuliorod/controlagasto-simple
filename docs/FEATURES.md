@@ -22,6 +22,12 @@ Documentação completa de todas as funcionalidades disponíveis em produção.
 14. [Busca Global](#14-busca-global)
 15. [Logs de Auditoria](#15-logs-de-auditoria)
 16. [Configurações](#16-configurações)
+17. [Gamificação Progressiva](#17-gamificação-progressiva)
+18. [Importação de Extratos Bancários](#18-importação-de-extratos-bancários)
+19. [Onboarding Guiado](#19-onboarding-guiado)
+
+> Seções 17-19 foram adicionadas em 16/08/2026 para cobrir funcionalidades entregues após a
+> versão inicial deste documento — ver `docs/PRD.md` (Epics 13-15) para o histórico completo.
 
 ---
 
@@ -532,8 +538,11 @@ Ao criar conta, usuário recebe automaticamente:
 - Dia do ciclo de faturamento
 
 ### 16.2 Aparência
-- Tema claro/escuro
-- Preferência de sistema
+- Tema claro/escuro (alternância manual)
+- Alternância **automática** por horário do dia (6h-18h claro, 18h-6h escuro) quando não há
+  preferência manual salva — ver [19.3 Tema Automático por Horário](#193-tema-automático-por-horário)
+- Ao escolher manualmente, a preferência é salva no perfil (`profiles.theme_preference`) e passa
+  a vencer sempre o cálculo automático, inclusive em outro dispositivo
 
 ### 16.3 Notificações
 - Link para configurações detalhadas
@@ -549,9 +558,151 @@ Ao criar conta, usuário recebe automaticamente:
 
 ---
 
+## 17. Gamificação Progressiva
+
+**Componentes:** `src/components/gamification/`
+**Hooks:** `src/hooks/useGamification.ts`
+
+Sistema opcional (opt-in) que revela seções do app gradualmente conforme o usuário se engaja com
+conteúdo educativo, quiz e registro de despesas — pensado para não sobrecarregar um usuário
+iniciante (persona João) com todas as funcionalidades logo no primeiro acesso.
+
+### 17.1 Requisitos de Desbloqueio
+
+**Tabela:** `unlock_requirements`
+
+Cada item de menu pode ter um ou mais critérios configurados:
+
+| Critério | Campo | Descrição |
+|----------|-------|-----------|
+| Conteúdo educativo | `required_educational_category` + `required_educational_count` | Nº de conteúdos completados numa categoria |
+| Quiz | `required_quiz_category` + `required_quiz_score` | % de acerto mínima numa categoria de quiz |
+| Dias ativos | `required_days_active` | Dias de uso do app |
+| Despesas registradas | `required_expense_count` | Quantidade de despesas lançadas |
+| Nível | `unlock_level` | Ordem de desbloqueio entre os itens |
+
+O progresso do usuário em relação a cada critério é calculado via `useUnlockProgress`, que roda
+as 6 consultas envolvidas (progresso educativo, conteúdo educativo, respostas de quiz, perguntas
+de quiz, contagem de despesas, datas de despesas) em paralelo (`Promise.all`) em vez de
+sequencialmente.
+
+### 17.2 Itens Bloqueados
+
+**Componente:** `LockedMenuTooltip.tsx`
+
+- Item de menu ainda bloqueado exibe tooltip explicando o requisito pendente
+- Indicador visual de progresso rumo ao desbloqueio (`UnlockProgressIndicator.tsx`)
+- Desbloqueio registrado em `user_unlocks` (com `unlock_method` e `unlock_details`)
+
+### 17.3 Conquistas (Achievements)
+
+**Tabelas:** `achievements`, `user_achievements`
+**Componentes:** `AchievementBadge.tsx`, `AchievementsCard.tsx`
+
+- Catálogo de conquistas com raridade (`rarity`) e condição de desbloqueio própria
+  (`unlock_condition`)
+- Conquistas obtidas ficam registradas por usuário com data (`earned_at`)
+- Celebração visual ao desbloquear (`triggerCelebration`)
+
+### 17.4 Ativar/Desativar
+
+**Componente:** `OnboardingWelcomeModal.tsx`
+
+- Modal de boas-vindas na primeira vez que a gamificação aparece para o usuário
+- Toggle para ativar/desativar a qualquer momento (`useToggleGamification`)
+- Opção de pular sem ativar (`useSkipGamification`)
+- **Importante:** o sinal de conclusão deste modal (`profiles.onboarding_completed`) é
+  independente do wizard de configuração inicial (seção 19) — são dois fluxos de "onboarding"
+  diferentes que coexistem no código sem se sobrepor.
+
+---
+
+## 18. Importação de Extratos Bancários
+
+**Rota:** `/import-transactions`
+**Edge Function:** `process-import-file`
+**Tabelas:** `import_sessions`, `import_mappings`
+
+Permite importar um extrato bancário inteiro (CSV ou PDF) em vez de digitar cada despesa
+manualmente — pensado para o usuário com múltiplas transações por período (persona Carlos).
+
+### 18.1 Fluxo de Importação
+
+1. Usuário faz upload do arquivo (CSV ou PDF de extrato)
+2. `process-import-file` processa o arquivo via IA (Lovable AI Gateway)
+3. O padrão/formato do banco é detectado automaticamente (`src/lib/bankPatterns.ts`)
+4. Transações extraídas são apresentadas para revisão antes de confirmar
+5. Duplicatas já existentes na base do usuário são sinalizadas
+6. Transferências internas entre contas próprias são detectadas (`is_transfer`,
+   `transfer_pair_id`) e não contam como gasto real
+
+### 18.2 Sessões e Mapeamentos
+
+- `import_sessions`: rastreia cada importação (arquivo, status, quantidade de transações)
+- `import_mappings`: guarda mapeamentos de coluna/formato já usados, para acelerar importações
+  futuras do mesmo banco
+
+### 18.3 Segurança
+
+- Validação de entrada reforçada na edge function (hardening de segurança recente)
+- Arquivo processado sob autenticação do usuário (mesmo padrão de JWT das demais edge functions)
+
+---
+
+## 19. Onboarding Guiado
+
+**Rota:** `/onboarding`
+**Componentes:** `src/pages/Onboarding.tsx`, `src/components/FirstVisitTip.tsx`
+**Hooks:** `src/hooks/useAutoTheme.ts`
+
+### 19.1 Wizard de Configuração Inicial (3 passos)
+
+Substitui o antigo formulário único de configuração por um wizard guiado, com barra de
+progresso:
+
+| Passo | Conteúdo |
+|-------|----------|
+| 1 | Meta mensal |
+| 2 | Dia do ciclo de faturamento (presets 1/5/10/15 + customizado) |
+| 3 | Cadastro da primeira conta (nome, tipo, ícone, cor, saldo inicial) |
+
+- O passo 3 reaproveita os mesmos campos do formulário de contas (`AccountFormFields`, extraído
+  de `AccountForm.tsx`) — o mesmo componente que abre no modal de "Nova Conta" da seção Contas
+- Ao concluir, cria a conta real via a mutation `createAccount` (a mesma usada em `/accounts`)
+- O gate de rota que decide "usuário precisa do wizard?" continua baseado na existência de uma
+  linha em `monthly_goals` para o mês atual — sem novo flag de "onboarding completo"
+
+### 19.2 Tooltips de Primeira Visita
+
+**Componente:** `FirstVisitTip.tsx`
+
+- Tooltip ancorado (Radix Tooltip controlado) no card principal de Dashboard, Relatórios e Contas
+- Abre automaticamente na primeira visita à seção
+- Botão "Entendi" fecha e grava a dispensa em `localStorage` (`tip-seen-${id}`)
+- Não reaparece depois de dispensado
+
+### 19.3 Tema Automático por Horário
+
+**Hook:** `useAutoTheme.ts`
+**Migration:** `profiles.theme_preference`
+
+| Horário local | Tema aplicado |
+|----------------|---------------|
+| 6h–18h | Claro |
+| 18h–6h | Escuro |
+
+- Recalculado quando a aba volta ao foco (`visibilitychange`), sem polling contínuo
+- Se o usuário já tiver uma preferência manual salva (`profiles.theme_preference`), ela sempre
+  vence o cálculo automático
+- A preferência manual é definida ao clicar no `ThemeToggle` (sidebar) e persiste no perfil —
+  portanto vale em qualquer dispositivo/sessão, não só no navegador atual
+
+---
+
 ## 🔗 Links Relacionados
 
 - [Modelo de Dados](./DATABASE.md)
 - [Edge Functions](./API.md)
 - [Segurança](./SECURITY.md)
 - [Rotas](./ROUTES.md)
+- [PRD](./PRD.md) - Product Requirements Document, com o histórico completo de épicos e decisões
