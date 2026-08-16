@@ -112,7 +112,7 @@ export default function CategoryGoalsManager() {
         <div className="bg-muted/50 border rounded-md p-3 mb-4">
           <p className="text-sm">
             📅 Metas para o ciclo: <strong>{format(new Date(currentCycle.start), 'MMM/yyyy', { locale: ptBR })}</strong>
-            {' '}({format(new Date(currentCycle.start), 'dd/MM')} - {format(new Date(currentCycle.end).setDate(new Date(currentCycle.end).getDate() - 1) as any, 'dd/MM')})
+            {' '}({format(new Date(currentCycle.start), 'dd/MM')} - {format(new Date(currentCycle.end).setDate(new Date(currentCycle.end).getDate() - 1), 'dd/MM')})
           </p>
         </div>
         <div className="space-y-4">

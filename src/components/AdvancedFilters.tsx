@@ -8,7 +8,7 @@ import { SlidersHorizontal, Save } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useSavedFilters } from "@/hooks/useSavedFilters";
+import { useSavedFilters, SavedFilter } from "@/hooks/useSavedFilters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AdvancedFiltersProps {
@@ -80,8 +80,10 @@ export function AdvancedFilters({ onApply, currentFilters }: AdvancedFiltersProp
     toast.success("Filtro salvo com sucesso!");
   };
 
-  const handleLoadFilter = (savedFilter: any) => {
-    setFilters(savedFilter.filters);
+  const handleLoadFilter = (savedFilter: SavedFilter) => {
+    // Saved filters are always written from this component's own FilterValues
+    // shape (see handleSaveFilter below); the JSONB column itself is opaque.
+    setFilters(savedFilter.filters as unknown as FilterValues);
     toast.success(`Filtro "${savedFilter.name}" carregado!`);
   };
 

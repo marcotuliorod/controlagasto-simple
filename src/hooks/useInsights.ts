@@ -8,7 +8,7 @@ export interface Insight {
 
 export interface InsightsResponse {
   insights: Insight[];
-  context?: any;
+  context?: Record<string, unknown>;
 }
 
 export const useInsights = () => {

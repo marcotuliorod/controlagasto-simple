@@ -74,7 +74,7 @@ export const AccountForm = ({ open, onClose, onSubmit, account }: AccountFormPro
             <Label htmlFor="type">Tipo</Label>
             <Select
               value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value as any })}
+              onValueChange={(value) => setFormData({ ...formData, type: value as Account["type"] })}
             >
               <SelectTrigger>
                 <SelectValue />

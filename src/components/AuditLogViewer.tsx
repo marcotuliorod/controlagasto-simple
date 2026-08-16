@@ -40,7 +40,7 @@ export const AuditLogViewer = ({ log }: AuditLogViewerProps) => {
     if (log.action === "DELETE") return null;
     if (!log.before_data || !log.after_data) return null;
 
-    const changes: Array<{ field: string; before: any; after: any }> = [];
+    const changes: Array<{ field: string; before: unknown; after: unknown }> = [];
     const beforeData = log.before_data;
     const afterData = log.after_data;
 
@@ -61,7 +61,7 @@ export const AuditLogViewer = ({ log }: AuditLogViewerProps) => {
     return changes.length > 0 ? changes : null;
   };
 
-  const formatValue = (value: any) => {
+  const formatValue = (value: unknown) => {
     if (value === null || value === undefined) return "N/A";
     if (typeof value === "boolean") return value ? "Sim" : "Não";
     if (typeof value === "number") return value.toLocaleString("pt-BR");

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useScheduledExports } from "@/hooks/useScheduledExports";
+import { useScheduledExports, ScheduledExport } from "@/hooks/useScheduledExports";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -71,7 +71,7 @@ export default function ScheduledExports() {
     setEditingId(null);
   };
 
-  const handleEdit = (exp: any) => {
+  const handleEdit = (exp: ScheduledExport) => {
     setEditingId(exp.id);
     setName(exp.name);
     setFrequency(exp.frequency);
@@ -125,7 +125,7 @@ export default function ScheduledExports() {
 
                 <div className="space-y-2">
                   <Label htmlFor="frequency">Frequência</Label>
-                  <Select value={frequency} onValueChange={(v: any) => setFrequency(v)}>
+                  <Select value={frequency} onValueChange={(v) => setFrequency(v as ScheduledExport["frequency"])}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -139,7 +139,7 @@ export default function ScheduledExports() {
 
                 <div className="space-y-2">
                   <Label htmlFor="format">Formato</Label>
-                  <Select value={exportFormat} onValueChange={(v: any) => setExportFormat(v)}>
+                  <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ScheduledExport["format"])}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

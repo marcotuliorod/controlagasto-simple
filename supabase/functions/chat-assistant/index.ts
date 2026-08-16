@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface ChatExpense {
+  amount: number;
+  merchant?: string | null;
+  categories?: { name: string } | null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -87,7 +93,7 @@ serve(async (req) => {
     ]);
 
     const profile = profileResult.data;
-    const expenses = expensesResult.data || [];
+    const expenses: ChatExpense[] = expensesResult.data || [];
     const monthlyGoal = goalsResult.data;
     const healthScore = scoreResult.data;
 
@@ -95,7 +101,7 @@ serve(async (req) => {
     const categorySpending: Record<string, number> = {};
     let totalSpent = 0;
     
-    expenses.forEach((expense: any) => {
+    expenses.forEach((expense) => {
       totalSpent += Number(expense.amount);
       const categoryName = expense.categories?.name || 'Sem categoria';
       categorySpending[categoryName] = (categorySpending[categoryName] || 0) + Number(expense.amount);
@@ -137,7 +143,7 @@ ${healthScore ? `SCORE DE SAÚDE FINANCEIRA:
 ` : ''}
 
 ${expenses.length > 0 ? `ÚLTIMAS DESPESAS:
-${expenses.slice(0, 5).map((e: any) => 
+${expenses.slice(0, 5).map((e) =>
   `- ${e.merchant || 'Despesa'}: R$ ${Number(e.amount).toFixed(2)} (${e.categories?.name || 'Sem categoria'})`
 ).join('\n')}` : 'Nenhuma despesa registrada este mês.'}
 `;

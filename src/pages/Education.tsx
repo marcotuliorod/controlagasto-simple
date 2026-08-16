@@ -7,14 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Clock, CheckCircle2, Search, Video, FileText, Lightbulb } from "lucide-react";
-import { useEducationalContent, useUserProgress, useMarkAsCompleted } from "@/hooks/useEducationalContent";
+import { useEducationalContent, useUserProgress, useMarkAsCompleted, EducationalContent } from "@/hooks/useEducationalContent";
 import { toast } from "sonner";
 
 export default function Education() {
   const [categoryFilter, setCategoryFilter] = useState<string>("todas");
   const [levelFilter, setLevelFilter] = useState<string>("todos");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedContent, setSelectedContent] = useState<any>(null);
+  const [selectedContent, setSelectedContent] = useState<EducationalContent | null>(null);
 
   const { data: content = [], isLoading } = useEducationalContent(categoryFilter, levelFilter, searchQuery);
   const { data: userProgress = [] } = useUserProgress();

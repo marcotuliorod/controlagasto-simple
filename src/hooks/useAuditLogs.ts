@@ -7,8 +7,8 @@ export interface AuditLog {
   action: 'CREATE' | 'UPDATE' | 'DELETE';
   entity: 'expense' | 'category' | 'account' | 'goal';
   entity_id: string;
-  before_data: any;
-  after_data: any;
+  before_data: Record<string, unknown> | null;
+  after_data: Record<string, unknown> | null;
   ip_address?: string;
   user_agent?: string;
   created_at: string;

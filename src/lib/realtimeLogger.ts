@@ -11,7 +11,7 @@ export const realtimeLogger = {
     }
   },
 
-  change: (channelName: string, event: string, payload: any) => {
+  change: (channelName: string, event: string, payload: unknown) => {
     if (import.meta.env.DEV) {
       console.log(`${LOG_PREFIX} 🔄 [${channelName}] ${event}:`, payload);
     }
@@ -23,7 +23,7 @@ export const realtimeLogger = {
     }
   },
 
-  error: (channelName: string, error: any) => {
+  error: (channelName: string, error: unknown) => {
     console.error(`${LOG_PREFIX} ❌ [${channelName}] Error:`, error);
   },
 

@@ -6,7 +6,7 @@ export interface SavedFilter {
   id: string;
   user_id: string;
   name: string;
-  filters: any;
+  filters: Record<string, unknown>;
   is_favorite: boolean;
   created_at: string;
   updated_at: string;

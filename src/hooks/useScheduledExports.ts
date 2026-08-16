@@ -8,7 +8,7 @@ export interface ScheduledExport {
   name: string;
   frequency: "daily" | "weekly" | "monthly";
   format: "csv" | "xlsx" | "pdf";
-  filters: any;
+  filters: Record<string, unknown>;
   next_run_at: string;
   last_run_at: string | null;
   is_active: boolean;

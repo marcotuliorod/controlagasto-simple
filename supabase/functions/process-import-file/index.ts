@@ -17,6 +17,20 @@ interface BankInfo {
   patterns: RegExp[];
 }
 
+interface UserCategory {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+interface ExistingExpense {
+  id: string;
+  date: string;
+  amount: number;
+  merchant: string | null;
+}
+
 const SUPPORTED_BANKS: BankInfo[] = [
   {
     name: 'banco_do_brasil',
@@ -217,6 +231,16 @@ interface ParsedTransaction {
   documentNumber?: string;
 }
 
+// Shape the AI response is expected to match — enforced by the runtime
+// guards around each use site below, since it's untrusted model output.
+interface RawAITransaction {
+  date: string;
+  description: string;
+  amount: number | string;
+  type?: string;
+  documentNumber?: string;
+}
+
 interface ImportResult {
   transactions: ParsedTransaction[];
   totalCount: number;
@@ -300,21 +324,21 @@ function parseDate(dateStr: string): string | null {
   if (!dateStr) return null;
 
   // Try DD/MM/YYYY or DD-MM-YYYY
-  let match = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  let match = dateStr.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
   if (match) {
     const [, day, month, year] = match;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
   // Try YYYY-MM-DD or YYYY/MM/DD
-  match = dateStr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  match = dateStr.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
   if (match) {
     const [, year, month, day] = match;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
   // Try DD/MM/YY
-  match = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/);
+  match = dateStr.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2})/);
   if (match) {
     const [, day, month, yearShort] = match;
     const year = parseInt(yearShort) > 50 ? `19${yearShort}` : `20${yearShort}`;
@@ -406,7 +430,7 @@ function parseOFX(content: string): ParsedTransaction[] {
 
 async function parsePDFWithAI(
   pdfBase64: string,
-  userCategories: any[],
+  userCategories: UserCategory[],
   historicalMerchants: Record<string, string>
 ): Promise<{ transactions: ParsedTransaction[]; error?: string; detectedBank?: BankInfo | null }> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -519,7 +543,7 @@ Se não identificar transações, retorne: {"transactions": []}`;
 
     // Robust JSON extraction
     let jsonStr = content;
-    let parsed: any = null;
+    let parsed: { transactions: RawAITransaction[] } | null = null;
     
     // Method 1: Try markdown code block
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -693,7 +717,7 @@ function extractMerchant(description: string): string {
 function suggestCategory(
   description: string,
   merchant: string,
-  userCategories: any[],
+  userCategories: UserCategory[],
   historicalMerchants: Record<string, string>
 ): { id: string | null; name: string; confidence: 'high' | 'medium' | 'low' } {
   const searchText = `${description} ${merchant}`.toLowerCase();
@@ -728,7 +752,7 @@ function suggestCategory(
 
 async function checkDuplicates(
   transactions: ParsedTransaction[],
-  existingExpenses: any[]
+  existingExpenses: ExistingExpense[]
 ): Promise<ParsedTransaction[]> {
   return transactions.map(tx => {
     const txDate = new Date(tx.date);

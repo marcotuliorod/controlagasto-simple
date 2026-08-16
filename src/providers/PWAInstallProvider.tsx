@@ -48,7 +48,7 @@ export const PWAInstallProvider = ({ children }: { children: ReactNode }) => {
 
     // Detect standalone mode
     const standalone = window.matchMedia('(display-mode: standalone)').matches ||
-                      (window.navigator as any).standalone === true;
+                      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
     setIsInstalled(standalone);
     console.log('[PWAInstallProvider] 🖥️ Modo standalone:', standalone);

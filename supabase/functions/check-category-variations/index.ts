@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface CategoryExpense {
+  amount: number;
+  category_id: string | null;
+  categories?: { name: string; color: string } | null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -63,7 +69,7 @@ serve(async (req) => {
     if (previousError) throw previousError;
 
     // Calculate totals by category
-    const calculateCategoryTotals = (expenses: any[]) => {
+    const calculateCategoryTotals = (expenses: CategoryExpense[]) => {
       const totals: Record<string, { total: number; name: string; color: string }> = {};
       expenses?.forEach(exp => {
         const catId = exp.category_id || 'uncategorized';

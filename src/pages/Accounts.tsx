@@ -36,9 +36,11 @@ const Accounts = () => {
 
   const handleSubmit = (accountData: Partial<Account>) => {
     if (accountData.id) {
-      updateAccount.mutate(accountData as any);
+      updateAccount.mutate(accountData as Partial<Account> & { id: string });
     } else {
-      createAccount.mutate(accountData as any);
+      // AccountForm always populates every required Account field before
+      // calling onSubmit; only `id` is legitimately absent (create path).
+      createAccount.mutate(accountData as Omit<Account, "id" | "user_id" | "created_at" | "updated_at">);
     }
   };
 
@@ -93,7 +95,7 @@ const Accounts = () => {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "active" | "inactive")}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="all">Todas ({accountsWithBalance?.length || 0})</TabsTrigger>
             <TabsTrigger value="active">

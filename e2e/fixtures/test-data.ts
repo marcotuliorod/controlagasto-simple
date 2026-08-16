@@ -1,3 +1,5 @@
+import type { Page } from '@playwright/test';
+
 /**
  * Test data fixtures for E2E tests
  */
@@ -36,7 +38,7 @@ export const TEST_ACCOUNT = {
 /**
  * Wait for navigation and loading states
  */
-export async function waitForPageLoad(page: any) {
+export async function waitForPageLoad(page: Page) {
   await page.waitForLoadState('networkidle');
   await page.waitForLoadState('domcontentloaded');
 }

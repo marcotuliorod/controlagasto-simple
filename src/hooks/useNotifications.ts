@@ -5,7 +5,7 @@ export interface Notification {
   id: string;
   user_id: string;
   type: string;
-  payload: any;
+  payload: Record<string, unknown>;
   ref_month: string | null;
   created_at: string;
   read: boolean;

@@ -11,12 +11,26 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Search, DollarSign, Tag, CreditCard, Target } from "lucide-react";
 import { formatCurrencyBR } from "@/lib/currencyUtils";
+import { Account } from "@/hooks/useAccounts";
+
+interface SearchExpense {
+  id: string;
+  merchant: string | null;
+  amount: number;
+  categories: { name: string; icon: string } | null;
+}
+
+interface SearchCategory {
+  id: string;
+  name: string;
+  icon: string;
+}
 
 export const GlobalSearch = () => {
   const [open, setOpen] = useState(false);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<SearchExpense[]>([]);
+  const [categories, setCategories] = useState<SearchCategory[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {

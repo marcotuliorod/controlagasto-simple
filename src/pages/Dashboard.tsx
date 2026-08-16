@@ -49,7 +49,7 @@ interface CategoryTotal {
 interface Notification {
   id: string;
   type: string;
-  payload: any;
+  payload: Record<string, unknown>;
   created_at: string;
   read: boolean;
 }
@@ -140,7 +140,7 @@ export default function Dashboard() {
 
       // Separar as 5 mais recentes para exibição
       const recentExpenses = (allExpenses || []).slice(0, 5);
-      const formattedExpenses = recentExpenses.map((exp: any) => ({
+      const formattedExpenses = recentExpenses.map((exp) => ({
         id: exp.id,
         amount: Number(exp.amount || 0),
         date: exp.date,
@@ -179,7 +179,7 @@ export default function Dashboard() {
 
       setCategoryTotals(categoryData);
       if (notifs) setNotifications(notifs);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao carregar dados");
       console.error(error);
     } finally {

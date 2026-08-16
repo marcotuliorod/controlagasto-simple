@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRecurringExpenses } from "@/hooks/useRecurringExpenses";
+import { useRecurringExpenses, RecurringExpense } from "@/hooks/useRecurringExpenses";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,7 +103,7 @@ export default function RecurringExpenses() {
     setEditingId(null);
   };
 
-  const handleEdit = (rec: any) => {
+  const handleEdit = (rec: RecurringExpense) => {
     setEditingId(rec.id);
     setMerchant(rec.merchant);
     setAmount(rec.amount.toString());
@@ -209,7 +209,7 @@ export default function RecurringExpenses() {
 
                 <div className="space-y-2">
                   <Label htmlFor="frequency">Frequência *</Label>
-                  <Select value={frequency} onValueChange={(v: any) => setFrequency(v)}>
+                  <Select value={frequency} onValueChange={(v) => setFrequency(v as RecurringExpense["frequency"])}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -284,7 +284,7 @@ export default function RecurringExpenses() {
           </Card>
         ) : recurring && recurring.length > 0 ? (
           <div className="grid gap-4">
-            {recurring.map((rec: any) => (
+            {recurring.map((rec: RecurringExpense) => (
               <Card key={rec.id} className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2 flex-1">
