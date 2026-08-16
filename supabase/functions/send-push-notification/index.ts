@@ -170,8 +170,9 @@ Deno.serve(async (req) => {
         } else {
           console.log(`⚠️ Unexpected status ${response.status} for ${sub.id.substring(0, 8)}`);
         }
-      } catch (error: any) {
-        console.error(`❌ Error sending to ${sub.id.substring(0, 8)}:`, error.message);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Error sending to ${sub.id.substring(0, 8)}:`, message);
         // Mark as potentially invalid
         invalidSubscriptions.push(sub.id);
       }
@@ -204,12 +205,13 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error in send-push-notification:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
+      JSON.stringify({
+        success: false,
+        error: message
       }),
       { 
         status: 500,

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errorUtils";
 import { Target, ArrowRight } from "lucide-react";
 
 const Onboarding = () => {
@@ -48,8 +49,8 @@ const Onboarding = () => {
 
       toast.success("Perfil configurado com sucesso!");
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao salvar meta");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Erro ao salvar meta"));
     } finally {
       setIsLoading(false);
     }

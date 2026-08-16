@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/errorUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,8 +33,8 @@ const Auth = () => {
         toast.success("Login realizado com sucesso!");
         navigate("/dashboard");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao fazer login");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Erro ao fazer login"));
     } finally {
       setIsLoading(false);
     }
@@ -61,8 +62,8 @@ const Auth = () => {
         toast.success("Conta criada com sucesso!");
         navigate("/onboarding");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Erro ao criar conta"));
     } finally {
       setIsLoading(false);
     }

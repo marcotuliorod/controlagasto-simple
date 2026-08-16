@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getErrorMessage } from "@/lib/errorUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,8 +36,8 @@ export default function DeleteAccount() {
       } else {
         throw new Error(data?.error || "Erro ao excluir conta");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao excluir conta");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Erro ao excluir conta"));
       console.error(error);
     } finally {
       setIsDeleting(false);

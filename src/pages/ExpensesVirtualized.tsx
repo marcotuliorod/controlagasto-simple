@@ -162,7 +162,7 @@ export default function ExpensesVirtualized() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       setDeleteId(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao excluir despesa");
       console.error(error);
     }

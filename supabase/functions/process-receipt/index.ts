@@ -111,12 +111,12 @@ Retorne APENAS o JSON, sem explicações adicionais.`
       jsonStr = jsonStr.replace(/```\n?/g, "");
     }
 
-    let extractedData = JSON.parse(jsonStr);
+    const extractedData = JSON.parse(jsonStr);
     console.log("Dados extraídos:", extractedData);
 
     // Normalize amount - remove R$ and convert comma to dot
     if (extractedData.amount) {
-      let amountStr = String(extractedData.amount).replace(/[R$\s]/g, '').replace(',', '.');
+      const amountStr = String(extractedData.amount).replace(/[R$\s]/g, '').replace(',', '.');
       extractedData.amount = parseFloat(amountStr);
     }
 
@@ -173,12 +173,13 @@ Retorne APENAS o JSON, sem explicações adicionais.`
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro no processamento:", error);
+    const message = error instanceof Error ? error.message : "Erro ao processar cupom";
     return new Response(
-      JSON.stringify({ 
-        error: error.message || "Erro ao processar cupom",
-        success: false 
+      JSON.stringify({
+        error: message,
+        success: false
       }),
       { 
         status: 500, 

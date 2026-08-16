@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { ArrowLeft, Save, Camera, Loader2, Eye } from "lucide-react";
 import { useBillingCycle } from "@/hooks/useBillingCycle";
+import { getErrorMessage } from "@/lib/errorUtils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -119,7 +120,8 @@ export default function AddExpense() {
           
           if (extracted.items && extracted.items.length > 0) {
             const itemsText = extracted.items
-              .map((item: any) => `${item.item || item.name}: R$ ${item.value || item.price}`)
+              .map((item: { item?: string; name?: string; value?: number; price?: number }) =>
+                `${item.item || item.name}: R$ ${item.value || item.price}`)
               .join("\n");
             setNotes(`CNPJ: ${extracted.cnpj || "N/A"}\n\nItens:\n${itemsText}`);
           }
@@ -135,9 +137,9 @@ export default function AddExpense() {
       };
 
       reader.readAsDataURL(file);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro no OCR:", error);
-      toast.error(error.message || "Erro ao processar cupom");
+      toast.error(getErrorMessage(error, "Erro ao processar cupom"));
     } finally {
       setIsProcessingOCR(false);
       if (fileInputRef.current) {
@@ -221,8 +223,8 @@ export default function AddExpense() {
       );
 
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao adicionar despesa");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Erro ao adicionar despesa"));
     } finally {
       setIsLoading(false);
     }

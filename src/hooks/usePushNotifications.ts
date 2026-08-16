@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { urlBase64ToUint8Array, isValidVapidKey } from "@/lib/pushUtils";
+import { getErrorMessage } from "@/lib/errorUtils";
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -211,10 +212,11 @@ export function usePushNotifications() {
       }
 
       return { success: true, data };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error sending test notification:", error);
-      toast.error("Erro ao enviar notificação: " + error.message);
-      return { success: false, error: error.message };
+      const message = getErrorMessage(error);
+      toast.error("Erro ao enviar notificação: " + message);
+      return { success: false, error: message };
     }
   };
 

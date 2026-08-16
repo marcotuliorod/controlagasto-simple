@@ -123,7 +123,7 @@ export default function EditExpense() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       navigate("/expenses");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao atualizar despesa");
       console.error(error);
     } finally {
