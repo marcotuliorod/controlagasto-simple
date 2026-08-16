@@ -5,6 +5,7 @@ import { Plus, Wallet } from "lucide-react";
 import { useAccounts, Account } from "@/hooks/useAccounts";
 import { AccountCard } from "@/components/AccountCard";
 import { AccountForm } from "@/components/AccountForm";
+import { FirstVisitTip } from "@/components/FirstVisitTip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
@@ -85,15 +86,20 @@ const Accounts = () => {
           </Button>
         </div>
 
-        <div className="bg-card rounded-lg p-6 border">
-          <div className="text-sm text-muted-foreground">Saldo Total (contas ativas)</div>
-          <div className={`text-3xl font-bold mt-1 ${totalBalance < 0 ? "text-destructive" : "text-primary"}`}>
-            {new Intl.NumberFormat("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            }).format(totalBalance)}
+        <FirstVisitTip
+          id="accounts-balance-card"
+          message="Cadastre carteiras, contas e cartões para organizar suas despesas por conta e acompanhar o saldo de cada uma."
+        >
+          <div className="bg-card rounded-lg p-6 border">
+            <div className="text-sm text-muted-foreground">Saldo Total (contas ativas)</div>
+            <div className={`text-3xl font-bold mt-1 ${totalBalance < 0 ? "text-destructive" : "text-primary"}`}>
+              {new Intl.NumberFormat("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              }).format(totalBalance)}
+            </div>
           </div>
-        </div>
+        </FirstVisitTip>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "all" | "active" | "inactive")}>
           <TabsList className="grid w-full grid-cols-3">

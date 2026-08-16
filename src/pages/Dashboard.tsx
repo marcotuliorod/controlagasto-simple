@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { FirstVisitTip } from "@/components/FirstVisitTip";
 import { toast } from "sonner";
 import {
   Wallet,
@@ -318,6 +319,10 @@ export default function Dashboard() {
           </div>
         )}
 
+        <FirstVisitTip
+          id="dashboard-goal-card"
+          message="Aqui você acompanha quanto já gastou em relação à sua meta mensal, com alertas quando estiver perto do limite."
+        >
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-5 h-5 text-primary" />
@@ -356,6 +361,7 @@ export default function Dashboard() {
             )}
           </div>
         </Card>
+        </FirstVisitTip>
 
         <FinancialHealthScore />
 

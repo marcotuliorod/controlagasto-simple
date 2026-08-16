@@ -17,6 +17,7 @@ import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger }
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { devLog } from "@/lib/logger";
+import { FirstVisitTip } from "@/components/FirstVisitTip";
 
 interface ExpenseData {
   id: string;
@@ -411,12 +412,17 @@ export default function Reports() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Total no Período</p>
-                <p className="text-3xl font-bold text-primary">
-                  R$ {kpis.total.toFixed(2)}
-                </p>
-              </Card>
+              <FirstVisitTip
+                id="reports-total-card"
+                message="Ajuste as datas acima para ver o total, o ticket médio e o detalhamento por categoria de qualquer período."
+              >
+                <Card className="p-6">
+                  <p className="text-sm text-muted-foreground mb-2">Total no Período</p>
+                  <p className="text-3xl font-bold text-primary">
+                    R$ {kpis.total.toFixed(2)}
+                  </p>
+                </Card>
+              </FirstVisitTip>
               <Card className="p-6">
                 <p className="text-sm text-muted-foreground mb-2">Ticket Médio</p>
                 <p className="text-3xl font-bold text-secondary">
