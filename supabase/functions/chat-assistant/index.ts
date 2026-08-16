@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
+import { AIServiceError, bearerToken, callAIService } from '../_shared/aiService.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +26,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -121,78 +121,62 @@ serve(async (req) => {
       ? ((totalSpent / monthlyGoalAmount) * 100).toFixed(1) 
       : '0';
 
-    // Build context for AI
-    const userContext = `
-Contexto do usuário ${profile?.name || 'Usuário'}:
+    // O prompt é montado dentro do serviço de IA (services/ai), que recebe o
+    // contexto estruturado em vez de uma string pronta. Duas mudanças de
+    // comportamento, ambas deliberadas:
+    //  - o nome real do usuário NÃO é mais enviado ao modelo (antes era
+    //    interpolado direto no prompt); vai só para pseudonimização;
+    //  - o histórico da conversa passa a ser enviado. Antes as mensagens eram
+    //    salvas em chat_messages mas nunca reenviadas, então o assistente não
+    //    lembrava do próprio turno anterior.
+    let history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    if (conversationId) {
+      const { data: previous } = await supabase
+        .from('chat_messages')
+        .select('role, content')
+        .eq('conversation_id', conversationId)
+        .in('role', ['user', 'assistant'])
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-GASTOS DO MÊS ATUAL:
-- Total gasto: R$ ${totalSpent.toFixed(2)}
-- Meta mensal: R$ ${monthlyGoalAmount.toFixed(2)}
-- Percentual usado: ${percentageUsed}%
-${topCategories.length > 0 ? `
-- Top 3 categorias:
-${topCategories.map(c => `  • ${c.name}: R$ ${c.amount.toFixed(2)} (${c.percentage}%)`).join('\n')}
-` : ''}
-
-${healthScore ? `SCORE DE SAÚDE FINANCEIRA:
-- Score total: ${healthScore.score}/100
-- Aderência ao orçamento: ${healthScore.budget_adherence_score}/40
-- Performance no quiz: ${healthScore.quiz_performance_score}/20
-- Consistência: ${healthScore.consistency_score}/20
-- Economia: ${healthScore.savings_score}/20
-` : ''}
-
-${expenses.length > 0 ? `ÚLTIMAS DESPESAS:
-${expenses.slice(0, 5).map((e) =>
-  `- ${e.merchant || 'Despesa'}: R$ ${Number(e.amount).toFixed(2)} (${e.categories?.name || 'Sem categoria'})`
-).join('\n')}` : 'Nenhuma despesa registrada este mês.'}
-`;
-
-    const systemPrompt = `Você é um assistente financeiro pessoal brasileiro, especializado em educação financeira.
-
-${userContext}
-
-Seu objetivo é:
-1. Responder perguntas sobre educação financeira de forma clara, didática e em português brasileiro
-2. Analisar os gastos do usuário e oferecer insights personalizados baseados nos dados reais
-3. Sugerir ações práticas e específicas baseadas no comportamento financeiro do usuário
-4. Ser empático, positivo e motivador, celebrando conquistas e encorajando melhorias
-5. Usar linguagem simples, acessível e brasileira
-
-Diretrizes importantes:
-- Use os dados reais do usuário para contextualizar todas as suas respostas
-- Seja específico e prático nas recomendações
-- Evite jargões financeiros complexos
-- Sempre que relevante, mencione o score de saúde financeira e como melhorá-lo
-- Sugira funcionalidades do app quando apropriado (simuladores, conteúdo educacional, quiz)
-- Mantenha respostas concisas mas completas (máximo 3-4 parágrafos)`;
-
-    // Call Lovable AI
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: trimmedMessage }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      throw new Error(`AI API error: ${aiResponse.status}`);
+      history = (previous ?? [])
+        .reverse()
+        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
     }
 
-    const aiData = await aiResponse.json();
-    const assistantMessage = aiData.choices[0].message.content;
+    const { message: assistantMessage } = await callAIService<{ message: string }>(
+      '/v1/chat',
+      {
+        question: trimmedMessage,
+        userName: profile?.name ?? undefined,
+        history,
+        context: {
+          totalSpent,
+          monthlyGoal: monthlyGoalAmount,
+          percentageUsed: Number(percentageUsed),
+          topCategories: topCategories.map((c) => ({
+            name: c.name,
+            amount: c.amount,
+            percentage: Number(c.percentage),
+          })),
+          healthScore: healthScore
+            ? {
+                score: healthScore.score,
+                budgetAdherence: healthScore.budget_adherence_score,
+                quizPerformance: healthScore.quiz_performance_score,
+                consistency: healthScore.consistency_score,
+                savings: healthScore.savings_score,
+              }
+            : undefined,
+          recentExpenses: expenses.slice(0, 5).map((e) => ({
+            merchant: e.merchant ?? null,
+            amount: Number(e.amount),
+            category: e.categories?.name ?? null,
+          })),
+        },
+      },
+      bearerToken(authHeader),
+    );
 
     // Save messages to database
     let finalConversationId = conversationId;
@@ -238,6 +222,12 @@ Diretrizes importantes:
 
   } catch (error) {
     console.error('Error in chat-assistant:', error);
+    if (error instanceof AIServiceError) {
+      return new Response(
+        JSON.stringify({ error: error.publicMessage }),
+        { status: error.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
