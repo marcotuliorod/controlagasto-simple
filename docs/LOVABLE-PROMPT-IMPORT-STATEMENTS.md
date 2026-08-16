@@ -1,5 +1,10 @@
 # Lovable Prompt: Bank Statement & Credit Card Import Feature
 
+> **Nota histórica.** Este documento descreve o projeto quando ele ainda rodava na
+> plataforma Lovable. Essa dependência foi removida em 16/08/2026 — as menções
+> abaixo são registro do que existiu, não da arquitetura atual.
+> Ver `docs/architecture.md` e `services/ai/README.md`.
+
 ## Feature Request
 
 Add ability to import bank statements and credit card invoices (CSV/OFX/PDF formats) to automatically create expenses in bulk, with intelligent mapping, duplicate detection, and category suggestion.

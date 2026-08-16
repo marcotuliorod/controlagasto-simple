@@ -465,7 +465,7 @@ verify_jwt = false
 | `SUPABASE_URL` | URL do projeto |
 | `SUPABASE_ANON_KEY` | Chave anônima |
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço |
-| `LOVABLE_API_KEY` | Chave para IA |
+| `AI_SERVICE_URL` | Endereço do serviço de IA (`services/ai`) |
 | `CRON_SECRET` | Secret para jobs |
 
 ---

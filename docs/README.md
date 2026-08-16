@@ -11,11 +11,11 @@
 | **Frontend** | React 18, TypeScript, Vite, Tailwind CSS |
 | **UI Components** | Shadcn/ui, Radix UI, Lucide Icons |
 | **State Management** | TanStack Query (React Query), React Context |
-| **Backend** | Lovable Cloud (Supabase) |
+| **Backend** | Supabase (Postgres, Auth, Storage, Edge Functions) |
 | **Database** | PostgreSQL com RLS |
 | **Auth** | Supabase Auth (email/password) |
 | **Edge Functions** | Deno (Supabase Edge Functions) |
-| **AI** | Lovable AI (OCR, Insights, Chat) |
+| **AI** | Camada própria provider-agnostic (`services/ai`) |
 | **PWA** | Workbox, Service Worker, Push Notifications |
 
 ---

@@ -1,5 +1,10 @@
 # Changelog
 
+> **Nota histórica.** Este documento descreve o projeto quando ele ainda rodava na
+> plataforma Lovable. Essa dependência foi removida em 16/08/2026 — as menções
+> abaixo são registro do que existiu, não da arquitetura atual.
+> Ver `docs/architecture.md` e `services/ai/README.md`.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

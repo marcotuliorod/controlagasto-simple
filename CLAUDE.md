@@ -221,7 +221,39 @@ if (error || !user) {
 
 **Cron-triggered functions** (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`) use a different, correct pattern instead — no end user to authenticate, so they compare an `X-Cron-Secret` header against `Deno.env.get('CRON_SECRET')`.
 
-#### 5. Testing Patterns
+#### 5. AI Service (`services/ai`)
+
+Camada de IA **provider-agnostic**, num serviço Node/TS separado. Nenhum código
+do app fala com fornecedor de IA diretamente.
+
+```
+services/ai/src/
+  domain/      # capacidades; conhecem só a interface LLMProvider
+  providers/   # adapters concretos — toda diferença entre fornecedores mora aqui
+  prompts/     # prompts versionados
+  shared/      # timeout, retry, taxonomia de erro, redação de PII
+  config.ts    # ÚNICO lugar que escolhe o adapter (AI_PROVIDER)
+```
+
+Regra: nada em `domain/` importa de `providers/` além de `providers/types.ts`.
+
+**Ao mexer em IA:**
+- Adicionar fornecedor = novo arquivo em `providers/` + caso em `config.ts`.
+  Não toque em `domain/`.
+- Prompts ficam em `prompts/`, não embutidos no código de transporte.
+- Erro de fornecedor vira `AIError`; só `publicMessage` pode chegar ao usuário
+  (nunca cite fornecedor, cota ou billing).
+- Teste com `providers/fake.ts` — o domínio inteiro roda sem rede e sem chave.
+- **Prefira determinístico.** O import de extrato lê o PDF localmente e só
+  chama IA se a regra não reconhecer o layout
+  (`supabase/functions/_shared/statementParser.ts`).
+
+Edge functions chamam o serviço via `supabase/functions/_shared/aiService.ts`,
+repassando o JWT do usuário. Requer o secret `AI_SERVICE_URL`.
+
+Ver `services/ai/README.md` e `docs/LGPD-IA.md`.
+
+#### 6. Testing Patterns
 
 **Unit Tests:** Place tests next to source files with `.test.ts` suffix
 - Test utilities: `src/lib/*.test.ts`
@@ -289,7 +321,13 @@ VITE_SUPABASE_URL=https://mnznxdewqjyhvrctllgh.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=<anon_key>
 ```
 
-**Note:** These are auto-configured in Lovable. For local development, copy from Supabase dashboard.
+**Note:** `npx supabase start` imprime esses valores para desenvolvimento local
+(ver `.env.example`). `src/integrations/supabase/client.ts` falha no boot com
+mensagem explícita se alguma faltar.
+
+**Edge Functions** usam secrets próprios (`supabase secrets set`), não o `.env`
+do frontend: `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` e `AI_SERVICE_URL`
+(endereço do serviço em `services/ai`).
 
 ### Path Aliases
 
@@ -357,8 +395,13 @@ Configured in `tsconfig.json` and `vite.config.ts`.
 #### Adding an Edge Function
 1. Create function directory: `supabase/functions/function-name/`
 2. Write handler in `index.ts` with CORS + auth verification
-3. Deploy via Lovable or Supabase CLI
-4. Add to list above for documentation
+3. Deploy via Supabase CLI (`npx supabase functions deploy <nome>`)
+4. Declare `verify_jwt` em `supabase/config.toml`
+5. Add to list above for documentation
+
+**Chamadas de IA** não vão direto a fornecedor nenhum: use
+`../_shared/aiService.ts`, que fala com o serviço em `services/ai`. Ver
+"AI Service" abaixo.
 
 #### Debugging Real-time Issues
 - Check console for `[Realtime]` logs from `realtimeLogger.ts`

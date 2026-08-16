@@ -1,5 +1,10 @@
 # Lovable Prompt: Gamification - Progressive Menu Unlock System
 
+> **Nota histórica.** Este documento descreve o projeto quando ele ainda rodava na
+> plataforma Lovable. Essa dependência foi removida em 16/08/2026 — as menções
+> abaixo são registro do que existiu, não da arquitetura atual.
+> Ver `docs/architecture.md` e `services/ai/README.md`.
+
 ## Feature Request
 
 Implement a gamification system that progressively unlocks sidebar menu items as users complete educational courses and quiz questions, creating an engaging onboarding experience that teaches financial literacy while introducing app features.
