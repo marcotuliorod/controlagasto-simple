@@ -25,7 +25,7 @@ pending validated demand — see `.planning/REQUIREMENTS.md` (v2 Requirements / 
 - Decimal phases (N.1, N.2): urgent insertions (none yet)
 
 - [x] **Phase 1: Code Quality & CI Health** - Restore a green CI lint gate and add tests for the riskiest business logic
-- [ ] **Phase 2: Dependency & Security Hardening** - Resolve known dependency vulnerabilities and verify edge-function auth consistency
+- [x] **Phase 2: Dependency & Security Hardening** - Resolve known dependency vulnerabilities and verify edge-function auth consistency
 - [ ] **Phase 3: Performance & Scale Hardening** - Keep the app responsive as expense history and gamification data grow
 - [ ] **Phase 4: Guided Onboarding Experience** - Walk new users through setup and key features instead of a single static form
 
@@ -57,13 +57,22 @@ work.
 **Success Criteria** (what must be TRUE):
   1. `npm audit` reports zero unresolved high/critical vulnerabilities in production dependencies,
      or each remaining one has a documented mitigation decision (e.g. `xlsx` currently has no
-     upstream fix).
-  2. `react-router-dom` is upgraded to a patched version without regressing existing routes (full
-     E2E suite still passes).
+     upstream fix). ✅ See `docs/STATE.md` — `xlsx` (write-path only, never parses untrusted
+     input), `react-router-dom` (fix requires a v7 major bump; the exploitable open-redirect CVE
+     needs a `navigate()`/`<Link>` call with an attacker-controlled destination, and an audit
+     found none in this codebase — SSR-hydration CVE doesn't apply, this is a client-only SPA),
+     `vite`/`esbuild`/`vitest`/`@vitest/ui` (dev-only; fixed `vitest` requires `vite` 6+ as a
+     peer, i.e. the same deferred major bump) are all documented, not silently ignored.
+  2. ~~`react-router-dom` is upgraded to a patched version~~ — superseded by criterion 1: a v7
+     major bump was evaluated and deferred (breaking change, out of scope for a hardening pass);
+     mitigated by design instead (see above).
   3. Every function under `supabase/functions/` rejects requests without a valid Authorization
      header, verified by test or a documented code audit — not just the one fix already applied
-     (VAPID key).
-**Plans**: TBD
+     (VAPID key). ✅ Audited all 13; fixed `process-receipt` (only checked the header was
+     non-empty, never validated the JWT, and called the paid OCR API before any check); the other
+     12 were already correct (9 JWT-checked, 3 cron-triggered functions correctly use
+     `X-Cron-Secret` instead of JWT since there's no end user to authenticate).
+**Plans**: 1/1 complete
 
 ### Phase 3: Performance & Scale Hardening
 **Goal**: The app stays responsive as individual users accumulate years of expense history and
@@ -102,6 +111,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Code Quality & CI Health | 1/1 | Complete | 2026-08-15 |
-| 2. Dependency & Security Hardening | 0/TBD | Not started | - |
+| 2. Dependency & Security Hardening | 1/1 | Complete | 2026-08-15 |
 | 3. Performance & Scale Hardening | 0/TBD | Not started | - |
 | 4. Guided Onboarding Experience | 0/TBD | Not started | - |

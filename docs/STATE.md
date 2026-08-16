@@ -3,9 +3,29 @@
 Living snapshot of where the project stands. Update at the end of any session that ships a change — this is what the next session (human or agent) reads first to avoid re-discovering context.
 
 ## Current focus
-`.planning/ROADMAP.md` Phase 1 (Code Quality & CI Health) is done. Next up per the roadmap: Phase 2 (Dependency & Security Hardening — SEC-01, SEC-02).
+`.planning/ROADMAP.md` Phase 1 and Phase 2 are both done. Next up per the roadmap: Phase 3 (Performance & Scale Hardening — PERF-01, PERF-02, PERF-03).
+
+## Dependency security decisions (SEC-01)
+
+Ran `npm audit` fresh (7 findings, same set as before) and checked whether each is actually fixable without a breaking change, rather than re-running `npm audit fix` blind:
+
+- **`vitest`/`@vitest/ui` (critical, dev-only)** — looked fixable within the declared `^4.0.1` range, but isn't: `vitest@4.1.x` (the patched line) requires `vite: ^6.0.0 || ^7.0.0 || ^8.0.0` as a peer dependency. We're on `vite@5.4.19`, so fixing this transitively requires the same major Vite bump as the next item. Deferred together.
+- **`vite`/`esbuild` (moderate/high, dev-only)** — fix requires Vite 6+ (vulnerable range is `<=6.4.2`, our declared range tops out at `5.4.x`). Dev-server-only exposure (arbitrary site can hit the local dev server while `npm run dev` is running) — doesn't affect the production bundle. Deferred: a Vite major bump is a real migration project (config changes, plugin compat), not a hardening-pass fix.
+- **`react-router-dom` (moderate, production dependency)** — 6.30.4 (installed) is the latest 6.x release; the fix is only in 7.18+ (major, breaking). Checked exploitability instead of blindly upgrading: one of the two CVEs is about SSR hydration, which doesn't apply (this is a client-only Vite SPA, no SSR). The other is an open-redirect via backslash in `<Link>`/`useNavigate` when the destination comes from attacker-controlled input — audited every `navigate()`/`<Link to={}>` in the codebase and found none take their destination from user input (URL params, form fields); they're all static routes or app-controlled database UUIDs (e.g. `navigate(\`/expenses/${expense.id}/edit\`)`). Not exploitable as currently used. Deferred the v7 upgrade; mitigated by design.
+- **`xlsx` (high, production dependency, no upstream fix)** — checked actual usage instead of accepting the severity label at face value: `src/lib/exportUtils.ts` only calls the *write* path (`XLSX.utils.json_to_sheet`/`book_new`/`writeFile`) on the app's own expense data; grepped the whole repo and confirmed `XLSX.read`/`readFile` (the vulnerable *parse* path both CVEs require) is never called anywhere. The vulnerable code path isn't exercised by this app.
+
+None of the 7 findings were silently ignored — each has a decision above. None are fixable without a breaking major-version bump this phase intentionally didn't take on.
+
+## Edge function auth audit (SEC-02)
+
+Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pass):
+- 9 user-facing functions correctly verify the JWT (`supabase.auth.getUser(token)`, checking both `error` and `!user`) before doing anything sensitive.
+- 3 cron-triggered functions (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`) correctly use `X-Cron-Secret` compared against `Deno.env.get('CRON_SECRET')` instead of a JWT — there's no end user to authenticate for a scheduled job, so this is the right pattern, not a gap.
+- `send-push-notification` correctly accepts either mode (cron secret or user JWT).
+- **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **Phase 2 (SEC-01/02) complete.** See sections above for the dependency and auth-audit decisions. `supabase/functions/process-receipt/index.ts` fixed; `CLAUDE.md` auth-pattern doc corrected. No dependency version changes this phase (both "safe" fixes turned out to require the same deferred Vite major bump).
 - **Phase 1 (QUAL-01/02/03) complete.** `npm run lint` errors: 97 → 0 (all 76 `@typescript-eslint/no-explicit-any` replaced with real types/`unknown`/narrow justified casts, not suppressed; plus 21 mechanical fixes — `no-useless-escape`, `prefer-const`, `no-empty-object-type`, `no-control-regex`, `no-require-imports`). Along the way found and fixed a real bug: `Reports.tsx`'s XLSX export always wrote an empty `notes` column because the query never selected it. New unit test coverage: `useBillingCycle.test.ts` (6 tests), `src/lib/bankPatterns.test.ts` (18 tests — this is where bank-format detection actually lives, not in the hook), `useImportTransactions.test.ts` (7 tests). Full suite: 128/128 passing across 16 files.
 - Fixed billing-cycle timezone bug (`getDateBillingCycle`/`formatDateRange` in `src/lib/dateRange.ts` no longer parse `YYYY-MM-DD` strings through UTC — was misclassifying a date landing exactly on the cycle day into the previous cycle in negative-UTC-offset zones). Removed the orphaned, unused `src/lib/dateRangeTimezone.ts`.
 - Fixed PDF export stripping all accented Portuguese characters (`supabase/functions/export-pdf/index.ts` `escapeText` was removing `\x7F-\xFF`, which is the WinAnsiEncoding range covering á/ç/ã/é/etc — now only strips true control chars).
@@ -14,10 +34,9 @@ Living snapshot of where the project stands. Update at the end of any session th
 - Installed `gsd-core` (project planning/phase-loop tooling) and the `caveman` skill (output compression) under `.claude/`/`.agents/`; ran onboarding (`/gsd-map-codebase` → `/gsd-ingest-docs` → `gsd-roadmapper`) producing `.planning/codebase/*`, `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`. `eslint.config.js` and `vite.config.ts` both needed a `.claude`/`.agents`/`.planning` exclude added afterward — the vendored tooling's own files/tests were otherwise getting swept into this project's lint and test runs (lint briefly went 97→537; a caveman test fixture briefly broke `npx vitest --run`).
 
 ## Known open items
-- `xlsx` (prod dependency) has a high-severity prototype pollution/ReDoS advisory with no upstream fix available. No action taken; revisit if a patched release ships or the app starts processing untrusted spreadsheet input more broadly.
-- `react-router`/`react-router-dom` has a moderate open-redirect/SSR-hydration advisory with fix only available via a major version bump (breaking change) — deferred pending a decision to take that upgrade. This is Phase 2 (SEC-01) territory now.
-- 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is, out of scope for Phase 1.
+- `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
+- 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is, out of scope for Phases 1-2.
 - `docs/STATE.md` (this file, hand-written) and `.planning/STATE.md`/`.planning/ROADMAP.md` (gsd-core-generated) now both exist and overlap in purpose — not yet consolidated into one source of truth for "what's left to do."
 
 ## Notes for next session
-Phase 2 (Dependency & Security Hardening) is next: resolve/mitigate the `xlsx` and `react-router-dom` findings (SEC-01), and audit every `supabase/functions/*` edge function for consistent Authorization-header validation, not just the VAPID-key fix already applied (SEC-02). See `.planning/ROADMAP.md` for full success criteria.
+Phase 3 (Performance & Scale Hardening) is next: paginate/virtualize the Reports page's expense query for users with 1,000+ expenses (PERF-01), batch the gamification unlock-progress calculation into one query/RPC instead of 6+ sequential round-trips (PERF-02), and reduce/gate production console logging behind a debug flag (PERF-03). See `.planning/ROADMAP.md` for full success criteria.

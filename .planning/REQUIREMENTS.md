@@ -136,11 +136,15 @@ New, unshipped requirements. Mapped to roadmap phases below.
 
 ### Dependency & Security Hardening
 
-- [ ] **SEC-01**: The `xlsx` and `react-router-dom` production-dependency vulnerabilities are
+- [x] **SEC-01**: The `xlsx` and `react-router-dom` production-dependency vulnerabilities are
   resolved or explicitly mitigated with a documented decision (currently 7 `npm audit` findings:
-  2 critical dev-only, 1 high with no upstream fix, 1 moderate needing a major-version bump).
-- [ ] **SEC-02**: Every edge function under `supabase/functions/` consistently validates the
-  Authorization header before processing a request (audited, not just spot-fixed).
+  2 critical dev-only, 1 high with no upstream fix, 1 moderate needing a major-version bump). All
+  7 documented with a decision in `docs/STATE.md` — none silently ignored; none fixable without a
+  breaking major-version bump this phase intentionally deferred.
+- [x] **SEC-02**: Every edge function under `supabase/functions/` consistently validates the
+  Authorization header before processing a request (audited, not just spot-fixed). All 13 edge
+  functions audited; `process-receipt` fixed (accepted any non-empty header, never validated the
+  JWT before calling the paid OCR API); the other 12 were already correct.
 
 ### Performance & Scale Hardening
 
@@ -227,8 +231,8 @@ Explicitly excluded for now. Documented to prevent scope creep.
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 1 | Complete |
 | QUAL-03 | Phase 1 | Complete |
-| SEC-01 | Phase 2 | Pending |
-| SEC-02 | Phase 2 | Pending |
+| SEC-01 | Phase 2 | Complete |
+| SEC-02 | Phase 2 | Complete |
 | PERF-01 | Phase 3 | Pending |
 | PERF-02 | Phase 3 | Pending |
 | PERF-03 | Phase 3 | Pending |
