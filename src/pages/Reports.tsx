@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { ptBR } from "date-fns/locale";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { devLog } from "@/lib/logger";
 
 interface ExpenseData {
   id: string;
@@ -35,6 +37,7 @@ const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'
 export default function Reports() {
   const navigate = useNavigate();
   const { getCurrentCycle, hasCustomCycle, cycleDay } = useBillingCycle();
+  const listParentRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState(() => {
     const date = new Date();
@@ -73,7 +76,7 @@ export default function Reports() {
       endDate.setDate(endDate.getDate() + 1); // próximo dia (exclusivo)
       const endExclusive = endDate.toISOString().slice(0, 10);
 
-      console.log(`🔍 Relatórios: Buscando despesas de ${start} até ${endExclusive} (exclusivo)`);
+      devLog(`🔍 Relatórios: Buscando despesas de ${start} até ${endExclusive} (exclusivo)`);
 
       // LEFT JOIN para não perder despesas sem categoria, sem limites
       const { data, error } = await supabase
@@ -89,7 +92,7 @@ export default function Reports() {
         throw error;
       }
 
-      console.log(`✅ Relatórios: ${data?.length || 0} despesas encontradas`);
+      devLog(`✅ Relatórios: ${data?.length || 0} despesas encontradas`);
 
       const formattedData: ExpenseData[] = (data || []).map((exp) => ({
         id: exp.id,
@@ -106,7 +109,7 @@ export default function Reports() {
       }));
 
       const total = formattedData.reduce((sum, e) => sum + e.amount, 0);
-      console.log(`💰 Relatórios: Total calculado R$ ${total.toFixed(2)}`);
+      devLog(`💰 Relatórios: Total calculado R$ ${total.toFixed(2)}`);
 
       setExpenses(formattedData);
       setFilteredExpenses(formattedData);
@@ -157,6 +160,15 @@ export default function Reports() {
       },
     ];
   }, [expenses]);
+
+  // Virtual scrolling for the expense list below — with 1000+ expenses in a
+  // period, rendering one unvirtualized <div> per row makes the page janky.
+  const rowVirtualizer = useVirtualizer({
+    count: filteredExpenses.length,
+    getScrollElement: () => listParentRef.current,
+    estimateSize: () => 76, // approx. height of one expense row (p-4 + content)
+    overscan: 5,
+  });
 
   const handleExport = async (format: 'csv' | 'json') => {
     setIsExporting(true);
@@ -492,27 +504,45 @@ export default function Reports() {
                   />
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredExpenses.map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{expense.category.icon}</span>
-                        <div>
-                          <p className="font-medium">{expense.merchant}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(expense.date).toLocaleDateString("pt-BR")} •{" "}
-                            {expense.category.name}
-                          </p>
+                <div
+                  ref={listParentRef}
+                  className="h-[600px] overflow-auto"
+                  role="list"
+                  aria-label="Lista de despesas"
+                >
+                  <div
+                    style={{
+                      height: `${rowVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const expense = filteredExpenses[virtualRow.index];
+                      return (
+                        <div
+                          key={expense.id}
+                          role="listitem"
+                          className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors absolute top-0 left-0 w-full"
+                          style={{ transform: `translateY(${virtualRow.start}px)` }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{expense.category.icon}</span>
+                            <div>
+                              <p className="font-medium">{expense.merchant}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(expense.date).toLocaleDateString("pt-BR")} •{" "}
+                                {expense.category.name}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-lg font-semibold text-primary">
+                            R$ {expense.amount.toFixed(2)}
+                          </span>
                         </div>
-                      </div>
-                      <span className="text-lg font-semibold text-primary">
-                        R$ {expense.amount.toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </Card>
