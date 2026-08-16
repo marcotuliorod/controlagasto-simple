@@ -27,7 +27,7 @@ pending validated demand — see `.planning/REQUIREMENTS.md` (v2 Requirements / 
 - [x] **Phase 1: Code Quality & CI Health** - Restore a green CI lint gate and add tests for the riskiest business logic
 - [x] **Phase 2: Dependency & Security Hardening** - Resolve known dependency vulnerabilities and verify edge-function auth consistency
 - [x] **Phase 3: Performance & Scale Hardening** - Keep the app responsive as expense history and gamification data grow
-- [ ] **Phase 4: Guided Onboarding Experience** - Walk new users through setup and key features instead of a single static form
+- [x] **Phase 4: Guided Onboarding Experience** - Walk new users through setup and key features instead of a single static form
 
 ## Phase Details
 
@@ -110,12 +110,28 @@ of filling one static form and being dropped on the dashboard with no orientatio
 **Requirements**: ONBD-01, ONBD-02, ONBD-03
 **Success Criteria** (what must be TRUE):
   1. A new user completes a multi-step onboarding wizard (goal → billing cycle → first account)
-     before reaching the dashboard, replacing today's single-screen form.
+     before reaching the dashboard, replacing today's single-screen form. ✅
+     `src/pages/Onboarding.tsx` rewritten as a 3-step wizard (`Progress` indicator); step 3 embeds
+     a new `AccountFormFields` component (extracted from `AccountForm.tsx`, reused unchanged by
+     `Accounts.tsx`) so a real account is created via the existing `useAccounts().createAccount`
+     mutation before navigating to `/dashboard`. Reuses the existing `monthly_goals`-row-based
+     completion signal in `RequireOnboarding.tsx` unchanged — deliberately kept separate from
+     `profiles.onboarding_completed`, which belongs to the unrelated gamification welcome-modal
+     flow.
   2. On a user's first visit to each major section (Dashboard, Reports, Accounts), a dismissible
-     contextual tooltip explains the feature; it does not reappear after being dismissed.
+     contextual tooltip explains the feature; it does not reappear after being dismissed. ✅ New
+     `src/components/FirstVisitTip.tsx` (controlled Radix `Tooltip`, forces open on first visit
+     per `localStorage` key `tip-seen-${id}`, same convention as `PushOnboarding.tsx`/
+     `InstallPWA.tsx`); wired into the primary KPI card on Dashboard, Reports, and Accounts. 3
+     tests covering first-visit/dismissed/persist-on-dismiss.
   3. The theme switches automatically between dark and light based on time of day, while a manual
-     override saved on the user's profile is always respected over the automatic choice.
-**Plans**: TBD
+     override saved on the user's profile is always respected over the automatic choice. ✅ New
+     `profiles.theme_preference` column (migration, additive, untestable against a live DB in
+     this environment — same constraint as Phases 2-3); new `useAutoTheme` hook computes
+     light/dark by local hour (6h-18h light) unless an override is set, revalidating on
+     `visibilitychange`; `ThemeToggle.tsx` now also persists the explicit choice via a new
+     `useUpdateThemePreference` mutation. 4 tests covering override-wins and both time branches.
+**Plans**: 1/1 complete
 **UI hint**: yes
 
 ## Progress
@@ -128,4 +144,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Code Quality & CI Health | 1/1 | Complete | 2026-08-15 |
 | 2. Dependency & Security Hardening | 1/1 | Complete | 2026-08-15 |
 | 3. Performance & Scale Hardening | 1/1 | Complete | 2026-08-15 |
-| 4. Guided Onboarding Experience | 0/TBD | Not started | - |
+| 4. Guided Onboarding Experience | 1/1 | Complete | 2026-08-16 |

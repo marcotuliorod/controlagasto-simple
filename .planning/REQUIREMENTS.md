@@ -163,12 +163,18 @@ New, unshipped requirements. Mapped to roadmap phases below.
 
 ### Guided Onboarding Experience
 
-- [ ] **ONBD-01**: A new user completes a multi-step onboarding wizard (not a single static form)
+- [x] **ONBD-01**: A new user completes a multi-step onboarding wizard (not a single static form)
   before reaching the dashboard, covering monthly goal, billing cycle, and first account.
-- [ ] **ONBD-02**: Contextual, dismissible tutorial tooltips introduce key features on a user's
-  first visit to each major section (Dashboard, Reports, Accounts).
-- [ ] **ONBD-03**: The app theme automatically switches between dark and light based on time of
-  day, while still respecting a manual override saved to the user's profile.
+  `src/pages/Onboarding.tsx` is now a 3-step wizard; step 3 creates a real account via a new
+  `AccountFormFields` component extracted from `AccountForm.tsx`.
+- [x] **ONBD-02**: Contextual, dismissible tutorial tooltips introduce key features on a user's
+  first visit to each major section (Dashboard, Reports, Accounts). New `FirstVisitTip.tsx`
+  (controlled Radix Tooltip + `localStorage` dismiss flag), applied to the primary KPI card on
+  each of the three sections.
+- [x] **ONBD-03**: The app theme automatically switches between dark and light based on time of
+  day, while still respecting a manual override saved to the user's profile. New
+  `profiles.theme_preference` column + `useAutoTheme` hook + `ThemeToggle.tsx` now persists
+  explicit choices via `useUpdateThemePreference`.
 
 ## v2 Requirements
 
@@ -242,9 +248,9 @@ Explicitly excluded for now. Documented to prevent scope creep.
 | PERF-01 | Phase 3 | Complete |
 | PERF-02 | Phase 3 | Complete |
 | PERF-03 | Phase 3 | Complete |
-| ONBD-01 | Phase 4 | Pending |
-| ONBD-02 | Phase 4 | Pending |
-| ONBD-03 | Phase 4 | Pending |
+| ONBD-01 | Phase 4 | Complete |
+| ONBD-02 | Phase 4 | Complete |
+| ONBD-03 | Phase 4 | Complete |
 
 **Coverage:**
 - Shipped baseline requirements: 27 total, all Complete ✓
