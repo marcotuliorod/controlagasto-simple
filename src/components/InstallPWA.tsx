@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, X, Share } from "lucide-react";
 import { usePWAInstall } from "@/providers/PWAInstallProvider";
+import { devLog } from "@/lib/logger";
 
 export default function InstallPWA() {
   const { canInstall, isIOS, isStandalone, requestInstall } = usePWAInstall();
@@ -34,14 +35,14 @@ export default function InstallPWA() {
   };
 
   const handleInstall = async () => {
-    console.log('[InstallPWA] Botão "Instalar" clicado');
+    devLog('[InstallPWA] Botão "Instalar" clicado');
     const result = await requestInstall();
-    console.log('[InstallPWA] Resultado da instalação:', result);
+    devLog('[InstallPWA] Resultado da instalação:', result);
     if (result === 'accepted') {
       setShowCard(false);
     } else if (result === 'unavailable') {
       // Se não houver prompt, mostrar instruções alternativas
-      console.log('[InstallPWA] Prompt não disponível, mostrando fallback');
+      devLog('[InstallPWA] Prompt não disponível, mostrando fallback');
     }
   };
 

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { urlBase64ToUint8Array, isValidVapidKey } from "@/lib/pushUtils";
 import { getErrorMessage } from "@/lib/errorUtils";
+import { devLog } from "@/lib/logger";
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -87,7 +88,7 @@ export function usePushNotifications() {
         return;
       }
 
-      console.log("✅ VAPID key validated, length:", vapidKey.length);
+      devLog("✅ VAPID key validated, length:", vapidKey.length);
 
       // Convert to ArrayBuffer for applicationServerKey
       const applicationServerKey = vapidKey.buffer instanceof ArrayBuffer 
