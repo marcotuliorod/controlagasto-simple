@@ -7,6 +7,7 @@ export interface Profile {
   name: string;
   monthly_goal: number;
   billing_cycle_day?: number;
+  theme_preference?: 'light' | 'dark' | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -105,6 +106,44 @@ export function useUpdateProfile() {
     onError: (error: Error) => {
       console.error("Profile update error:", error);
       toast.error("Erro ao atualizar perfil. Tente novamente.");
+    },
+  });
+}
+
+/**
+ * Hook to persist an explicit theme override on the profile.
+ * This override always wins over the automatic time-of-day theme.
+ */
+export function useUpdateThemePreference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (themePreference: 'light' | 'dark') => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ theme_preference: themePreference })
+        .eq("id", user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating theme preference:", error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (error: Error) => {
+      console.error("Theme preference update error:", error);
     },
   });
 }

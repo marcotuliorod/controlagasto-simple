@@ -10,6 +10,7 @@ import RequireOnboarding from "./routes/RequireOnboarding";
 import InstallPWA from "./components/InstallPWA";
 import { PWAInstallProvider } from "./providers/PWAInstallProvider";
 import { ScreenReaderAnnouncer } from "./components/ScreenReaderAnnouncer";
+import { useAutoTheme } from "./hooks/useAutoTheme";
 
 // Lazy load pages for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -57,6 +58,14 @@ const LoadingFallback = () => (
   </div>
 );
 
+// Aplica o tema automático por horário (ou o override salvo no perfil).
+// Componente próprio para poder usar hooks que dependem do ThemeProvider e
+// do QueryClientProvider, montados acima de App no retorno do JSX.
+const AutoThemeSync = () => {
+  useAutoTheme();
+  return null;
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -68,6 +77,7 @@ const App = () => {
               <Sonner />
               <InstallPWA />
               <ScreenReaderAnnouncer />
+              <AutoThemeSync />
               <Suspense fallback={<LoadingFallback />}>
               <Routes>
               {/* Public routes */}
