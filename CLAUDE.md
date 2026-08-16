@@ -179,9 +179,10 @@ const onSubmit = form.handleSubmit(async (values) => {
 **Location:** `supabase/functions/*/index.ts`
 
 **Available Functions:**
-- `process-receipt` - OCR via Lovable AI API (extracts amount, merchant, date, items)
-- `chat-assistant` - AI financial advice via Lovable AI Gateway (`LOVABLE_API_KEY`, `ai.gateway.lovable.dev`)
-- `process-import-file` - Bank statement PDF extraction via Lovable AI Gateway
+- `process-receipt` - OCR de cupom fiscal (extracts amount, merchant, date, items)
+- `chat-assistant` - AI financial advice (conversa + persistência em `chat_messages`)
+- `process-import-file` - Bank statement import (CSV/OFX determinístico; PDF em camadas)
+- `generate-insights` - AI-powered spending analysis
 - `delete-account` - Full user data purge
 - `send-push-notification` - Web push delivery
 - `get-vapid-public-key` - VAPID key for push subscriptions

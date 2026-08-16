@@ -17,6 +17,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Scratch do CLI do Supabase (gerado por `supabase start`)
+supabase/.temp/
+supabase/.branches/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
