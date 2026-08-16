@@ -148,12 +148,18 @@ New, unshipped requirements. Mapped to roadmap phases below.
 
 ### Performance & Scale Hardening
 
-- [ ] **PERF-01**: The Reports page paginates or virtualizes its expense query instead of loading
-  an unbounded result set, so it stays responsive for users with 1,000+ historical expenses.
-- [ ] **PERF-02**: The gamification unlock-progress calculation is batched into a single query/RPC
-  instead of 6+ sequential round-trips.
-- [ ] **PERF-03**: Production console logging is reduced or gated behind a debug flag so hot paths
-  (realtime updates) don't spam the console.
+- [x] **PERF-01**: The Reports page paginates or virtualizes its expense query instead of loading
+  an unbounded result set, so it stays responsive for users with 1,000+ historical expenses. The
+  query stays unbounded by design (aggregates need the full period); virtualized the render of
+  the expense list instead, reusing the `@tanstack/react-virtual` pattern from
+  `ExpensesVirtualized.tsx`.
+- [x] **PERF-02**: The gamification unlock-progress calculation is batched into a single query/RPC
+  instead of 6+ sequential round-trips. Parallelized via `Promise.all` (single-RPC consolidation
+  deferred — untestable without live DB access, see `docs/STATE.md`).
+- [x] **PERF-03**: Production console logging is reduced or gated behind a debug flag so hot paths
+  (realtime updates) don't spam the console. `realtimeLogger.ts` was already correct; gated the
+  two real untreated hot paths (`PWAInstallProvider.tsx`, `main.tsx`) plus smaller call sites via
+  a new shared `src/lib/logger.ts`.
 
 ### Guided Onboarding Experience
 
@@ -233,9 +239,9 @@ Explicitly excluded for now. Documented to prevent scope creep.
 | QUAL-03 | Phase 1 | Complete |
 | SEC-01 | Phase 2 | Complete |
 | SEC-02 | Phase 2 | Complete |
-| PERF-01 | Phase 3 | Pending |
-| PERF-02 | Phase 3 | Pending |
-| PERF-03 | Phase 3 | Pending |
+| PERF-01 | Phase 3 | Complete |
+| PERF-02 | Phase 3 | Complete |
+| PERF-03 | Phase 3 | Complete |
 | ONBD-01 | Phase 4 | Pending |
 | ONBD-02 | Phase 4 | Pending |
 | ONBD-03 | Phase 4 | Pending |

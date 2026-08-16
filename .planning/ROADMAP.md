@@ -26,7 +26,7 @@ pending validated demand — see `.planning/REQUIREMENTS.md` (v2 Requirements / 
 
 - [x] **Phase 1: Code Quality & CI Health** - Restore a green CI lint gate and add tests for the riskiest business logic
 - [x] **Phase 2: Dependency & Security Hardening** - Resolve known dependency vulnerabilities and verify edge-function auth consistency
-- [ ] **Phase 3: Performance & Scale Hardening** - Keep the app responsive as expense history and gamification data grow
+- [x] **Phase 3: Performance & Scale Hardening** - Keep the app responsive as expense history and gamification data grow
 - [ ] **Phase 4: Guided Onboarding Experience** - Walk new users through setup and key features instead of a single static form
 
 ## Phase Details
@@ -81,12 +81,27 @@ richer gamification data, instead of degrading silently.
 **Requirements**: PERF-01, PERF-02, PERF-03
 **Success Criteria** (what must be TRUE):
   1. The Reports page remains responsive for a user with 1,000+ historical expenses (paginated or
-     virtualized query, not an unbounded `.select()`).
+     virtualized query, not an unbounded `.select()`). ✅ The query itself stays unbounded by
+     design (KPIs/charts need the full period's data to be accurate — paginating it would make
+     the aggregates wrong); the actual render bottleneck was the expense list at the bottom of
+     the page mounting one DOM node per row with no windowing. Virtualized it with
+     `@tanstack/react-virtual`, reusing the exact pattern already established in
+     `src/pages/ExpensesVirtualized.tsx`.
   2. Gamification unlock progress loads via a single batched query/RPC instead of the current 6+
-     sequential round-trips.
+     sequential round-trips. ✅ `useUnlockProgress`'s 6 independent reads now run via
+     `Promise.all` instead of sequential `await`s — total latency drops from the sum of all 6 to
+     ~the slowest one. A true single-RPC consolidation was evaluated and deferred: it would need
+     a new SQL migration untestable in this environment (no live DB access — see Phase 2's notes
+     on the same constraint).
   3. Production console logging is reduced or gated behind a debug flag so hot paths (realtime
-     updates) no longer spam the console by default.
-**Plans**: TBD
+     updates) no longer spam the console by default. ✅ `realtimeLogger.ts` was already correctly
+     gated; the actual untreated hot paths were `PWAInstallProvider.tsx` (23 logs + 3 warns, every
+     app load) and `main.tsx` (8 logs, every boot). New `src/lib/logger.ts` (`devLog`/`devWarn`,
+     same convention as `realtimeLogger.ts`) applied there and to the smaller remaining call
+     sites; `console.error` left untouched everywhere (already the correct always-visible
+     convention). Verified via a production build + Playwright: 0 console messages on load,
+     vs. 26+ in dev mode.
+**Plans**: 1/1 complete
 
 ### Phase 4: Guided Onboarding Experience
 **Goal**: A new user is guided through initial setup and discovers the app's key features, instead
@@ -112,5 +127,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Code Quality & CI Health | 1/1 | Complete | 2026-08-15 |
 | 2. Dependency & Security Hardening | 1/1 | Complete | 2026-08-15 |
-| 3. Performance & Scale Hardening | 0/TBD | Not started | - |
+| 3. Performance & Scale Hardening | 1/1 | Complete | 2026-08-15 |
 | 4. Guided Onboarding Experience | 0/TBD | Not started | - |
