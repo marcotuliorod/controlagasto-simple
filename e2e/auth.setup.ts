@@ -52,5 +52,28 @@ setup('authenticate', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/dashboard/);
 
+  /*
+   * Dispensa o modal de boas-vindas da gamificação.
+   *
+   * Ele aparece para todo usuário novo — e como o TEST_USER tem e-mail com
+   * timestamp, toda execução cria um. Sem dispensar, o modal fica por cima de
+   * qualquer página: `getByRole('heading')` só enxerga o dele, e todos os
+   * seletores das outras suítes falham por "element not found".
+   *
+   * "Pular (Desbloquear Tudo)" em vez de "Começar a Aprender": além de fechar,
+   * libera os itens de menu que o desbloqueio progressivo esconderia, e sem
+   * eles as suítes não conseguiriam navegar.
+   */
+  // Precisa ESPERAR: o modal só renderiza depois que a consulta de gamificação
+  // resolve. Um isVisible() imediato retorna false e o modal segue lá.
+  const pular = page.getByRole('button', { name: /pular/i });
+  try {
+    await pular.waitFor({ state: 'visible', timeout: 15000 });
+    await pular.click();
+    await expect(pular).toBeHidden({ timeout: 15000 });
+  } catch {
+    // Se não apareceu, o usuário já passou por ele — segue.
+  }
+
   await page.context().storageState({ path: authFile });
 });

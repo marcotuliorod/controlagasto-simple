@@ -1,35 +1,38 @@
 /*
- * QUARENTENA — testes marcados com `test.fixme` abaixo estão desatualizados
- * em relação à UI atual e falham por seletor inexistente, não por regressão.
+ * QUARENTENA — os `test.fixme` abaixo ainda não passam.
  *
- * Contexto: a suíte E2E nunca chegou a rodar. O playwright.config.ts não tinha
- * projeto `setup`, então o storageState nunca era gerado, e o pipeline já
- * morria antes no job de typecheck. Ao consertar as duas coisas, 49 de 69
- * testes se revelaram obsoletos (telas de auth, onboarding, despesas e
- * relatórios mudaram desde que foram escritos).
+ * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
  *
- * Quarentenados de propósito, em vez de deixar o job vermelho: um CI
- * cronicamente vermelho é o que permitiu esse apodrecimento passar despercebido.
- * Cada `test.fixme` é dívida explícita — reative ao atualizar o seletor.
+ *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
+ *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
+ *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
+ *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
+ *     e depois na opção, por role.
+ *
+ * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
+ *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
+ *    storageState do auth.setup.ts;
+ *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
+ *    dispensava — nenhum seletor era encontrado por baixo dele;
+ *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
+ *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
+ *
+ * Cada fixme é dívida explícita: reative ao ajustar a interação.
  */
 import { test, expect } from '@playwright/test';
+import { waitForPageLoad } from './fixtures/test-data';
 
 test.describe('Scheduled Exports', () => {
+  test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
+
   test.beforeEach(async ({ page }) => {
-    // Login
-    await page.goto('/auth');
-    await page.fill('input[type="email"]', 'test@example.com');
-    await page.fill('input[type="password"]', 'test123456');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('/dashboard');
-    
-    // Navigate to scheduled exports
     await page.goto('/scheduled-exports');
-    await page.waitForLoadState('networkidle');
+    await waitForPageLoad(page);
   });
 
-  test.fixme('should display scheduled exports page', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText('Exportações Agendadas');
+  test('should display scheduled exports page', async ({ page }) => {
+    // locator('h1') casa 2 elementos: o do AppLayout e o da página.
+    await expect(page.getByRole('heading', { name: 'Exportações Agendadas' })).toBeVisible();
     await expect(page.locator('text=Configure exportações automáticas')).toBeVisible();
   });
 
