@@ -73,8 +73,9 @@ export default function InstallPWA() {
                 size="icon"
                 className="h-6 w-6 -mt-1"
                 onClick={handleDismiss}
+                aria-label="Dispensar"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
           </CardHeader>
@@ -130,8 +131,9 @@ export default function InstallPWA() {
                 size="icon"
                 className="h-6 w-6 -mt-1"
                 onClick={handleDismiss}
+                aria-label="Dispensar"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
           </CardHeader>

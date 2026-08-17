@@ -164,4 +164,23 @@ All colors MUST be HSL.
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /*
+   * Usada no hero da landing (Index.tsx) e no wizard de onboarding
+   * (Onboarding.tsx), ambos com `text-white` — mas a classe nunca existiu.
+   * Sem fundo, o texto branco ficava sobre o fundo claro da página:
+   * praticamente invisível, e reprovado no contraste do Lighthouse
+   * (acessibilidade 0.89).
+   *
+   * O tom escurecido em relação a --primary (62% de luminosidade) é
+   * deliberado: com o primary puro, texto branco não alcança a razão de
+   * contraste 4.5:1 exigida pelo WCAG AA.
+   */
+  .gradient-primary {
+    background-image: linear-gradient(
+      135deg,
+      hsl(202 40% 38%) 0%,
+      hsl(183 25% 30%) 100%
+    );
+  }
 }
