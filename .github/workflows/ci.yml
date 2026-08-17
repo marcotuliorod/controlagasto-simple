@@ -134,18 +134,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      # Mesmo motivo do job de e2e: o app precisa de configuração válida do
+      # Supabase para renderizar. Sem ela, `src/integrations/supabase/client.ts`
+      # falha no boot de propósito, e o Lighthouse audita uma página em branco
+      # (NO_FCP) em vez do app.
+      - name: Start local Supabase
+        run: |
+          npx supabase start
+          API_URL=$(npx supabase status -o env | grep '^API_URL=' | cut -d'"' -f2)
+          PUB_KEY=$(npx supabase status -o env | grep '^PUBLISHABLE_KEY=' | cut -d'"' -f2)
+          echo "VITE_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_PUBLISHABLE_KEY=$PUB_KEY" >> "$GITHUB_ENV"
+
       - name: Build app
         run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      
+
       - name: Run Lighthouse CI
         run: |
           npm install -g @lhci/cli@0.14.x
           lhci autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop --no-backup
       
       - name: Upload Lighthouse results
         if: always()
