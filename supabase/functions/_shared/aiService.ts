@@ -51,12 +51,20 @@ export async function callAIService<T>(
   userToken: string,
   timeoutMs = 130_000,
 ): Promise<T> {
+  // FORA do try de propósito. Aqui dentro, o AIServiceError(503,
+  // "AI_SERVICE_URL não configurada") era capturado pelo catch abaixo e
+  // reembalado como 502 "falha de rede" — o diagnóstico exato se perdia
+  // justamente no caso mais comum de configuração incompleta. Observado em
+  // produção: generate-insights respondia 502 "falha de rede" quando na
+  // verdade a variável nem existia.
+  const url = `${baseUrl()}${path}`;
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
-    response = await fetch(`${baseUrl()}${path}`, {
+    response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
