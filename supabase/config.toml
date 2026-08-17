@@ -17,7 +17,10 @@ max_rows = 1000
 [db]
 port = 54322
 shadow_port = 54320
-major_version = 15
+# Igual ao do projeto remoto (verificado: Postgres 17.6). Antes estava 15, que
+# era palpite meu — rodar local numa major diferente da produção esconde
+# incompatibilidade justamente onde ela apareceria primeiro.
+major_version = 17
 
 [db.pooler]
 enabled = false
