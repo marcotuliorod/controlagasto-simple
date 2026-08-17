@@ -110,6 +110,13 @@ entre plataformas é como as duas divergem em silêncio.
 
 - `rootDirectory` = `services/ai` (o repositório é o mesmo do app)
 - `"framework": null` no `vercel.json`, para desligar a detecção automática
+- **Duas chaves, não uma.** `services` faz a imagem ser construída e publicada;
+  o `rewrites` com `destination: { "service": "ai" }` é o que liga a URL
+  pública a ela. Só com `services`, a imagem sobe no registry e mesmo assim
+  toda rota responde 404 — o build avisa `no "functions" or "static"
+  directory` e é fácil ler isso como falha de build, quando é falta de rota.
+- O `HEALTHCHECK` do Dockerfile é ignorado aqui (`not supported for OCI image
+  format`). Continua valendo para container/VPS.
 
 **Por que container e não função**, já que a Vercel tem preset para Hono: o
 código usa import com extensão explícita (`./config.ts`), que é o que o Node 24
