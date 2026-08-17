@@ -90,8 +90,12 @@ jobs:
           echo "VITE_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "VITE_SUPABASE_PUBLISHABLE_KEY=$PUB_KEY" >> "$GITHUB_ENV"
 
+      # Só os projetos baseados em chromium, que é o único navegador instalado
+      # acima. O playwright.config.ts declara 5 projetos; rodar todos aqui faz
+      # firefox, webkit e Mobile Safari falharem por binário ausente.
+      # Cross-browser volta quando a suíte for tirada da quarentena.
       - name: Run Playwright tests
-        run: npm run test:e2e
+        run: npx playwright test --project=chromium --project="Mobile Chrome"
 
       - name: Stop local Supabase
         if: always()
