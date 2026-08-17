@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "hono",
-  "fluid": true,
-  "functions": {
-    "src/index.ts": {
-      "maxDuration": 60
-    }
-  }
+  "framework": null
 }

@@ -104,17 +104,31 @@ frontend. A separação é deliberada: aqui moram `GEMINI_API_KEY` e
 `SUPABASE_JWT_SECRET`, que não devem dividir ambiente com um build que produz
 bundle de browser.
 
+Roda como **imagem de container**, não como função. `Dockerfile.vercel` é um
+symlink para o `Dockerfile` — um arquivo só, porque duplicar lógica de build
+entre plataformas é como as duas divergem em silêncio.
+
 - `rootDirectory` = `services/ai` (o repositório é o mesmo do app)
-- entrypoint: **`src/index.ts`**, que só faz `export default createApp(...)`.
-  É o que o preset Hono da Vercel procura — verificado no exemplo oficial, não
-  deduzido. `src/http/server.ts` continua sendo o entrypoint de container/VPS,
-  e o `Dockerfile` segue válido: a diferença entre "servidor que escuta porta"
-  e "handler que a plataforma invoca" fica confinada a esses dois arquivos.
-- `"framework": "hono"` é **obrigatório** no `vercel.json`. Sem ele a detecção
-  resulta em `framework: null`, a Vercel passa a procurar funções num diretório
-  `api/` que não existe aqui, e o build falha com `unused_function`.
-- `maxDuration: 60`. As latências medidas são de 3 a 8s — a folga é grande de
-  propósito, porque o caminho não medido é um PDF de extrato grande.
+- `"framework": null` no `vercel.json`, para desligar a detecção automática
+
+**Por que container e não função**, já que a Vercel tem preset para Hono: o
+código usa import com extensão explícita (`./config.ts`), que é o que o Node 24
+exige para executar TypeScript nativamente. A Vercel transpila arquivo a
+arquivo sem reescrever o especificador, então `index.js` sai procurando um
+`config.ts` que não existe mais e a função morre com `ERR_MODULE_NOT_FOUND`.
+
+As duas exigências são incompatíveis — medido, não deduzido:
+
+| especificador | Node 24 nativo | função na Vercel |
+|---|---|---|
+| `./config.ts` | funciona | quebra |
+| `./config.js` | não resolve | funcionaria |
+
+Sair dessa exigiria ou uma etapa de bundle, ou trocar a convenção de import de
+todo o pacote. O container dispensa as duas: dentro dele o Node 24 roda o
+TypeScript como sempre rodou, e o artefato publicado é exatamente o que os
+testes exercitam. **Cuidado ao "simplificar" isto para uma função** — o custo
+não é de configuração, é de arquitetura.
 
 `ALLOWED_ORIGINS` **não** precisa ser configurada aqui: quem chama este serviço
 é a Edge Function do Supabase (Deno, servidor-a-servidor), não o browser — não
