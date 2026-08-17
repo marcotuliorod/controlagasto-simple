@@ -12,6 +12,20 @@ dist
 dist-ssr
 *.local
 
+# Variáveis de ambiente — nunca versionar (ver .env.example)
+.env
+.env.*
+!.env.example
+
+# Scratch do CLI do Supabase (gerado por `supabase start`)
+supabase/.temp/
+supabase/.branches/
+
+# Saída do Playwright (inclui o storageState autenticado — nunca versionar)
+artifacts/
+test-results/
+playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

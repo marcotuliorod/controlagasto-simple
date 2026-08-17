@@ -214,7 +214,7 @@ const corsHeaders = {
 | SUPABASE_URL | ✅ Cliente (VITE_) |
 | SUPABASE_PUBLISHABLE_KEY | ✅ Cliente (VITE_) |
 | SUPABASE_SERVICE_ROLE_KEY | ❌ Apenas servidor |
-| LOVABLE_API_KEY | ❌ Apenas servidor |
+| AI_SERVICE_URL | ❌ Apenas servidor |
 | CRON_SECRET | ❌ Apenas servidor |
 
 ---
@@ -228,7 +228,7 @@ const corsHeaders = {
 
 ### Validação de Tamanho de Arquivo
 - Recibos sem limite explícito de tamanho
-- Mitigação: Lovable AI API tem limites próprios
+- Mitigação: o serviço de IA aplica timeout, retry e rate limit próprios
 - Recomendação: adicionar validação de 5MB
 
 ---

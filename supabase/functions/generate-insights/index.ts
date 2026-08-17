@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
+import { AIServiceError, bearerToken, callAIService } from '../_shared/aiService.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,12 +15,6 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -146,86 +141,32 @@ serve(async (req) => {
 
     console.log('📈 Context:', JSON.stringify(context, null, 2));
 
-    // Call Lovable AI
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
+    // A geração roda no serviço de IA (services/ai). Ele já valida e limita
+    // os insights e mantém o fallback determinístico local caso o modelo
+    // falhe — o mesmo comportamento que existia aqui, só que testado.
+    // O payload vai com números; `context` segue com strings formatadas para
+    // não alterar o contrato que o frontend já consome.
+    const { insights: generated } = await callAIService<{ insights: unknown[]; fallback: boolean }>(
+      '/v1/insights',
+      {
+        currentMonth,
+        currentTotal,
+        previousTotal,
+        monthVariation: Number(monthVariation.toFixed(1)),
+        monthlyGoal: monthlyGoalValue,
+        goalProgress: Number(goalProgress.toFixed(1)),
+        totalExpenses: currentExpenses?.length || 0,
+        topCategories: topCategories.map((c) => ({ name: c.name, total: c.total, icon: c.icon })),
+        categoryGoals: (categoryGoals || []).map((cg) => ({
+          category: cg.category?.name ?? 'Sem categoria',
+          limit: Number(cg.limit_amount),
+          spent: categoryTotals.get(cg.category?.name || '')?.total || 0,
+        })),
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é um assistente financeiro educativo e amigável. Analise os dados do usuário e forneça 3-4 insights concisos e acionáveis sobre seus gastos. 
+      bearerToken(authHeader),
+    );
 
-Diretrizes:
-- Use linguagem clara e empática
-- Destaque padrões positivos e áreas de atenção
-- Sugira ações práticas quando relevante
-- Seja objetivo (máximo 2 frases por insight)
-- Use emojis apropriados (✅, ⚠️, 💡, 📊, 🎯, etc.)
-
-Formato de resposta (JSON):
-{
-  "insights": [
-    { "type": "positive|warning|tip", "message": "..." },
-    { "type": "positive|warning|tip", "message": "..." }
-  ]
-}`
-          },
-          {
-            role: 'user',
-            content: `Analise estes dados financeiros de ${context.currentMonth}:
-
-Gastos: R$ ${context.currentTotal} este mês (R$ ${context.previousTotal} no mês anterior = ${context.monthVariation}% de variação)
-Meta mensal: R$ ${context.monthlyGoal} (${context.goalProgress}% atingido)
-Total de transações: ${context.totalExpenses}
-
-Top 3 categorias:
-${context.topCategories.map(c => `- ${c.icon} ${c.name}: R$ ${c.total}`).join('\n')}
-
-Metas por categoria:
-${context.categoryGoals.map(cg => `- ${cg.category}: R$ ${cg.spent} / R$ ${cg.limit}`).join('\n') || 'Nenhuma meta definida'}
-
-Gere insights personalizados em português do Brasil.`
-          }
-        ]
-      })
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('❌ AI API Error:', errorText);
-      throw new Error('Failed to generate insights');
-    }
-
-    const aiData = await aiResponse.json();
-    const aiMessage = aiData.choices?.[0]?.message?.content;
-
-    console.log('🤖 AI Response:', aiMessage);
-
-    // Parse AI response
-    let insights;
-    try {
-      const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        insights = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
-      }
-    } catch (parseError) {
-      console.error('❌ Failed to parse AI response, using fallback');
-      insights = {
-        insights: [
-          {
-            type: 'tip',
-            message: `💡 Você gastou R$ ${context.currentTotal} este mês. ${monthVariation > 0 ? 'Aumento de ' + Math.abs(monthVariation).toFixed(0) + '% em relação ao mês anterior.' : 'Redução de ' + Math.abs(monthVariation).toFixed(0) + '% em relação ao mês anterior.'}`
-          }
-        ]
-      };
-    }
+    const insights = { insights: generated };
 
     return new Response(
       JSON.stringify({ success: true, ...insights, context }),
@@ -234,6 +175,12 @@ Gere insights personalizados em português do Brasil.`
 
   } catch (error) {
     console.error('❌ Error:', error);
+    if (error instanceof AIServiceError) {
+      return new Response(
+        JSON.stringify({ error: error.publicMessage }),
+        { status: error.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

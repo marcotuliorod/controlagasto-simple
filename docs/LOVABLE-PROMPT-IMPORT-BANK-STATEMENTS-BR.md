@@ -1,5 +1,10 @@
 # Lovable Prompt: Brazilian Bank Statement Import Feature
 
+> **Nota histórica.** Este documento descreve o projeto quando ele ainda rodava na
+> plataforma Lovable. Essa dependência foi removida em 16/08/2026 — as menções
+> abaixo são registro do que existiu, não da arquitetura atual.
+> Ver `docs/architecture.md` e `services/ai/README.md`.
+
 ## Feature Request
 
 Add ability to import Brazilian bank statements (PDF and CSV formats) to automatically create expenses from bank transactions, with intelligent filtering to exclude non-expense items (investments, transfers between accounts, tax repasses) and proper debit/credit handling.

@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { AIServiceError, callAIService } from '../_shared/aiService.ts';
+import { extractPdfText } from '../_shared/pdfText.ts';
+import { isReliable, parseStatementText } from '../_shared/statementParser.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -428,177 +431,148 @@ function parseOFX(content: string): ParsedTransaction[] {
 // PDF PARSING WITH AI
 // =============================================================================
 
-async function parsePDFWithAI(
+/**
+ * Fluxo de PDF em camadas (Fase 4). A ordem importa: cada degrau só existe
+ * porque o anterior não deu conta.
+ *
+ *  1. Extrai o texto localmente. Nada sai do servidor.
+ *  2. Tenta ler as transações por regra determinística. Se der certo, NENHUMA
+ *     chamada de IA acontece — sem custo, sem latência de rede e sem enviar
+ *     titular, conta ou CPF para fora.
+ *  3. Se a regra não reconhecer o layout, manda o TEXTO para a IA, e o serviço
+ *     redige o que é dado pessoal antes de chamar o modelo.
+ *  4. Só se não houver camada de texto (PDF escaneado) o arquivo inteiro vai
+ *     para a IA com visão — que é o único caminho possível nesse caso.
+ */
+async function parsePDF(
   pdfBase64: string,
   userCategories: UserCategory[],
-  historicalMerchants: Record<string, string>
-): Promise<{ transactions: ParsedTransaction[]; error?: string; detectedBank?: BankInfo | null }> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
-  if (!LOVABLE_API_KEY) {
-    console.error("LOVABLE_API_KEY not configured");
-    return { transactions: [], error: "Configuração de IA não encontrada. Contate o suporte." };
+  historicalMerchants: Record<string, string>,
+  userToken: string
+): Promise<{ transactions: ParsedTransaction[]; error?: string; detectedBank?: BankInfo | null; usedAI: boolean }> {
+  let extracted: Awaited<ReturnType<typeof extractPdfText>> | null = null;
+  try {
+    extracted = await extractPdfText(pdfBase64);
+    console.log(`PDF: ${extracted.pages} página(s), ${extracted.text.length} chars, camada de texto: ${extracted.hasTextLayer}`);
+  } catch (error) {
+    // Falha na extração não é fatal: ainda dá para tentar a IA.
+    console.warn("Falha ao extrair texto do PDF, caindo para IA:", error);
   }
 
-  console.log("Calling Lovable AI for PDF extraction...");
-  console.log("PDF base64 length:", pdfBase64.length);
+  if (extracted?.hasTextLayer) {
+    const parsed = parseStatementText(extracted.text);
+    const detectedBank = detectBank(extracted.text);
 
-  const systemPrompt = `Você é um especialista em extrair transações de extratos bancários e faturas de cartão brasileiros.
-
-INSTRUÇÕES CRÍTICAS:
-1. Extraia TODAS as transações financeiras (compras, pagamentos, débitos, depósitos, transferências)
-2. IGNORE linhas de saldo (saldo anterior, saldo final, etc.)
-3. IGNORE subtotais e totalizadores
-4. Datas devem estar no formato YYYY-MM-DD
-5. Valores devem ser números positivos (sem R$, use ponto como decimal)
-6. Identifique corretamente o tipo: "debit" (saída) ou "credit" (entrada)
-7. Para faturas de cartão de crédito: todas são "debit"
-8. Para extratos: D = debit (saída), C = credit (entrada)
-
-CLASSIFICAÇÃO DE TRANSAÇÕES:
-- Investimentos (Aplicação/Resgate Fundos, CDB, Poupança) → type: "investment"
-- Transferências enviadas → type: "debit" (serão revisadas)
-- Transferências recebidas → type: "credit"
-- Pagamentos diversos, saques, tarifas → type: "debit"
-- Repasses governamentais (FPE, FPM, ICMS) → ignorar
-
-Retorne APENAS um JSON válido:
-{
-  "transactions": [
-    {
-      "date": "2024-01-15",
-      "description": "SUPERMERCADO CARREFOUR 2/3",
-      "amount": 150.50,
-      "type": "debit",
-      "documentNumber": "123456"
+    if (isReliable(parsed)) {
+      console.log(`Extrato lido localmente: ${parsed.transactions.length} transações, sem chamar IA`);
+      const transactions = parsed.transactions.map((tx, index) =>
+        toParsedTransaction(
+          {
+            date: tx.date,
+            description: tx.description,
+            amount: tx.amount,
+            // Sem indicador explícito, débito é o padrão — é o caso comum em
+            // fatura de cartão, onde tudo é saída.
+            type: tx.indicator === "C" ? "credit" : "debit",
+            documentNumber: null,
+          },
+          index + 1,
+          userCategories,
+          historicalMerchants
+        )
+      );
+      return { transactions, detectedBank, usedAI: false };
     }
-  ]
+
+    console.log(
+      `Regra determinística não reconheceu o layout (${parsed.transactions.length} lidas, ` +
+      `${parsed.unparsedCount} ilegíveis). Enviando texto redigido à IA.`
+    );
+    const viaText = await parseStatementViaAI(
+      { text: extracted.text },
+      userCategories,
+      historicalMerchants,
+      userToken
+    );
+    return { ...viaText, detectedBank: viaText.detectedBank ?? detectedBank, usedAI: true };
+  }
+
+  console.log("PDF sem camada de texto (provavelmente escaneado). Enviando arquivo à IA.");
+  const viaDocument = await parseStatementViaAI(
+    { mimeType: "application/pdf", data: pdfBase64 },
+    userCategories,
+    historicalMerchants,
+    userToken
+  );
+  return { ...viaDocument, usedAI: true };
 }
 
-Se não identificar transações, retorne: {"transactions": []}`;
+/** Converte a transação crua no formato do app, aplicando a lógica determinística. */
+function toParsedTransaction(
+  tx: { date: string; description: string; amount: number; type: string; documentNumber: string | null },
+  rowNum: number,
+  userCategories: UserCategory[],
+  historicalMerchants: Record<string, string>
+): ParsedTransaction {
+  const txType: 'debit' | 'credit' = tx.type === 'credit' || tx.type === 'investment' ? 'credit' : 'debit';
+  const classification = tx.type === 'investment'
+    ? 'investment' as TransactionClassification
+    : classifyTransaction(tx.description, txType);
 
+  const merchant = extractMerchant(tx.description);
+
+  return {
+    date: tx.date,
+    description: tx.description,
+    merchant,
+    amount: Math.abs(tx.amount),
+    type: txType,
+    suggestedCategory: suggestCategory(tx.description, merchant, userCategories, historicalMerchants),
+    isDuplicate: false,
+    originalRow: rowNum,
+    classification,
+    originalDescription: tx.description,
+    documentNumber: tx.documentNumber ?? undefined,
+  };
+}
+
+async function parseStatementViaAI(
+  payload: { text: string } | { mimeType: string; data: string },
+  userCategories: UserCategory[],
+  historicalMerchants: Record<string, string>,
+  userToken: string
+): Promise<{ transactions: ParsedTransaction[]; error?: string; detectedBank?: BankInfo | null }> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log("Timeout triggered - aborting request");
-      controller.abort();
-    }, 120000); // 2 minutes for large PDFs
-    
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Extraia todas as transações deste extrato/fatura bancária:"
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 16000, // Increased for large statements
-        temperature: 0.1
-      }),
-    });
-    
-    clearTimeout(timeoutId);
+    // A extração roda no serviço de IA (services/ai). Some daqui: o PDF
+    // disfarçado de image_url (hack do gateway antigo), o parsing defensivo em
+    // três níveis e a validação de data/valor — o serviço já devolve
+    // transações validadas e normalizadas, descartando as inaproveitáveis.
+    //
+    // O que fica: classificação, extração de comerciante e sugestão de
+    // categoria, que são determinísticas e dependem dos dados do usuário.
+    const aiResult = await callAIService<{
+      transactions: Array<{
+        date: string;
+        description: string;
+        amount: number;
+        type: "debit" | "credit" | "investment";
+        documentNumber: string | null;
+      }>;
+      discarded: number;
+    }>("/v1/statement", payload, userToken);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI API error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return { transactions: [], error: "Limite de requisições atingido. Tente novamente em alguns minutos." };
-      }
-      if (response.status === 402) {
-        return { transactions: [], error: "Créditos de IA esgotados. Entre em contato com o suporte." };
-      }
-      return { transactions: [], error: "Erro ao processar PDF com IA. Tente exportar em formato CSV." };
+    const parsed = aiResult;
+
+    if (aiResult.discarded > 0) {
+      console.warn(`Serviço de IA descartou ${aiResult.discarded} linha(s) inválida(s)`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-    
-    console.log("AI response received, length:", content.length);
-    console.log("AI content preview:", content.substring(0, 800));
-
-    // Try to detect bank from the AI response
-    const detectedBank = detectBank(content);
+    // detectBank rodava sobre o texto cru do modelo, que não existe mais.
+    // As descrições concatenadas carregam os mesmos marcadores de banco.
+    const detectedBank = detectBank(
+      aiResult.transactions.map((t) => t.description).join("\n"),
+    );
     console.log("Detected bank:", detectedBank?.displayName || "None");
-
-    // Robust JSON extraction
-    let jsonStr = content;
-    let parsed: { transactions: RawAITransaction[] } | null = null;
-    
-    // Method 1: Try markdown code block
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-    } else {
-      // Method 2: Find raw JSON object
-      const startIdx = content.indexOf('{"transactions"');
-      if (startIdx !== -1) {
-        // Find matching closing brace
-        let depth = 0;
-        let endIdx = startIdx;
-        for (let i = startIdx; i < content.length; i++) {
-          if (content[i] === '{' || content[i] === '[') depth++;
-          if (content[i] === '}' || content[i] === ']') depth--;
-          if (depth === 0) {
-            endIdx = i + 1;
-            break;
-          }
-        }
-        jsonStr = content.substring(startIdx, endIdx);
-      }
-    }
-
-    // Try to parse JSON
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Failed to parse AI response as JSON, trying fallback...");
-      
-      // Fallback: try to extract individual transactions
-      const txRegex = /\{[^{}]*"date"\s*:\s*"[^"]+"\s*,\s*"description"\s*:\s*"[^"]+"\s*,\s*"amount"\s*:\s*[\d.]+\s*,\s*"type"\s*:\s*"[^"]+"/g;
-      const matches = content.match(txRegex);
-      
-      if (matches && matches.length > 0) {
-        console.log(`Fallback: Found ${matches.length} partial transactions`);
-        parsed = { transactions: [] };
-        
-        for (const match of matches) {
-          try {
-            // Complete the object and try to parse
-            const completed = match + '}';
-            const tx = JSON.parse(completed);
-            parsed.transactions.push(tx);
-          } catch (e) {
-            // Skip invalid entries
-          }
-        }
-      }
-    }
-
-    if (!parsed || !parsed.transactions || !Array.isArray(parsed.transactions)) {
-      console.error("Invalid response structure");
-      return { transactions: [], error: "Não foi possível extrair dados do PDF. Tente um arquivo CSV.", detectedBank };
-    }
 
     console.log(`AI extracted ${parsed.transactions.length} transactions`);
 
@@ -645,7 +619,8 @@ Se não identificar transações, retorne: {"transactions": []}`;
         originalRow: rowNum,
         classification,
         originalDescription: tx.description,
-        documentNumber: tx.documentNumber,
+        // O serviço usa null para "ausente"; ParsedTransaction usa undefined.
+        documentNumber: tx.documentNumber ?? undefined,
       });
     }
 
@@ -653,8 +628,12 @@ Se não identificar transações, retorne: {"transactions": []}`;
     return { transactions, detectedBank };
 
   } catch (error) {
-    console.error("Error in parsePDFWithAI:", error);
-    
+    console.error("Error in parseStatementViaAI:", error);
+
+    if (error instanceof AIServiceError) {
+      return { transactions: [], error: error.publicMessage };
+    }
+
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
         return { transactions: [], error: "Timeout ao processar PDF. O arquivo pode ser muito grande." };
@@ -998,7 +977,7 @@ serve(async (req) => {
     } else if (fileType === 'pdf') {
       console.log('Processing PDF file with AI extraction...');
       
-      const pdfResult = await parsePDFWithAI(fileContent, categories || [], historicalMerchants);
+      const pdfResult = await parsePDF(fileContent, categories || [], historicalMerchants, token);
       
       if (pdfResult.error) {
         return new Response(

@@ -11,7 +11,7 @@
 - **React Query** - Server state management
 - **React Router** - Client-side routing
 
-### Backend (Lovable Cloud)
+### Backend (Supabase)
 - **Supabase** - Backend as a service
   - PostgreSQL database
   - Authentication
@@ -199,7 +199,7 @@ npm run build
 ### Environment Variables
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
-- Managed automatically by Lovable Cloud
+- Gerenciado via Supabase CLI (migrations, functions, secrets)
 
 ## Future Considerations
 

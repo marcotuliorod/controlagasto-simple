@@ -5,7 +5,8 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".claude", ".agents", ".planning"] },
+  // supabase/.temp é scratch gerado por `supabase start` (edge runtime), não código do projeto.
+  { ignores: ["dist", ".claude", ".agents", ".planning", "supabase/.temp"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

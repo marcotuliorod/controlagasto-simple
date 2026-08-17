@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+README.md
+vitest.config.ts
+tsconfig.json
+# Testes não vão para a imagem de produção.
+src/**/*.test.ts
