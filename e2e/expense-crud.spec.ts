@@ -1,16 +1,23 @@
 /*
- * QUARENTENA — testes marcados com `test.fixme` abaixo estão desatualizados
- * em relação à UI atual e falham por seletor inexistente, não por regressão.
+ * QUARENTENA — os `test.fixme` abaixo ainda não passam.
  *
- * Contexto: a suíte E2E nunca chegou a rodar. O playwright.config.ts não tinha
- * projeto `setup`, então o storageState nunca era gerado, e o pipeline já
- * morria antes no job de typecheck. Ao consertar as duas coisas, 49 de 69
- * testes se revelaram obsoletos (telas de auth, onboarding, despesas e
- * relatórios mudaram desde que foram escritos).
+ * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
  *
- * Quarentenados de propósito, em vez de deixar o job vermelho: um CI
- * cronicamente vermelho é o que permitiu esse apodrecimento passar despercebido.
- * Cada `test.fixme` é dívida explícita — reative ao atualizar o seletor.
+ *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
+ *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
+ *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
+ *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
+ *     e depois na opção, por role.
+ *
+ * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
+ *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
+ *    storageState do auth.setup.ts;
+ *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
+ *    dispensava — nenhum seletor era encontrado por baixo dele;
+ *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
+ *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
+ *
+ * Cada fixme é dívida explícita: reative ao ajustar a interação.
  */
 import { test, expect } from '@playwright/test';
 import { TEST_EXPENSE, waitForPageLoad, formatCurrency } from './fixtures/test-data';
@@ -50,8 +57,11 @@ test.describe('Expense CRUD Operations', () => {
     await page.goto('/expenses');
     await waitForPageLoad(page);
 
-    // Should show expenses list
-    await expect(page.getByRole('heading', { name: /despesas|gastos/i })).toBeVisible();
+    // Nome exato, não regex: o AppLayout tem um h1 "Entenda Gastos" no
+    // cabeçalho mobile (md:hidden), que casa com /gastos/i. No desktop ele
+    // está oculto e só a página casava — por isso passava aqui e quebrava no
+    // Mobile Chrome, com strict mode violation.
+    await expect(page.getByRole('heading', { name: 'Minhas Despesas' })).toBeVisible();
     
     // Check if there are any expenses
     const noExpensesText = await page.locator('text=/nenhuma despesa|sem despesas/i').isVisible({ timeout: 2000 }).catch(() => false);
@@ -114,7 +124,7 @@ test.describe('Expense CRUD Operations', () => {
     }
   });
 
-  test.fixme('should validate required fields', async ({ page }) => {
+  test('should validate required fields', async ({ page }) => {
     await page.goto('/add-expense');
     await waitForPageLoad(page);
 

@@ -1,16 +1,23 @@
 /*
- * QUARENTENA — testes marcados com `test.fixme` abaixo estão desatualizados
- * em relação à UI atual e falham por seletor inexistente, não por regressão.
+ * QUARENTENA — os `test.fixme` abaixo ainda não passam.
  *
- * Contexto: a suíte E2E nunca chegou a rodar. O playwright.config.ts não tinha
- * projeto `setup`, então o storageState nunca era gerado, e o pipeline já
- * morria antes no job de typecheck. Ao consertar as duas coisas, 49 de 69
- * testes se revelaram obsoletos (telas de auth, onboarding, despesas e
- * relatórios mudaram desde que foram escritos).
+ * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
  *
- * Quarentenados de propósito, em vez de deixar o job vermelho: um CI
- * cronicamente vermelho é o que permitiu esse apodrecimento passar despercebido.
- * Cada `test.fixme` é dívida explícita — reative ao atualizar o seletor.
+ *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
+ *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
+ *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
+ *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
+ *     e depois na opção, por role.
+ *
+ * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
+ *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
+ *    storageState do auth.setup.ts;
+ *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
+ *    dispensava — nenhum seletor era encontrado por baixo dele;
+ *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
+ *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
+ *
+ * Cada fixme é dívida explícita: reative ao ajustar a interação.
  */
 import { test, expect } from '@playwright/test';
 import { waitForPageLoad } from './fixtures/test-data';
@@ -23,14 +30,14 @@ test.describe('PDF Export', () => {
     await waitForPageLoad(page);
   });
 
-  test.fixme('should display export buttons', async ({ page }) => {
+  test('should display export buttons', async ({ page }) => {
     await expect(page.getByRole('button', { name: /pdf/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /csv/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /xlsx/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /json/i })).toBeVisible();
   });
 
-  test.fixme('should trigger PDF download on button click', async ({ page }) => {
+  test('should trigger PDF download on button click', async ({ page }) => {
     // Set up download listener
     const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
     
@@ -56,7 +63,7 @@ test.describe('PDF Export', () => {
     }
   });
 
-  test.fixme('should show loading state during PDF generation', async ({ page }) => {
+  test('should show loading state during PDF generation', async ({ page }) => {
     const pdfButton = page.getByRole('button', { name: /pdf/i });
     
     // Click and check for loading state
@@ -69,7 +76,7 @@ test.describe('PDF Export', () => {
     expect(isDisabled || hasLoadingText).toBeTruthy();
   });
 
-  test.fixme('should export CSV successfully', async ({ page }) => {
+  test('should export CSV successfully', async ({ page }) => {
     const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
     
     await page.getByRole('button', { name: /csv/i }).click();
@@ -86,7 +93,7 @@ test.describe('PDF Export', () => {
     }
   });
 
-  test.fixme('should export XLSX successfully', async ({ page }) => {
+  test('should export XLSX successfully', async ({ page }) => {
     const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
     
     await page.getByRole('button', { name: /xlsx/i }).click();
@@ -103,7 +110,7 @@ test.describe('PDF Export', () => {
     }
   });
 
-  test.fixme('should export JSON successfully', async ({ page }) => {
+  test('should export JSON successfully', async ({ page }) => {
     const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
     
     await page.getByRole('button', { name: /json/i }).click();
@@ -120,7 +127,7 @@ test.describe('PDF Export', () => {
     }
   });
 
-  test.fixme('should show success toast after export', async ({ page }) => {
+  test('should show success toast after export', async ({ page }) => {
     await page.getByRole('button', { name: /csv/i }).click();
     
     // Should show success message
