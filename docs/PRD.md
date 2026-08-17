@@ -416,7 +416,7 @@ foi remedido — evitar reafirmar números antigos como se fossem atuais.
 **Critérios de Aceite:**
 - [x] Múltiplas conversas
 - [x] Contexto: perfil, despesas 30d, metas, score
-- [x] Edge function `chat-assistant` via Lovable AI Gateway (`ai.gateway.lovable.dev`)
+- [x] Edge function `chat-assistant`, que delega ao serviço próprio em `services/ai`
 - [x] Rate limit: 10 msg/min
 - [x] Histórico persistido
 - [x] Sugestões de perguntas comuns

@@ -5,9 +5,10 @@
 ## APIs & External Services
 
 **AI & Language Models:**
-- Lovable AI (Google Gemini 2.5 Flash via OpenAI-compatible API)
-  - SDK/Client: HTTP fetch to `https://ai.gateway.lovable.dev/v1/chat/completions`
-  - Auth: `LOVABLE_API_KEY` environment variable (Bearer token)
+- Camada própria provider-agnostic (`services/ai`), sem fornecedor no domínio
+  - Edge functions chamam via `supabase/functions/_shared/aiService.ts`
+  - Auth: JWT do usuário repassado adiante; endereço no secret `AI_SERVICE_URL`
+  - Adapter concreto escolhido em `services/ai/src/config.ts` (`AI_PROVIDER`)
   - Used in edge functions:
     - `process-receipt` (`/supabase/functions/process-receipt/index.ts:34`) - OCR & receipt extraction
     - `chat-assistant` (`/supabase/functions/chat-assistant/index.ts:165`) - AI financial advisor
@@ -29,7 +30,7 @@
   - Client library: `@supabase/supabase-js` v2.76.1 (`/package.json:49`)
   - Location: `/src/integrations/supabase/client.ts`
   - Features: Auth, real-time subscriptions, edge functions
-  - Project ID: `mnznxdewqjyhvrctllgh` (from `/supabase/config.toml:1`)
+  - Project ID: configurável por ambiente (`VITE_SUPABASE_URL`); não fixado no código
   - Tables: expenses, categories, accounts, profiles, chat_messages, chat_conversations, push_subscriptions, vapid_keys, audit_logs, recurring_expenses, financial_health_scores, monthly_goals, category_goals, saved_filters, educational_content, quizzes, scheduled_exports
 
 **File Storage:**
@@ -107,7 +108,8 @@
 **Required env vars (from CI and code):**
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anonymous key
-- `LOVABLE_API_KEY` - Lovable AI API key (edge functions only)
+- `AI_SERVICE_URL` - endereço do serviço de IA em `services/ai` (edge functions only)
+- `CRON_SECRET` - autentica as functions disparadas por cron
 - `SUPABASE_URL` - Used in edge functions (service role context)
 - `SUPABASE_SERVICE_ROLE_KEY` - Edge function service role key
 - `VITE_SUPABASE_PROJECT_ID` - Referenced in CLAUDE.md (optional)

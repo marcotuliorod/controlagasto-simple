@@ -40,7 +40,10 @@ ANALYZE=true npm run build  # Generate bundle size report at dist/stats.html
 # Install: npm i supabase --save-dev
 npx supabase start        # Start local Supabase
 npx supabase db reset     # Reset local database
-npx supabase gen types typescript --project-id mnznxdewqjyhvrctllgh > src/integrations/supabase/types.ts
+# Local (stack do `supabase start`):
+npx supabase gen types typescript --local > src/integrations/supabase/types.ts
+# Remoto: use o ref do SEU projeto, não deixe fixo aqui.
+npx supabase gen types typescript --project-id <project-ref> > src/integrations/supabase/types.ts
 ```
 
 ## Architecture Overview
@@ -316,10 +319,13 @@ Ver `services/ai/README.md` e `docs/LGPD-IA.md`.
 
 **Required `.env` variables:**
 ```bash
-VITE_SUPABASE_PROJECT_ID=mnznxdewqjyhvrctllgh
-VITE_SUPABASE_URL=https://mnznxdewqjyhvrctllgh.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<anon_key>
+# As duas únicas lidas por src/ (import.meta.env).
+VITE_SUPABASE_URL=<url do projeto ou http://127.0.0.1:54321 em local>
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable/anon key>
 ```
+
+Não fixe o ref de um projeto específico aqui: o app deve funcionar apontando
+para qualquer instância (self-host, local, gerenciado).
 
 **Note:** `npx supabase start` imprime esses valores para desenvolvimento local
 (ver `.env.example`). `src/integrations/supabase/client.ts` falha no boot com
