@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { SignJWT } from "jose";
+import { SignJWT, generateKeyPair, exportJWK, createLocalJWKSet } from "jose";
 import { createApp } from "./app.ts";
+import { createKeyResolver } from "./auth.ts";
 import { createFakeProvider, type FakeProvider } from "../providers/fake.ts";
 import { AIError } from "../shared/errors.ts";
 import type { Config } from "../config.ts";
@@ -23,10 +24,10 @@ async function makeToken(payload: Record<string, unknown> = {}, expiresIn = "1h"
     .sign(new TextEncoder().encode(JWT_SECRET));
 }
 
-function makeApp(provider: FakeProvider) {
+function makeApp(provider: FakeProvider, jwtKeys?: Config["jwtKeys"]) {
   const config: Config = {
     port: 0,
-    jwtSecret: JWT_SECRET,
+    jwtKeys: jwtKeys ?? createKeyResolver({ jwtSecret: JWT_SECRET }),
     allowedOrigins: ["http://localhost:8080"],
     provider,
   };
@@ -262,5 +263,80 @@ describe("POST /v1/chat", () => {
 
     expect(response.status).toBe(401);
     expect(provider.calls).toHaveLength(0);
+  });
+});
+
+/**
+ * O Supabase hospedado assina com chave assimétrica (ES256, resolvida pelo
+ * `kid` contra o JWKS do projeto); só o stack local ainda emite HS256.
+ *
+ * Estes testes existem porque a suíte inteira passava com HS256 enquanto o
+ * projeto real devolvia 401 em token legítimo: verificar só o algoritmo do
+ * ambiente de teste é verificar o ambiente de teste.
+ */
+describe("verificação de JWT assimétrico", () => {
+  async function makeEs256Setup() {
+    const { publicKey, privateKey } = await generateKeyPair("ES256", { extractable: true });
+    const jwk = await exportJWK(publicKey);
+    const kid = "chave-de-teste";
+    const jwks = createLocalJWKSet({ keys: [{ ...jwk, kid, alg: "ES256", use: "sig" }] });
+
+    const sign = (payload: Record<string, unknown> = {}) =>
+      new SignJWT({ sub: "user-es256", email: "a@b.com", ...payload })
+        .setProtectedHeader({ alg: "ES256", kid })
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(privateKey);
+
+    return { jwks, sign };
+  }
+
+  it("aceita token ES256 resolvido pelo JWKS", async () => {
+    const { jwks, sign } = await makeEs256Setup();
+    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const app = makeApp(provider, createKeyResolver({ jwks }));
+
+    const response = await app.fetch(receiptRequest(await sign()));
+
+    expect(response.status).toBe(200);
+  });
+
+  it("aceita HS256 e ES256 ao mesmo tempo, para a migração do Supabase", async () => {
+    const { jwks, sign } = await makeEs256Setup();
+    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const app = makeApp(provider, createKeyResolver({ jwks, jwtSecret: JWT_SECRET }));
+
+    const assimetrico = await app.fetch(receiptRequest(await sign()));
+    const simetrico = await app.fetch(receiptRequest(await makeToken()));
+
+    expect(assimetrico.status).toBe(200);
+    expect(simetrico.status).toBe(200);
+  });
+
+  it("rejeita ES256 assinado por outra chave, sem acionar o provedor", async () => {
+    const { jwks } = await makeEs256Setup();
+    const intruso = await makeEs256Setup();
+    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const app = makeApp(provider, createKeyResolver({ jwks }));
+
+    const response = await app.fetch(receiptRequest(await intruso.sign()));
+
+    expect(response.status).toBe(401);
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it("rejeita token assimétrico quando só há segredo HS256 configurado", async () => {
+    const { sign } = await makeEs256Setup();
+    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const app = makeApp(provider, createKeyResolver({ jwtSecret: JWT_SECRET }));
+
+    const response = await app.fetch(receiptRequest(await sign()));
+
+    expect(response.status).toBe(401);
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it("falha ao montar o resolvedor sem chave nenhuma", () => {
+    expect(() => createKeyResolver({})).toThrow(/SUPABASE_URL|SUPABASE_JWT_SECRET/);
   });
 });
