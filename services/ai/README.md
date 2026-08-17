@@ -97,6 +97,30 @@ npx supabase secrets set AI_SERVICE_URL=https://ai.seu-dominio.com
 Sem esse secret, as 4 funcionalidades de IA respondem 503 com mensagem
 explícita; o resto do app continua funcionando normalmente.
 
+#### Vercel
+
+É onde este serviço está publicado hoje, em **projeto próprio**, separado do
+frontend. A separação é deliberada: aqui moram `GEMINI_API_KEY` e
+`SUPABASE_JWT_SECRET`, que não devem dividir ambiente com um build que produz
+bundle de browser.
+
+- `rootDirectory` = `services/ai` (o repositório é o mesmo do app)
+- entrypoint: `src/http/server.ts` — o mesmo do container. A Vercel captura o
+  servidor Node pelo `listen()`, e a porta já vem de `PORT`, então **não há
+  arquivo de entrada específico de plataforma**. O `Dockerfile` continua válido
+  e o serviço segue rodando em VPS/Cloud Run sem alteração.
+- `vercel.json` fixa `maxDuration: 60`. As latências medidas são de 3 a 8s — a
+  folga é grande de propósito, porque o caminho não medido é um PDF de extrato
+  grande.
+
+`ALLOWED_ORIGINS` **não** precisa ser configurada aqui: quem chama este serviço
+é a Edge Function do Supabase (Deno, servidor-a-servidor), não o browser — não
+há header `Origin` em jogo. O CORS só importaria se o frontend chamasse direto.
+
+Uma armadilha específica da plataforma: se a **Deployment Protection** estiver
+ligada, a Edge Function recebe uma página HTML de SSO em vez de JSON, e o
+sintoma vira um erro genérico difícil de rastrear. Precisa estar desligada.
+
 ## Rotas
 
 | Rota | Auth | Descrição |
@@ -133,11 +157,24 @@ que o provedor não é acionado sem token.
   resposta**; com o `maxOutputTokens: 800` herdado do código antigo, o chat
   truncava antes de responder. Por isso o contrato expõe `reasoning`, e o chat
   usa `"disabled"`. Sem esse campo, `maxOutputTokens` seria uma abstração furada.
-- **Latência ainda é o ponto fraco:** ~19s numa resposta de chat, mesmo com o
-  raciocínio desligado — ou seja, não era o raciocínio que causava a lentidão.
-  Para OCR de cupom (usuário esperando após fotografar) isso é ruim. Precisa
-  pesar na comparação de provedores; modelos `-lite` ou OCR dedicado tendem a
-  ser melhores no caminho de extração.
+- **Latência é aceitável.** Medido em 17/08/2026, contra o projeto Supabase real
+  e com chave própria do Gemini:
+
+  | caminho | latência |
+  |---|---|
+  | chat | 2,9s e 3,1s |
+  | OCR de cupom (PDF) | 4s |
+  | insights | 7,6s |
+
+  **Correção de uma medição anterior.** Este documento afirmava "~19s numa
+  resposta de chat" e concluía que a latência era o ponto fraco, recomendando
+  testar variantes `-lite`. Aquela medição foi feita numa única chamada, muito
+  provavelmente em cold start, e não se sustentou: a mesma operação leva ~3s.
+  A recomendação de trocar de modelo por causa de latência **não procede** —
+  4s para OCR de cupom é razoável para o usuário que acabou de fotografar.
+
+  Ainda assim, são poucas amostras. Vale remedir com uso real antes de tratar
+  qualquer destes números como garantia.
 - **API nativa do Gemini, não o shim OpenAI-compatible.** Resolve os dois pontos
   frágeis do código anterior: PDF entra como `inline_data` com mime type próprio
   (antes ia disfarçado de `image_url`), e o JSON sai via `responseSchema`,
