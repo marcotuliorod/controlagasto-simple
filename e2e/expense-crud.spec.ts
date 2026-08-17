@@ -57,8 +57,11 @@ test.describe('Expense CRUD Operations', () => {
     await page.goto('/expenses');
     await waitForPageLoad(page);
 
-    // Should show expenses list
-    await expect(page.getByRole('heading', { name: /despesas|gastos/i })).toBeVisible();
+    // Nome exato, não regex: o AppLayout tem um h1 "Entenda Gastos" no
+    // cabeçalho mobile (md:hidden), que casa com /gastos/i. No desktop ele
+    // está oculto e só a página casava — por isso passava aqui e quebrava no
+    // Mobile Chrome, com strict mode violation.
+    await expect(page.getByRole('heading', { name: 'Minhas Despesas' })).toBeVisible();
     
     // Check if there are any expenses
     const noExpensesText = await page.locator('text=/nenhuma despesa|sem despesas/i').isVisible({ timeout: 2000 }).catch(() => false);
