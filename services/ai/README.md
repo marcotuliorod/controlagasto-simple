@@ -104,14 +104,38 @@ frontend. A separação é deliberada: aqui moram `GEMINI_API_KEY` e
 `SUPABASE_JWT_SECRET`, que não devem dividir ambiente com um build que produz
 bundle de browser.
 
+Roda como **imagem de container**, não como função. `Dockerfile.vercel` é um
+symlink para o `Dockerfile` — um arquivo só, porque duplicar lógica de build
+entre plataformas é como as duas divergem em silêncio.
+
 - `rootDirectory` = `services/ai` (o repositório é o mesmo do app)
-- entrypoint: `src/http/server.ts` — o mesmo do container. A Vercel captura o
-  servidor Node pelo `listen()`, e a porta já vem de `PORT`, então **não há
-  arquivo de entrada específico de plataforma**. O `Dockerfile` continua válido
-  e o serviço segue rodando em VPS/Cloud Run sem alteração.
-- `vercel.json` fixa `maxDuration: 60`. As latências medidas são de 3 a 8s — a
-  folga é grande de propósito, porque o caminho não medido é um PDF de extrato
-  grande.
+- `"framework": null` no `vercel.json`, para desligar a detecção automática
+- **Duas chaves, não uma.** `services` faz a imagem ser construída e publicada;
+  o `rewrites` com `destination: { "service": "ai" }` é o que liga a URL
+  pública a ela. Só com `services`, a imagem sobe no registry e mesmo assim
+  toda rota responde 404 — o build avisa `no "functions" or "static"
+  directory` e é fácil ler isso como falha de build, quando é falta de rota.
+- O `HEALTHCHECK` do Dockerfile é ignorado aqui (`not supported for OCI image
+  format`). Continua valendo para container/VPS.
+
+**Por que container e não função**, já que a Vercel tem preset para Hono: o
+código usa import com extensão explícita (`./config.ts`), que é o que o Node 24
+exige para executar TypeScript nativamente. A Vercel transpila arquivo a
+arquivo sem reescrever o especificador, então `index.js` sai procurando um
+`config.ts` que não existe mais e a função morre com `ERR_MODULE_NOT_FOUND`.
+
+As duas exigências são incompatíveis — medido, não deduzido:
+
+| especificador | Node 24 nativo | função na Vercel |
+|---|---|---|
+| `./config.ts` | funciona | quebra |
+| `./config.js` | não resolve | funcionaria |
+
+Sair dessa exigiria ou uma etapa de bundle, ou trocar a convenção de import de
+todo o pacote. O container dispensa as duas: dentro dele o Node 24 roda o
+TypeScript como sempre rodou, e o artefato publicado é exatamente o que os
+testes exercitam. **Cuidado ao "simplificar" isto para uma função** — o custo
+não é de configuração, é de arquitetura.
 
 `ALLOWED_ORIGINS` **não** precisa ser configurada aqui: quem chama este serviço
 é a Edge Function do Supabase (Deno, servidor-a-servidor), não o browser — não

@@ -1,9 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "fluid": true,
-  "functions": {
-    "src/http/server.ts": {
-      "maxDuration": 60
+  "framework": null,
+  "services": {
+    "ai": {
+      "runtime": "container",
+      "root": "./"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": { "service": "ai" }
+    }
+  ]
 }
