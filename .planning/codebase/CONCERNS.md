@@ -213,7 +213,7 @@
 - **Recommendation:** Review top-level dependencies; consider lock file strategy
 
 ### Lovable AI API Dependency
-- **Risk:** `supabase/functions/process-receipt/index.ts` and likely others depend on Lovable API (`https://ai.gateway.lovable.dev/`) which is external
+- **Risk:** ~~dependência do gateway de IA da Lovable~~ — RESOLVIDO em 16/08/2026: as edge functions chamam `services/ai`, camada provider-agnostic. Ver `docs/STATE.md`.
 - **Files:** `supabase/functions/process-receipt/index.ts` (line 34)
 - **Impact:** Rate limits (429), credit exhaustion (402), outages silently fail
 - **Current mitigation:** Error responses handled (lines 81-95); but user experience degrades

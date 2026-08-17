@@ -19,9 +19,33 @@ const manifest = self.__WB_MANIFEST || [];
 console.log('[Service Worker] 📦 Precaching', manifest.length, 'assets');
 precacheAndRoute(manifest);
 
+/*
+ * Origem do Supabase, resolvida em build time a partir da mesma variável que o
+ * app usa. Antes o domínio do projeto estava fixo em duas regex aqui — o que
+ * significava que trocar de projeto (ou self-hospedar) desligava o cache
+ * offline em silêncio, sem erro nenhum.
+ *
+ * Comparar origem + prefixo do caminho, em vez de regex sobre a URL inteira,
+ * evita ter que escapar o host e funciona igual para supabase.co, domínio
+ * próprio ou 127.0.0.1 em desenvolvimento.
+ */
+const SUPABASE_ORIGIN = (() => {
+  try {
+    return new URL(import.meta.env.VITE_SUPABASE_URL).origin;
+  } catch {
+    // Sem configuração válida não há o que cachear; as rotas abaixo nunca
+    // casam e o SW segue funcionando para precache e push.
+    console.warn('[Service Worker] VITE_SUPABASE_URL ausente ou inválida — cache do Supabase desativado');
+    return null;
+  }
+})();
+
+const isSupabasePath = (prefix) => ({ url }) =>
+  SUPABASE_ORIGIN !== null && url.origin === SUPABASE_ORIGIN && url.pathname.startsWith(prefix);
+
 // Cache Supabase API calls
 registerRoute(
-  /^https:\/\/mnznxdewqjyhvrctllgh\.supabase\.co\/rest\/.*/i,
+  isSupabasePath('/rest/'),
   new NetworkFirst({
     cacheName: 'supabase-api-cache',
     plugins: [
@@ -38,7 +62,7 @@ registerRoute(
 
 // Cache Supabase Storage
 registerRoute(
-  /^https:\/\/mnznxdewqjyhvrctllgh\.supabase\.co\/storage\/.*/i,
+  isSupabasePath('/storage/'),
   new CacheFirst({
     cacheName: 'supabase-storage-cache',
     plugins: [
