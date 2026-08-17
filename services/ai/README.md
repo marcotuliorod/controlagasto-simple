@@ -105,13 +105,16 @@ frontend. A separação é deliberada: aqui moram `GEMINI_API_KEY` e
 bundle de browser.
 
 - `rootDirectory` = `services/ai` (o repositório é o mesmo do app)
-- entrypoint: `src/http/server.ts` — o mesmo do container. A Vercel captura o
-  servidor Node pelo `listen()`, e a porta já vem de `PORT`, então **não há
-  arquivo de entrada específico de plataforma**. O `Dockerfile` continua válido
-  e o serviço segue rodando em VPS/Cloud Run sem alteração.
-- `vercel.json` fixa `maxDuration: 60`. As latências medidas são de 3 a 8s — a
-  folga é grande de propósito, porque o caminho não medido é um PDF de extrato
-  grande.
+- entrypoint: **`src/index.ts`**, que só faz `export default createApp(...)`.
+  É o que o preset Hono da Vercel procura — verificado no exemplo oficial, não
+  deduzido. `src/http/server.ts` continua sendo o entrypoint de container/VPS,
+  e o `Dockerfile` segue válido: a diferença entre "servidor que escuta porta"
+  e "handler que a plataforma invoca" fica confinada a esses dois arquivos.
+- `"framework": "hono"` é **obrigatório** no `vercel.json`. Sem ele a detecção
+  resulta em `framework: null`, a Vercel passa a procurar funções num diretório
+  `api/` que não existe aqui, e o build falha com `unused_function`.
+- `maxDuration: 60`. As latências medidas são de 3 a 8s — a folga é grande de
+  propósito, porque o caminho não medido é um PDF de extrato grande.
 
 `ALLOWED_ORIGINS` **não** precisa ser configurada aqui: quem chama este serviço
 é a Edge Function do Supabase (Deno, servidor-a-servidor), não o browser — não
