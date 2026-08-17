@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null
+  "framework": null,
+  "services": {
+    "ai": {
+      "runtime": "container",
+      "root": "./"
+    }
+  }
 }
