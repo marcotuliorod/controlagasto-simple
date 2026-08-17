@@ -21,6 +21,11 @@ dist-ssr
 supabase/.temp/
 supabase/.branches/
 
+# Saída do Playwright (inclui o storageState autenticado — nunca versionar)
+artifacts/
+test-results/
+playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

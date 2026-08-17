@@ -44,29 +44,47 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /*
+     * Cria o usuário e salva o estado autenticado em
+     * artifacts/e2e/.auth/user.json, que 5 specs consomem via `storageState`.
+     *
+     * Precisa de testMatch próprio: `.setup.ts` não casa com o padrão default
+     * (`*.spec.ts`/`*.test.ts`), então sem isto o arquivo nunca era executado
+     * e aqueles specs falhavam por estado inexistente.
+     */
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      dependencies: ['setup'],
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      dependencies: ['setup'],
     },
 
     /* Test against mobile viewports. */
     {
       name: 'Mobile Chrome',
       use: { ...devices['Pixel 5'] },
+      dependencies: ['setup'],
     },
     {
       name: 'Mobile Safari',
       use: { ...devices['iPhone 12'] },
+      dependencies: ['setup'],
     },
   ],
 

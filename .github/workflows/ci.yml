@@ -75,13 +75,28 @@ jobs:
       
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
-      
+
+      # Stack efêmero por execução. Os testes criam usuário de verdade
+      # (test-<timestamp>@example.com) e completam o onboarding; apontar para um
+      # Supabase compartilhado encheria o banco de lixo a cada push. Além disso,
+      # teste hermético não depende de estado deixado por execução anterior.
+      - name: Start local Supabase
+        run: |
+          npx supabase start
+          # `supabase status -o env` expõe as chaves geradas para esta execução.
+          # São as chaves demo padrão do stack local, não segredos.
+          API_URL=$(npx supabase status -o env | grep '^API_URL=' | cut -d'"' -f2)
+          PUB_KEY=$(npx supabase status -o env | grep '^PUBLISHABLE_KEY=' | cut -d'"' -f2)
+          echo "VITE_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_PUBLISHABLE_KEY=$PUB_KEY" >> "$GITHUB_ENV"
+
       - name: Run Playwright tests
         run: npm run test:e2e
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop --no-backup
+
       - name: Upload Playwright Report
         if: always()
         uses: actions/upload-artifact@v4
