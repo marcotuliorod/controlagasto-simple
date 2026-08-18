@@ -24,7 +24,8 @@ Nenhum arquivo em `domain/` importa de `providers/` além de `providers/types.ts
 
 | Variável | Obrigatória | Padrão | Descrição |
 |---|---|---|---|
-| `SUPABASE_JWT_SECRET` | sim | — | Segredo HS256 do GoTrue, para validar o token do usuário |
+| `SUPABASE_URL` | uma das duas | — | URL do projeto. Deriva o JWKS, para validar token **assimétrico** (ES256/RS256) |
+| `SUPABASE_JWT_SECRET` | uma das duas | — | Segredo **HS256** do GoTrue. É o que o stack local emite |
 | `GEMINI_API_KEY` | sim (com `AI_PROVIDER=gemini`) | — | Chave do provedor. **Nunca** vai ao browser |
 | `AI_PROVIDER` | não | `gemini` | Adapter a usar |
 | `AI_MODEL` | não | `gemini-3.5-flash` | Sobrescreve o modelo |
@@ -33,6 +34,21 @@ Nenhum arquivo em `domain/` importa de `providers/` além de `providers/types.ts
 
 O serviço falha no boot se faltar variável obrigatória — e não na primeira
 requisição do usuário.
+
+### Duas famílias de assinatura, não uma
+
+**Contra o Supabase hospedado, `SUPABASE_JWT_SECRET` sozinho não autentica
+ninguém.** O GoTrue de projeto gerenciado assina com chave assimétrica
+(`alg: ES256`, com `kid`), resolvida contra
+`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`. O `supabase start` local ainda
+emite HS256.
+
+Configurar as duas é o normal, e é o que atravessa a migração sem janela de
+indisponibilidade: cada token é verificado pelo `alg` do próprio cabeçalho.
+
+Como o JWKS é buscado por `kid` e recacheado quando aparece um desconhecido,
+**rotacionar chave no Supabase não exige redeploy deste serviço** — ao
+contrário do segredo HS256, que é cópia estática.
 
 ## Rodando
 
@@ -49,16 +65,17 @@ estava embutido em cada função.
 
 ## Subindo o serviço
 
-O `SUPABASE_JWT_SECRET` precisa ser **o mesmo** que o GoTrue usa para assinar os
-tokens — é assim que o serviço valida o usuário. Em local, `npx supabase status`
-mostra o valor; em produção, está em Project Settings > API > JWT Secret.
+Contra projeto **hospedado**, o que autentica é o `SUPABASE_URL` — o JWKS dele
+resolve a chave assimétrica pelo `kid` do token. Contra o stack **local**, é o
+`SUPABASE_JWT_SECRET`, que precisa ser o mesmo que o GoTrue usa para assinar
+(`npx supabase status` mostra o valor).
 
 ### Local
 
 ```bash
 # 1. serviço de IA
 cd services/ai
-SUPABASE_JWT_SECRET="<jwt secret do supabase>" \
+SUPABASE_JWT_SECRET="<jwt secret do supabase status>" \
 GEMINI_API_KEY="<sua chave>" \
 npm run dev
 
@@ -74,7 +91,7 @@ npx supabase functions serve --env-file supabase/functions/.env
 ```bash
 docker build -t entenda-ai services/ai
 docker run -p 8787:8787 \
-  -e SUPABASE_JWT_SECRET="..." \
+  -e SUPABASE_URL="https://<ref>.supabase.co" \
   -e GEMINI_API_KEY="..." \
   -e ALLOWED_ORIGINS="https://seu-dominio" \
   entenda-ai

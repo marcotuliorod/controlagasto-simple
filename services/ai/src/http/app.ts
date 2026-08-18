@@ -110,7 +110,7 @@ export function createApp(config: Config) {
 
   app.post("/v1/receipt", async (c) => {
     // Autentica ANTES de ler o corpo e antes de qualquer chamada paga.
-    const user = await authenticate(c.req.header("Authorization"), config.jwtSecret);
+    const user = await authenticate(c.req.header("Authorization"), config.jwtKeys);
 
     const parsed = receiptSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) {
@@ -131,7 +131,7 @@ export function createApp(config: Config) {
   });
 
   app.post("/v1/statement", async (c) => {
-    const user = await authenticate(c.req.header("Authorization"), config.jwtSecret);
+    const user = await authenticate(c.req.header("Authorization"), config.jwtKeys);
 
     const parsed = statementSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: "Requisição inválida." }, 400);
@@ -160,7 +160,7 @@ export function createApp(config: Config) {
   });
 
   app.post("/v1/insights", async (c) => {
-    const user = await authenticate(c.req.header("Authorization"), config.jwtSecret);
+    const user = await authenticate(c.req.header("Authorization"), config.jwtKeys);
 
     const parsed = insightsSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: "Requisição inválida." }, 400);
@@ -175,7 +175,7 @@ export function createApp(config: Config) {
   });
 
   app.post("/v1/chat", async (c) => {
-    const user = await authenticate(c.req.header("Authorization"), config.jwtSecret);
+    const user = await authenticate(c.req.header("Authorization"), config.jwtKeys);
 
     const parsed = chatSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: "Requisição inválida." }, 400);
