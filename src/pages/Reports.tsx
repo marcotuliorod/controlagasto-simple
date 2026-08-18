@@ -349,9 +349,16 @@ export default function Reports() {
             </Button>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/*
+                * htmlFor/id são o que liga rótulo e campo. Sem eles o leitor de
+                * tela anuncia dois campos de data sem nome, e clicar no rótulo
+                * não foca o campo. Era também o motivo de `getByLabel(/data
+                * inicial/i)` não achar nada no teste de export.
+                */}
               <div className="space-y-2">
-                <Label>Data Inicial</Label>
+                <Label htmlFor="report-date-from">Data Inicial</Label>
                 <Input
+                  id="report-date-from"
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
@@ -359,8 +366,9 @@ export default function Reports() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Data Final</Label>
+                <Label htmlFor="report-date-to">Data Final</Label>
                 <Input
+                  id="report-date-to"
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
