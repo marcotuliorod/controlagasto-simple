@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AIServiceError, callAIService } from '../_shared/aiService.ts';
 import { extractPdfText } from '../_shared/pdfText.ts';
+import { autoDetectMapping, needsColumnMapping } from '../_shared/csvMapping.ts';
 import { isReliable, parseStatementText } from '../_shared/statementParser.ts';
 
 const corsHeaders = {
@@ -188,16 +189,8 @@ function classifyTransaction(
 }
 
 // =============================================================================
-// COLUMN PATTERNS AND CATEGORY KEYWORDS
+// CATEGORY KEYWORDS
 // =============================================================================
-
-const COLUMN_PATTERNS: Record<string, string[]> = {
-  date: ['data', 'date', 'data lançamento', 'data lancamento', 'dt. lançamento', 'dt lancamento', 'data movimento', 'data transação', 'data transacao'],
-  description: ['descrição', 'descricao', 'description', 'histórico', 'historico', 'memo', 'lançamento', 'lancamento', 'detalhe', 'estabelecimento', 'nome'],
-  amount: ['valor', 'amount', 'value', 'quantia', 'montante', 'total'],
-  type: ['tipo', 'type', 'natureza', 'débito/crédito', 'debito/credito', 'd/c'],
-  balance: ['saldo', 'balance', 'saldo final'],
-};
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Alimentação': ['ifood', 'uber eats', 'rappi', 'restaurante', 'lanchonete', 'padaria', 'supermercado', 'mercado', 'açougue', 'hortifruti', 'pizza', 'burger', 'mcdonald', 'subway', 'starbucks', 'café', 'bar', 'pub'],
@@ -303,24 +296,6 @@ function parseCSV(content: string): { headers: string[]; rows: string[][] } {
   const rows = lines.slice(1).map(parseRow).filter(row => row.some(cell => cell.trim()));
 
   return { headers, rows };
-}
-
-function autoDetectMapping(headers: string[]): Record<string, number> {
-  const mapping: Record<string, number> = {};
-
-  headers.forEach((header, index) => {
-    const normalizedHeader = header.toLowerCase().trim();
-    
-    for (const [field, patterns] of Object.entries(COLUMN_PATTERNS)) {
-      if (patterns.some(p => normalizedHeader.includes(p))) {
-        if (!mapping[field]) {
-          mapping[field] = index;
-        }
-      }
-    }
-  });
-
-  return mapping;
 }
 
 function parseDate(dateStr: string): string | null {
@@ -867,7 +842,7 @@ serve(async (req) => {
     if (fileType === 'csv') {
       const { headers, rows } = parseCSV(content);
       const autoMapping = autoDetectMapping(headers);
-      const needsMapping = !autoMapping.date || !autoMapping.amount || (!autoMapping.description && !customMapping);
+      const needsMapping = needsColumnMapping(autoMapping);
       
       if (needsMapping && !customMapping) {
         return new Response(

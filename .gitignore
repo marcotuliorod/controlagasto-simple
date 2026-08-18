@@ -21,6 +21,11 @@ dist-ssr
 supabase/.temp/
 supabase/.branches/
 
+# Lockfile do Deno, gerado por `deno test` nas edge functions. Fora do repo de
+# propósito: as functions importam de esm.sh por URL, e travar o hash de
+# integridade quebra o CI quando o redirect do CDN muda.
+deno.lock
+
 # Saída do Playwright (inclui o storageState autenticado — nunca versionar)
 artifacts/
 test-results/
