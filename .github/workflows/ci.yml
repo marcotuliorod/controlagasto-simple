@@ -56,6 +56,28 @@ jobs:
           name: unit-test-results
           path: coverage/
 
+  # As edge functions rodam em Deno, então `supabase/**` está excluído do
+  # Vitest (ver vite.config.ts) e os testes de `_shared/` usam `Deno.test`.
+  # Sem este job eles existem e nunca rodam: os 20 testes do parser de extrato
+  # ficaram assim desde que foram escritos.
+  edge-function-tests:
+    name: Edge Function Tests (Deno)
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # --allow-net porque os imports vêm de deno.land/esm.sh, não porque os
+      # testes acessem rede: são todos determinísticos, sem Supabase e sem IA.
+      - name: Run Deno tests
+        run: deno test --allow-net supabase/functions/_shared/
+
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
