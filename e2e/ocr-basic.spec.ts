@@ -1,27 +1,10 @@
-/*
- * QUARENTENA — os `test.fixme` abaixo ainda não passam.
- *
- * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
- *
- *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
- *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
- *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
- *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
- *     e depois na opção, por role.
- *
- * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
- *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
- *    storageState do auth.setup.ts;
- *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
- *    dispensava — nenhum seletor era encontrado por baixo dele;
- *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
- *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
- *
- * Cada fixme é dívida explícita: reative ao ajustar a interação.
- */
 import { test, expect } from '@playwright/test';
 import { waitForPageLoad } from './fixtures/test-data';
-import path from 'path';
+import { fileURLToPath } from 'url';
+
+// O projeto é ESM: `__dirname` não existe aqui. Era o que quebrava o upload
+// abaixo — dentro do `test.fixme` o erro nunca aparecia.
+const RECEIPT_FIXTURE = fileURLToPath(new URL('fixtures/mock-receipt.png', import.meta.url));
 
 test.describe('OCR Receipt Processing', () => {
   test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
@@ -37,23 +20,44 @@ test.describe('OCR Receipt Processing', () => {
     await expect(ocrButton).toBeVisible();
   });
 
-  test.fixme('should accept image file upload', async ({ page }) => {
-    // Create a mock receipt image file
-    const mockImagePath = path.join(__dirname, 'fixtures', 'mock-receipt.png');
-    
-    // Note: This test requires a mock image file to exist
-    // In a real scenario, you would have a test fixture image
-    
-    const fileInput = page.locator('input[type="file"]');
-    
-    if (await fileInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-      // Upload file would trigger here
-      // await fileInput.setInputFiles(mockImagePath);
-      
-      console.log('⚠️ File upload test requires mock image fixture');
-    } else {
-      console.log('⚠️ File input not found - OCR might use different upload method');
-    }
+  /*
+   * A resposta do process-receipt é interceptada de propósito. O que este teste
+   * cobre é a ligação entre o OCR e o formulário — hoje sem cobertura nenhuma
+   * — e não a qualidade da extração, que depende de serviço externo, de chave e
+   * do conteúdo da imagem. Sem o route o teste seria não-determinístico.
+   *
+   * O input é `hidden` (a UI o abre pelo botão); `setInputFiles` funciona assim
+   * mesmo e dispara o `onChange` real da página.
+   */
+  test('should accept image file upload', async ({ page }) => {
+    // Derivada de hoje: o campo de data recusa futuro, e uma data fixa no
+    // código vira bomba-relógio quando sai da janela aceita.
+    const receiptDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+    await page.route('**/functions/v1/process-receipt', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            amount: 42.5,
+            date: receiptDate,
+            merchant: 'Padaria do Teste',
+            cnpj: '12.345.678/0001-90',
+            items: [{ item: 'Pão de queijo', value: 42.5 }],
+          },
+        }),
+      })
+    );
+
+    await page.locator('input[type="file"]').setInputFiles(RECEIPT_FIXTURE);
+
+    // Folga no timeout: passa por FileReader e pela invoke antes de preencher.
+    await expect(page.locator('#merchant')).toHaveValue('Padaria do Teste', { timeout: 15000 });
+    await expect(page.locator('#amount')).toHaveValue('42.5');
+    await expect(page.locator('#date')).toHaveValue(receiptDate);
+    await expect(page.locator('#notes')).toHaveValue(/Pão de queijo/);
   });
 
   test('should show processing state during OCR', async ({ page }) => {
