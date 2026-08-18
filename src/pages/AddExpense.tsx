@@ -290,7 +290,7 @@ export default function AddExpense() {
             <div className="space-y-2">
               <Label htmlFor="category">Categoria</Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger aria-describedby="category-help">
+                <SelectTrigger id="category" aria-describedby="category-help">
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -312,7 +312,7 @@ export default function AddExpense() {
             <div className="space-y-2">
               <Label htmlFor="account">Conta</Label>
               <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger aria-describedby="account-help">
+                <SelectTrigger id="account" aria-describedby="account-help">
                   <SelectValue placeholder="Selecione uma conta" />
                 </SelectTrigger>
                 <SelectContent>
@@ -350,7 +350,7 @@ export default function AddExpense() {
             <div className="space-y-2">
               <Label htmlFor="payment">Forma de Pagamento</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
+                <SelectTrigger id="payment">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>

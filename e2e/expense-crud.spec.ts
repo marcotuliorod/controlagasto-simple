@@ -1,26 +1,5 @@
-/*
- * QUARENTENA — os `test.fixme` abaixo ainda não passam.
- *
- * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
- *
- *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
- *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
- *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
- *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
- *     e depois na opção, por role.
- *
- * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
- *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
- *    storageState do auth.setup.ts;
- *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
- *    dispensava — nenhum seletor era encontrado por baixo dele;
- *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
- *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
- *
- * Cada fixme é dívida explícita: reative ao ajustar a interação.
- */
 import { test, expect } from '@playwright/test';
-import { TEST_EXPENSE, waitForPageLoad, formatCurrency } from './fixtures/test-data';
+import { TEST_EXPENSE, waitForPageLoad } from './fixtures/test-data';
 
 test.describe('Expense CRUD Operations', () => {
   test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
@@ -30,27 +9,40 @@ test.describe('Expense CRUD Operations', () => {
     await waitForPageLoad(page);
   });
 
-  test.fixme('should create new expense successfully', async ({ page }) => {
-    // Navigate to add expense
-    await page.getByRole('link', { name: /adicionar/i }).click();
-    await page.waitForURL('/add-expense');
+  test('should create new expense successfully', async ({ page }) => {
+    /*
+     * Não existe link nenhum para /add-expense no app — o teste antigo
+     * procurava um `role: link` que nunca esteve lá. O caminho real é o FAB,
+     * que abre o drawer rápido, e de lá o formulário completo.
+     */
+    await page.getByRole('button', { name: /adicionar nova despesa/i }).click();
+    await page.getByRole('button', { name: /formulário completo/i }).click();
+    await page.waitForURL('**/add-expense');
 
-    // Fill expense form
+    /*
+     * O drawer sai por animação, e ele tem um `id="amount"` igual ao do
+     * formulário completo. Enquanto os dois coexistem, o preenchimento cai no
+     * campo que está morrendo — foi assim que o teste chegou ao submit com o
+     * valor vazio. Esperar o desmonte é o que torna o resto determinístico.
+     */
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
     await page.getByLabel(/valor/i).fill(TEST_EXPENSE.amount);
     await page.getByLabel(/data/i).fill(TEST_EXPENSE.date);
     await page.getByLabel(/estabelecimento/i).fill(TEST_EXPENSE.merchant);
     await page.getByLabel(/observações/i).fill(TEST_EXPENSE.notes);
-    
-    // Select payment method
+
+    // Select do Radix, não <select> nativo: abre no trigger, escolhe por role.
     await page.getByLabel(/forma de pagamento/i).click();
     await page.getByRole('option', { name: TEST_EXPENSE.paymentMethod }).click();
 
-    // Submit form
     await page.getByRole('button', { name: /salvar/i }).click();
 
-    // Should show success message and redirect
-    await expect(page.locator('text=/adicionada|sucesso/i')).toBeVisible({ timeout: 5000 });
-    await expect(page).toHaveURL(/\/(dashboard|expenses)/, { timeout: 5000 });
+    // O toast informa o ciclo de faturamento em que a despesa caiu.
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: /adicionada|sucesso/i }).first()
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
   });
 
   test('should display expense in list', async ({ page }) => {
@@ -136,19 +128,31 @@ test.describe('Expense CRUD Operations', () => {
     expect(url).toContain('/add-expense'); // Should stay on same page
   });
 
-  test.fixme('should not allow future dates', async ({ page }) => {
+  test('should not allow future dates', async ({ page }) => {
     await page.goto('/add-expense');
     await waitForPageLoad(page);
 
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 7);
-    const futureDateStr = futureDate.toISOString().split('T')[0];
+    const today = new Date().toISOString().slice(0, 10);
+    const future = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const dateInput = page.locator('#date');
 
-    await page.getByLabel(/valor/i).fill('100.00');
-    await page.getByLabel(/data/i).fill(futureDateStr);
+    await expect(dateInput).toHaveAttribute('max', today);
+
+    await page.locator('#amount').fill('100.00');
+    await dateInput.fill(future);
     await page.getByRole('button', { name: /salvar/i }).click();
 
-    // Should show error or prevent submission
-    await expect(page.locator('text=/data.*futura|não pode ser futura/i')).toBeVisible({ timeout: 5000 });
+    /*
+     * O `max` do campo faz o próprio navegador barrar o submit, então o
+     * handler — que também rejeita futuro — nem roda, e não há toast para
+     * esperar. Era isso que o teste antigo esperava. O que importa verificar
+     * é que a despesa não foi criada: o campo está inválido e continuamos no
+     * formulário.
+     */
+    const rangeOverflow = await dateInput.evaluate(
+      (el: HTMLInputElement) => el.validity.rangeOverflow
+    );
+    expect(rangeOverflow).toBe(true);
+    await expect(page).toHaveURL(/\/add-expense/);
   });
 });
