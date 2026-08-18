@@ -89,3 +89,83 @@ Deno.test("isReliable recusa quando há muito trecho ilegível", () => {
 Deno.test("isReliable aceita resultado majoritariamente limpo", () => {
   assertEquals(isReliable(parseStatementText(EXTRATO_ACHATADO)), true);
 });
+
+/*
+ * Extrato de conta corrente com quebras de linha e débito marcado por sinal
+ * negativo, sem indicador D/C. É a forma que `pdfText.ts` entrega desde que
+ * passou a reconstruir linhas pela posição dos itens.
+ *
+ * Este layout devolvia 2 transações inventadas em produção — o valor de um
+ * lançamento emendava na descrição do seguinte — e `isReliable` aprovava,
+ * porque nenhum match tinha falhado na conversão. Os testes existentes não
+ * pegaram: todos usam texto achatado, valor positivo e indicador D/C.
+ */
+const EXTRATO_COM_LINHAS = [
+  "BANCO EXEMPLO S.A.",
+  "EXTRATO DE CONTA CORRENTE",
+  "Agencia 0001 Conta 12345-6",
+  "Periodo: 01/08/2026 a 17/08/2026",
+  "DATA HISTORICO VALOR",
+  "01/08/2026 SALDO ANTERIOR 1.250,00",
+  "05/08/2026 SUPERMERCADO BOM PRECO -96,05",
+  "07/08/2026 POSTO IPIRANGA -180,00",
+  "09/08/2026 APLICACAO CDB DI -500,00",
+  "12/08/2026 UBER TRIP -32,40",
+  "14/08/2026 FARMACIA SAO JOAO -78,90",
+  "17/08/2026 SALDO FINAL 362,65",
+].join("\n");
+
+Deno.test("lê extrato com quebras de linha e valor negativo", () => {
+  const { transactions } = parseStatementText(EXTRATO_COM_LINHAS);
+  assertEquals(transactions.length, 5);
+  assertEquals(transactions.map((t) => t.description), [
+    "SUPERMERCADO BOM PRECO",
+    "POSTO IPIRANGA",
+    "APLICACAO CDB DI",
+    "UBER TRIP",
+    "FARMACIA SAO JOAO",
+  ]);
+  assertEquals(transactions.map((t) => t.amount), [96.05, 180, 500, 32.4, 78.9]);
+});
+
+Deno.test("sinal negativo vale como indicador de débito", () => {
+  const { transactions } = parseStatementText("05/08/2026 SUPERMERCADO -96,05");
+  assertEquals(transactions[0]!.indicator, "D");
+  // O valor fica positivo; quem carrega o sentido é o indicador.
+  assertEquals(transactions[0]!.amount, 96.05);
+});
+
+Deno.test("indicador explícito tem precedência sobre o sinal", () => {
+  const { transactions } = parseStatementText("07/01/2024 ESTORNO -200,00 C");
+  assertEquals(transactions[0]!.indicator, "C");
+});
+
+Deno.test("descrição não atravessa quebra de linha", () => {
+  const { transactions } = parseStatementText(EXTRATO_COM_LINHAS);
+  const emendadas = transactions.filter((t) => t.description.includes("/"));
+  assertEquals(emendadas, []);
+});
+
+Deno.test("cabeçalho com data e saldos não viram transação", () => {
+  const { transactions } = parseStatementText(EXTRATO_COM_LINHAS);
+  assertEquals(transactions.some((t) => t.description.includes("SALDO")), false);
+  assertEquals(transactions.some((t) => t.amount === 1250 || t.amount === 362.65), false);
+});
+
+Deno.test("isReliable aceita o extrato com linhas", () => {
+  assertEquals(isReliable(parseStatementText(EXTRATO_COM_LINHAS)), true);
+});
+
+Deno.test("isReliable recusa layout em que as linhas não são lidas", () => {
+  // Data e valor presentes, mas separados por um formato que a regra não
+  // conhece (valor antes da descrição). Antes isto devolvia zero transações e
+  // zero ilegíveis, e o resultado passava como confiável assim que uma única
+  // linha qualquer casasse.
+  const desconhecido = [
+    "05/08/2026 96,05- SUPERMERCADO BOM PRECO",
+    "07/08/2026 180,00- POSTO IPIRANGA",
+    "09/08/2026 500,00- APLICACAO CDB DI",
+  ].join("\n");
+  const resultado = parseStatementText(desconhecido);
+  assertEquals(isReliable(resultado), false);
+});

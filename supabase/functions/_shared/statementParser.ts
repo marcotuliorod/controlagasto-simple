@@ -12,6 +12,12 @@
  * Detalhe que moldou o desenho: a extração de texto de PDF costuma achatar as
  * quebras de linha, entregando tudo numa linha só. Por isso o parser NÃO é
  * baseado em linha — ele ancora na data, que marca o início de cada transação.
+ *
+ * `pdfText.ts` hoje reconstrói as linhas pela posição dos itens, então o texto
+ * normalmente chega quebrado. A âncora na data continua: é o que mantém o
+ * parser funcionando com extração de terceiros que achate tudo de novo. O que
+ * mudou é que uma transação nunca atravessa uma quebra de linha quando ela
+ * existe — sem isso, o valor de um lançamento emenda na descrição do seguinte.
  */
 
 export interface RawTransaction {
@@ -34,9 +40,22 @@ export interface ParseTextResult {
  *
  * A descrição é não-gulosa e o valor exige vírgula decimal com 2 casas, para
  * a descrição não engolir a próxima transação quando o texto vem achatado.
+ *
+ * Os separadores são espaço horizontal (`[^\S\n]`), nunca `\s`: `\s` inclui a
+ * quebra de linha, o que deixava a data de uma linha casar com o valor da
+ * outra e engolir tudo no meio como descrição.
+ *
+ * O sinal negativo é capturado à parte. Muitos extratos marcam o débito com
+ * `-` em vez do indicador `D`, e sem esta captura o valor `-96,05` não casava
+ * (o dígito não vem precedido de espaço): a regex seguia procurando e emendava
+ * os lançamentos seguintes na descrição.
  */
 const TRANSACTION_RE =
-  /(\d{2}\/\d{2}\/\d{2,4})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*([DC])?(?=\s|$)/g;
+  /(\d{2}\/\d{2}\/\d{2,4})[^\S\n]+(.+?)[^\S\n]+(-)?(\d{1,3}(?:\.\d{3})*,\d{2})[^\S\n]*([DC])?(?=\s|$)/g;
+
+/** Linha com cara de lançamento: tem data e tem valor com centavos. */
+const LOOKS_LIKE_TRANSACTION = /\d{2}\/\d{2}\/\d{2,4}/;
+const LOOKS_LIKE_AMOUNT = /\d{1,3}(?:\.\d{3})*,\d{2}/;
 
 /** Linhas que não são transação, mesmo tendo data e valor. */
 const NOT_A_TRANSACTION =
@@ -68,12 +87,47 @@ export function parseStatementText(text: string): ParseTextResult {
   const transactions: RawTransaction[] = [];
   let unparsedCount = 0;
 
+  // Percorre linha a linha. Texto achatado é só o caso de uma linha só, então
+  // isto não muda o comportamento com extração que não preserva quebras.
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+
+    const parsed = parseLine(line);
+    transactions.push(...parsed.transactions);
+    unparsedCount += parsed.unparsedCount;
+
+    // Linha que parece lançamento, não rendeu transação e não foi descartada
+    // de propósito (saldo, total...): sinal de layout que a regra não conhece.
+    // Sem isto, um extrato lido pela metade passava por confiável.
+    if (
+      parsed.transactions.length === 0 &&
+      !parsed.deliberatelySkipped &&
+      LOOKS_LIKE_TRANSACTION.test(line) &&
+      LOOKS_LIKE_AMOUNT.test(line)
+    ) {
+      unparsedCount++;
+    }
+  }
+
+  return { transactions, unparsedCount };
+}
+
+interface ParseLineResult extends ParseTextResult {
+  /** true quando a linha casou mas foi ignorada por ser saldo, total etc. */
+  deliberatelySkipped: boolean;
+}
+
+function parseLine(line: string): ParseLineResult {
+  const transactions: RawTransaction[] = [];
+  let unparsedCount = 0;
+  let deliberatelySkipped = false;
+
   // A regex é global e stateful; recriar evita lastIndex vazando entre chamadas.
   const re = new RegExp(TRANSACTION_RE.source, TRANSACTION_RE.flags);
 
   let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const [, rawDate, rawDescription, rawAmount, indicator] = match;
+  while ((match = re.exec(line)) !== null) {
+    const [, rawDate, rawDescription, sign, rawAmount, indicator] = match;
     if (!rawDate || !rawDescription || !rawAmount) continue;
 
     const description = rawDescription.trim().replace(/\s+/g, " ");
@@ -84,17 +138,23 @@ export function parseStatementText(text: string): ParseTextResult {
       unparsedCount++;
       continue;
     }
-    if (NOT_A_TRANSACTION.test(description)) continue;
+    if (NOT_A_TRANSACTION.test(description)) {
+      deliberatelySkipped = true;
+      continue;
+    }
 
     transactions.push({
       date,
       description,
       amount,
-      indicator: indicator === "D" || indicator === "C" ? indicator : null,
+      // O indicador explícito manda; o sinal negativo é o que sobra quando o
+      // extrato não usa D/C, que é o formato mais comum em conta corrente.
+      indicator:
+        indicator === "D" || indicator === "C" ? indicator : sign === "-" ? "D" : null,
     });
   }
 
-  return { transactions, unparsedCount };
+  return { transactions, unparsedCount, deliberatelySkipped };
 }
 
 /**
