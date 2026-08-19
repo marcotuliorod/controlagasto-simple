@@ -40,6 +40,43 @@ cupom — `supabase/functions/process-receipt`, `services/ai/domain/DocumentExtr
   saiu do `package.json` junto com `ui/drawer.tsx`, que só o drawer rápido usava.
   Ganho real, porém modesto — o peso do PWA está nas libs de gráfico, não aqui.
 
+## Fim da quarentena E2E (19/08/2026)
+
+Os últimos 23 testes em `test.fixme` foram tratados: **21 reativados, 2
+removidos**. Zero marcadores de quarentena restam em `e2e/`. Rodando os dois
+projetos do CI com `--workers=1`: **101 passed, 0 failed**.
+
+- **Quase nada era problema de teste.** Três causas explicavam a maior parte:
+  `selectOption()` usado num Select do Radix (que é botão + listbox em portal,
+  não `<select>`); `window.confirm()` **dispensado** pelo Playwright quando não
+  há listener, o que fazia toda exclusão silenciosamente não acontecer; e
+  botões de ação sem nome acessível. Viraram os helpers `selectRadixOption` e
+  `acceptNativeConfirm` em `e2e/fixtures/test-data.ts`.
+- **Três bugs de produto saíram junto.** Datas de recorrência apareciam um dia
+  antes (`new Date("YYYY-MM-DD")` em UTC-3); os `<Label htmlFor>` dos Selects
+  apontavam para id nenhum; e o **tooltip do ciclo em Relatórios nunca abria
+  para ninguém** — o gatilho era o ícone, e a classe base do `Button` traz
+  `[&_svg]:pointer-events-none`. Era defeito de produto, não do teste.
+- **Sumiu o padrão `if (await x.isVisible())`** que embrulhava as asserções:
+  com seletor errado, o teste passava sem testar nada. Onde o estado é
+  legitimamente ambíguo (o usuário de teste não tem despesas, porque o
+  lançamento manual não existe mais), o teste declara isso via `.or()`.
+- **`signOut()` do Supabase tem escopo `global` por padrão**
+  (`AppSidebar.tsx:159`). O teste de logout usava o `storageState`
+  compartilhado e revogava os refresh tokens do usuário único da suíte,
+  derrubando 16 specs que rodavam em paralelo — cada um passando sozinho. O
+  teste passa a criar conta própria. **A implicação de produto continua em
+  aberto: sair no desktop desloga o celular do usuário.**
+- **Mobile Chrome passou a valer.** O CI roda
+  `--project=chromium --project="Mobile Chrome"`, mas os dois compartilham
+  `storageState` — logo, um usuário e um banco. Nome fixo fazia a segunda
+  passagem reencontrar o registro da primeira; por isso os nomes criados nos
+  testes passam por `uniqueLabel()`.
+- **O CI ganhou um teste de fumaça do edge runtime.** Ele morre calado por OOM
+  (`Exited 137`), e o sintoma vira teste de export vermelho em vez de erro de
+  infra — custou horas de diagnóstico aqui. O passo falha o job com mensagem
+  explícita se `get-vapid-public-key` responder 503.
+
 ## Desacoplamento do Lovable (fases 0-6)
 
 - **O lock-in real eram 4 edge functions** chamando `ai.gateway.lovable.dev`. O resto (`lovable-tagger`, metas do `index.html`, `playwright-fixture.ts` órfão) era cosmético — o build de produção já estava limpo.
@@ -81,6 +118,7 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **Quarentena E2E encerrada** (branch `fix/e2e-quarentena`, PR #11). Ver seção acima. 101 testes verdes em chromium + Mobile Chrome com `--workers=1`, contra stack Supabase local com o edge runtime vivo.
 - **Desacoplamento do Lovable, fases 0-6** (branch `chore/desacoplamento-lovable`). Ver seção acima. Verificado num stack Supabase local real: 30 migrations aplicam limpas, 27 tabelas, 0 sem RLS, triggers de signup funcionam, e o RLS isola de fato (com dois usuários, o intruso recebe 0 linhas ao pedir dados do outro). Isso também fechou dois itens que estavam em aberto aqui: a migration `theme_preference` da Fase 4 nunca testada contra banco real (agora testada, inclusive o CHECK rejeitando valor inválido) e o CI quebrado por `npm run typecheck` inexistente.
 - **Phase 4 (ONBD-01/02/03) complete.** See "Guided onboarding decisions" above. `src/pages/Onboarding.tsx` rewritten as a 3-step wizard; `AccountFormFields` extracted from `AccountForm.tsx`; new `FirstVisitTip.tsx` wired into Dashboard/Reports/Accounts; new `profiles.theme_preference` migration + `useAutoTheme.ts` + `ThemeToggle.tsx`/`useProfile.ts` updates. 7 new tests (135/135 total passing, up from 128). Verified: lint 0 errors/17 pre-existing warnings, `tsc --noEmit` clean, production build clean, dev server boots with 0 console errors (Playwright smoke test). Full interactive wizard/theme-switch flows were **not** manually verified against a logged-in user — no live Supabase auth available in this environment (same constraint as the DB-access items below).
 - **Phase 3 (PERF-01/02/03) complete.** See "Performance hardening decisions" above. `src/pages/Reports.tsx` (virtualized list), `src/hooks/useGamification.ts` (`Promise.all`), new `src/lib/logger.ts` + 5 call-site files updated for logging. No behavior change for end users — same data, same UI, just fewer DOM nodes / fewer round-trips / less console noise.
@@ -96,7 +134,8 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
-- **Serviço de IA não está deployado.** As edge functions exigem o secret `AI_SERVICE_URL`; sem ele, as 4 funcionalidades de IA respondem 503 (erro explícito, mas é quebra real se o branch for publicado antes de subir o serviço).
+- **Serviço de IA não está deployado.** As edge functions exigem o secret `AI_SERVICE_URL`; sem ele, as 4 funcionalidades de IA respondem 503 (erro explícito, mas é quebra real se o branch for publicado antes de subir o serviço). Reconfirmado em 19/08/2026 pelos logs do edge runtime local: o `generate-insights` sobe e falha exatamente nessa variável, e em nada mais.
+- **`signOut()` com escopo global** (`src/components/AppSidebar.tsx:159`): sair numa sessão revoga os refresh tokens de todas. Contornado no E2E; virar `scope: 'local'` é decisão de produto, não tomada.
 - **Credenciais do `.env` que estava versionado seguem válidas** até serem rotacionadas no painel. O arquivo saiu do índice, mas continua no histórico do git.
 - **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
@@ -106,4 +145,10 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
 ## Notes for next session
+A quarentena E2E acabou (seção acima); o que sobra do trabalho de teste é
+ligar firefox/webkit/Mobile Safari no CI, que é custo de minuto de runner, não
+dívida na suíte. As duas pendências que continuam bloqueando funcionalidade são
+operacionais: subir o serviço de IA e apontar `AI_SERVICE_URL`, e rotacionar as
+credenciais do `.env` que estava versionado.
+
 All 4 phases of `.planning/ROADMAP.md` are complete — this milestone's planned work is done. Nothing is queued. Next session should ask the user what's next: pick up a `.planning/REQUIREMENTS.md` v2 item, start a new `gsd-core` milestone, do the manual end-to-end verification noted above once live Supabase access is available, or handle new ad hoc requests.
