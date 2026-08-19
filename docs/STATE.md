@@ -9,13 +9,21 @@ Antes disso, `.planning/ROADMAP.md` Fases 1-4 (onboarding etc.) já estavam comp
 
 ## Remoção do lançamento manual e do OCR (19/08/2026)
 
-> **Status de entrega: escrita e validada, ainda NÃO em produção.** Todo o
-> conteúdo desta seção vive nas branches `fix/e2e-quarentena` (PR #11) e
-> `chore/limpeza-lancamento-manual`. `origin/main` — que a Vercel publica —
-> ainda tem `AddExpense.tsx`, `QuickAddExpense.tsx` e `FABAddExpense.tsx`, e
-> por isso o drawer "Adicionar Despesa" continua vivo no app publicado. O que
-> falta é mergear o PR #11 e aplicar a migration em produção. Ver
-> "Known open items".
+> **Status de entrega: em produção desde 19/08/2026.** PR #12 entrou na
+> `fix/e2e-quarentena` e PR #11 entrou na `main` (merge `291f16d`); a Vercel
+> publicou o deploy `dpl_43PzLHhCktbppCU1N5YRi8Na9zpx` (state `READY`).
+> Conferido no bundle servido em `controlagasto-simple.vercel.app`
+> (`/assets/index-DLlwynCV.js`): zero ocorrência de `AddExpense`, `QuickAdd`,
+> `FABAdd`, `Adicionar Despesa` e `process-receipt`; `/add-expense` aparece só
+> como `<Navigate to="/import-transactions" replace>`; e o `autoUpdate` está lá
+> (`addEventListener("activated", … window.location.reload())`), com
+> `onNeedRefresh` presente apenas na desestruturação interna do plugin, não
+> passado pelo app.
+>
+> **Falta a migration.** `20260819120000_importacao_sem_desbloqueio` ainda não
+> foi aplicada em produção — ver "Known open items". Ela não bloqueia acesso
+> (o código já trata `import-transactions` como sempre liberado), só desalinha
+> a tela de progresso.
 
 Decisão de produto: gasto entra **só** por importação de extrato/fatura. Saíram
 `/add-expense` (446 linhas), o FAB, o drawer de adição rápida, o
@@ -204,16 +212,24 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - Installed `gsd-core` (project planning/phase-loop tooling) and the `caveman` skill (output compression) under `.claude/`/`.agents/`; ran onboarding (`/gsd-map-codebase` → `/gsd-ingest-docs` → `gsd-roadmapper`) producing `.planning/codebase/*`, `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`. `eslint.config.js` and `vite.config.ts` both needed a `.claude`/`.agents`/`.planning` exclude added afterward — the vendored tooling's own files/tests were otherwise getting swept into this project's lint and test runs (lint briefly went 97→537; a caveman test fixture briefly broke `npx vitest --run`).
 
 ## Known open items
-- **A remoção do lançamento manual não está em produção.** PR #11
-  (`fix/e2e-quarentena` → `main`) está `MERGEABLE`/`CLEAN` com os 9 checks
-  verdes, mas não foi mergeado — a tentativa de `gh pr merge 11` foi bloqueada
-  pelo modo de permissão da sessão, não pelo GitHub. Enquanto isso, o drawer
-  "Adicionar Despesa" segue funcional no app publicado. Depois do merge falta
-  ainda: aplicar `20260819120000_importacao_sem_desbloqueio.sql` em produção e
-  verificar em aba anônima que (1) não há FAB nem drawer, (2) `/add-expense`
-  redireciona, (3) um usuário **novo** chega em `/import-transactions` sem
-  cadeado, (4) Cmd+K numa despesa abre a edição, (5) `/recurring-expenses`
-  segue intacto. A branch `chore/limpeza-lancamento-manual` sai depois.
+- **A migration `20260819120000_importacao_sem_desbloqueio` não foi aplicada em
+  produção.** O código está publicado (ver seção acima), o banco não. As duas
+  vias tentadas nesta sessão falharam: o CLI (`npx supabase db push --linked`)
+  responde `LegacyPlatformAuthRequiredError` por falta de `SUPABASE_ACCESS_TOKEN`,
+  e as ferramentas MCP (`apply_migration` e `execute_sql`) foram bloqueadas pelo
+  classificador de permissão. **Não é bloqueio de acesso do usuário:**
+  `useUnlockProgress` faz short-circuit em `useGamification.ts:290` e devolve
+  `isUnlocked: true` antes de consultar o banco. O efeito de deixar assim é
+  cosmético — a tela de progresso segue anunciando "Complete 3 artigos de
+  Orçamento ou 70% no Quiz" para algo já liberado. A linha em produção foi
+  conferida e bate com o rollback documentado no plano de entrega.
+- **Verificação em produção ainda não feita por gente.** Falta, em aba anônima:
+  (1) dashboard sem FAB nem drawer, (2) `/add-expense` redirecionando,
+  (3) cadastro **novo** chegando em `/import-transactions` sem cadeado e
+  conseguindo importar um CSV — o passo crítico, (4) Cmd+K numa despesa abrindo
+  a edição, (5) `/recurring-expenses` intacto, (6) num aparelho com o PWA já
+  instalado, o recarregamento automático do `autoUpdate` derrubando o shell
+  antigo. A branch `chore/limpeza-lancamento-manual` pode sair depois disso.
 - **A importação de PDF continua sem cobertura E2E.** O smoke test novo
   (`import-transactions.spec.ts`) cobre só CSV, que é o caminho determinístico;
   PDF de layout desconhecido cai na IA e exigiria `AI_SERVICE_URL` no ar.
@@ -242,10 +258,11 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
 ## Notes for next session
-**Primeira coisa:** mergear o PR #11. Todo o resto do trabalho de remoção do
-lançamento manual está pronto e verde, mas o produto publicado ainda tem o
-drawer. Ver o primeiro item de "Known open items" para a lista de verificação
-pós-deploy.
+**Primeira coisa:** aplicar a migration `20260819120000_importacao_sem_desbloqueio`
+em produção e rodar a verificação em aba anônima. O código da remoção já está
+publicado; são os dois primeiros itens de "Known open items". Depois disso, o
+PR do acento (`atob` em `process-import-file/index.ts:781`), que ficou combinado
+para depois do merge.
 
 A quarentena E2E acabou (seção acima); o que sobra do trabalho de teste é
 ligar firefox/webkit/Mobile Safari no CI, que é custo de minuto de runner, não
