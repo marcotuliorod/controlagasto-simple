@@ -56,3 +56,49 @@ export function generateTestEmail(): string {
 export function formatCurrency(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
+
+/**
+ * Escolhe uma opção num Select do shadcn/Radix.
+ *
+ * Não é um <select> nativo, então `selectOption()` não funciona: é um botão
+ * que abre um listbox em portal. Precisa clicar no gatilho e depois na opção.
+ *
+ * `triggerLabel` é o texto do <Label> ligado ao gatilho (ex: "Frequência");
+ * `optionName`, o rótulo VISÍVEL da opção (ex: "Mensal", não o value "monthly").
+ */
+export async function selectRadixOption(
+  page: Page,
+  triggerLabel: string,
+  optionName: string,
+) {
+  await page.getByLabel(triggerLabel, { exact: true }).click();
+  await page.getByRole('option', { name: optionName, exact: true }).click();
+}
+
+/**
+ * Aceita o `window.confirm()` nativo usado nas exclusões.
+ *
+ * O Playwright DISPENSA qualquer diálogo nativo por padrão quando não há
+ * listener — então, sem isto, `confirm()` devolve false, a mutação de exclusão
+ * nunca roda e o teste falha sem dizer por quê.
+ *
+ * Chamar ANTES da ação que dispara o diálogo.
+ */
+export function acceptNativeConfirm(page: Page) {
+  page.once('dialog', (dialog) => dialog.accept());
+}
+
+/**
+ * Sufixa um nome com um token único desta execução.
+ *
+ * Os specs compartilham UM usuário e UM banco — inclusive entre projetos: o CI
+ * roda `--project=chromium --project="Mobile Chrome"`, e os dois consomem o
+ * mesmo `storageState`. Sem o sufixo, a segunda passagem reencontra o registro
+ * que a primeira deixou e `card(...).first()` resolve para o velho: o teste de
+ * toggle achava "Pausado" onde esperava "Ativo", e só no Mobile Chrome.
+ *
+ * Vale também para rodar duas vezes seguidas sem recriar o banco local.
+ */
+export function uniqueLabel(base: string): string {
+  return `${base} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
