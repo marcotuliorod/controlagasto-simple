@@ -129,6 +129,19 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **O PWA instalado passou a se atualizar sozinho.** `registerType: 'prompt'`
+  (`vite.config.ts`) virou `'autoUpdate'`. Com `'prompt'`, quem tinha o app
+  instalado continuava com o bundle antigo — que ainda tem o drawer de
+  lançamento manual — até aceitar um `confirm()`; e como não há trava no banco
+  (decisão em `CONTEXT.md`), esse shell velho ainda conseguia inserir despesa
+  à mão. `public/sw.js` já chamava `skipWaiting()` e `clientsClaim()` (linhas
+  12-13), que é o que o `autoUpdate` exige na estratégia `injectManifest`, então
+  não foi preciso tocar no service worker. O `onNeedRefresh` com `confirm()` saiu
+  de `src/main.tsx`: no modo `autoUpdate` o vite-plugin-pwa nem chama esse
+  callback — ele escuta `activated` e dá `window.location.reload()` sozinho
+  (conferido no bundle gerado, não só na doc). Contrapartida aceita: a página
+  recarrega sem avisar, e quem estiver no meio do assistente de importação perde
+  o passo.
 - **Três testes que passavam sem testar nada viraram testes de verdade.**
   Criar dado real (o spec da importação) expôs o que a ausência de dado
   escondia: `expense-crud` procurava linhas por `[class*="expense"]`, que não
@@ -201,11 +214,6 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   redireciona, (3) um usuário **novo** chega em `/import-transactions` sem
   cadeado, (4) Cmd+K numa despesa abre a edição, (5) `/recurring-expenses`
   segue intacto. A branch `chore/limpeza-lancamento-manual` sai depois.
-- **PWA instalado continua com o app antigo depois do merge.**
-  `registerType: 'prompt'` (`vite.config.ts:45`) não atualiza o service worker
-  sozinho, e como não há trava no banco (decisão registrada em `CONTEXT.md`),
-  esse shell antigo ainda consegue inserir despesa manual até o usuário aceitar
-  o prompt de atualização.
 - **A importação de PDF continua sem cobertura E2E.** O smoke test novo
   (`import-transactions.spec.ts`) cobre só CSV, que é o caminho determinístico;
   PDF de layout desconhecido cai na IA e exigiria `AI_SERVICE_URL` no ar.
