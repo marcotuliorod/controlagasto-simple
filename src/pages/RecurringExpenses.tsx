@@ -184,7 +184,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoria</Label>
                   <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger>
+                    <SelectTrigger id="category">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -200,7 +200,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="account">Conta</Label>
                   <Select value={accountId} onValueChange={setAccountId}>
-                    <SelectTrigger>
+                    <SelectTrigger id="account">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -216,7 +216,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="frequency">Frequência *</Label>
                   <Select value={frequency} onValueChange={(v) => setFrequency(v as RecurringExpense["frequency"])}>
-                    <SelectTrigger>
+                    <SelectTrigger id="frequency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -253,7 +253,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="payment">Forma de Pagamento</Label>
                   <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
+                    <SelectTrigger id="payment">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -339,6 +339,7 @@ export default function RecurringExpenses() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`${rec.is_active ? "Pausar" : "Retomar"} recorrência ${rec.merchant}`}
                       onClick={() => toggleActive(rec.id, rec.is_active)}
                     >
                       {rec.is_active ? (
@@ -347,12 +348,18 @@ export default function RecurringExpenses() {
                         <Play className="w-4 h-4" />
                       )}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(rec)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Editar recorrência ${rec.merchant}`}
+                      onClick={() => handleEdit(rec)}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Excluir recorrência ${rec.merchant}`}
                       onClick={() => {
                         if (confirm("Confirma exclusão desta recorrência?")) {
                           deleteRecurring.mutate(rec.id);
