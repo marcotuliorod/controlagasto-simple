@@ -29,12 +29,27 @@ antes de reabrir o código.
 de policy RLS exigindo `source = 'import'` em `expenses`.
 **Por quê:** decisão do dono do produto. A policy de INSERT segue exigindo só
 `auth.uid() = user_id`.
-**Consequência aceita:** o app é PWA com `registerType: 'prompt'` (`vite.config.ts:45`) —
-o service worker **não** atualiza sozinho. Quem já tem o app instalado continua com o
-shell antigo, com o drawer funcional, até aceitar o prompt de atualização; e esse shell
-antigo ainda consegue inserir despesa manual, porque não há trava no banco. Fechar isso
-exigiria a trava por RLS (recusada) ou `registerType: 'autoUpdate'`.
-**Alternativas consideradas:** RLS por `source`; autoUpdate no service worker.
+**Consequência aceita:** sem trava no banco, qualquer cliente com uma sessão válida
+consegue inserir em `expenses` — inclusive um bundle antigo que ainda tenha o formulário.
+Isso motivou a decisão seguinte (`autoUpdate` no service worker), que fecha a janela do
+lado do cliente em vez do lado do banco.
+**Alternativas consideradas:** RLS por `source` — recusada; a garantia fica na aplicação.
+
+### 2026-08-19 — PWA passa a atualizar sozinho
+**Decisão:** `registerType: 'prompt'` → `'autoUpdate'` em `vite.config.ts`, e o
+`onNeedRefresh` com `confirm()` sai de `src/main.tsx`.
+**Por quê:** era a única forma de fechar a brecha deixada pela decisão acima sem recorrer
+à trava por RLS, que foi recusada. Com `'prompt'`, quem tinha o PWA instalado seguia com o
+bundle antigo — que ainda tem o drawer de lançamento manual — até aceitar um `confirm()`,
+e esse shell velho continuava inserindo despesa à mão. `public/sw.js` já chamava
+`skipWaiting()` e `clientsClaim()` (linhas 12-13), que é exatamente o que o `autoUpdate`
+exige na estratégia `injectManifest`, então o service worker não precisou mudar. No modo
+`autoUpdate` o vite-plugin-pwa **não** chama `onNeedRefresh`: ele escuta `activated` e dá
+`window.location.reload()` — conferido no bundle gerado, não só na documentação.
+**Consequência aceita:** a página recarrega sem avisar quando sai versão nova. O único
+fluxo longo o bastante para incomodar é o assistente de importação, cujo passo de prévia
+se perde. Aceitável na frequência de deploy atual.
+**Alternativas consideradas:** manter o prompt e esperar o usuário aceitar; trava por RLS.
 
 ### 2026-08-19 — Importação fora do sistema de desbloqueio não depende da migration
 **Decisão:** manter `import-transactions` em `ALWAYS_UNLOCKED` (`useGamification.ts:108-117`)
