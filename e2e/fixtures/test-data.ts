@@ -89,6 +89,87 @@ export function acceptNativeConfirm(page: Page) {
 }
 
 /**
+ * Cria uma conta nova e leva até o dashboard, com o onboarding completo e o
+ * modal de boas-vindas dispensado.
+ *
+ * O `auth.setup.ts` usa isto para gravar o `storageState` compartilhado. Quem
+ * mais chama é o teste de logout — e ele PRECISA de usuário próprio: o
+ * `signOut()` do Supabase tem escopo `global` por padrão, revogando todos os
+ * refresh tokens do usuário. Compartilhando a sessão do setup, o logout
+ * derrubava os specs que rodavam em paralelo, que passavam a falhar por token
+ * inválido (diálogo de criação que não fecha, perfil que não carrega) sem
+ * nenhuma pista de que a causa estava em outro arquivo.
+ */
+export async function signUpAndOnboard(
+  page: Page,
+  {
+    email = generateTestEmail(),
+    password = TEST_USER.password,
+    name = TEST_USER.name,
+    monthlyGoal = TEST_USER.monthlyGoal,
+    billingCycleDay = TEST_USER.billingCycleDay,
+  }: Partial<typeof TEST_USER> = {},
+) {
+  await page.goto('/auth');
+  await waitForPageLoad(page);
+
+  // "Criar Conta" é uma aba (TabsTrigger), não um botão. O e-mail aparece nas
+  // duas abas, então os campos são buscados dentro do painel de cadastro para
+  // não dar ambiguidade.
+  await page.getByRole('tab', { name: 'Criar Conta' }).click();
+  const signup = page.getByRole('tabpanel');
+
+  await signup.getByPlaceholder('Seu nome').fill(name);
+  await signup.getByPlaceholder('seu@email.com').fill(email);
+  await signup.getByPlaceholder('Mínimo 6 caracteres').fill(password);
+  await signup.getByRole('button', { name: /criar conta/i }).click();
+
+  await page.waitForURL(/\/(onboarding|dashboard)/, { timeout: 15000 });
+
+  // Wizard de 3 passos: meta → ciclo de faturamento → primeira conta.
+  if (page.url().includes('onboarding')) {
+    // Passo 1 — meta mensal. Busca por label: o placeholder é "1500.00".
+    await page.getByLabel(/meta mensal/i).fill(String(monthlyGoal));
+    await page.getByRole('button', { name: 'Próximo' }).click();
+
+    // Passo 2 — dia do ciclo.
+    await page.getByRole('button', { name: `Dia ${billingCycleDay}` }).click();
+    await page.getByRole('button', { name: 'Próximo' }).click();
+
+    // Passo 3 — primeira conta. Só o nome é obrigatório; o resto tem padrão.
+    await page.getByLabel(/nome da conta/i).fill('Conta de Teste');
+    await page.getByRole('button', { name: 'Concluir' }).click();
+
+    await page.waitForURL('/dashboard', { timeout: 15000 });
+  }
+
+  /*
+   * Dispensa o modal de boas-vindas da gamificação.
+   *
+   * Ele aparece para todo usuário novo. Sem dispensar, fica por cima de
+   * qualquer página: `getByRole('heading')` só enxerga o dele, e os seletores
+   * das outras suítes falham por "element not found".
+   *
+   * "Pular (Desbloquear Tudo)" em vez de "Começar a Aprender": além de fechar,
+   * libera os itens de menu que o desbloqueio progressivo esconderia, e sem
+   * eles as suítes não conseguiriam navegar.
+   *
+   * Precisa ESPERAR: o modal só renderiza depois que a consulta de gamificação
+   * resolve. Um isVisible() imediato retorna false e o modal segue lá.
+   */
+  const pular = page.getByRole('button', { name: /pular/i });
+  try {
+    await pular.waitFor({ state: 'visible', timeout: 15000 });
+    await pular.click();
+    await pular.waitFor({ state: 'hidden', timeout: 15000 });
+  } catch {
+    // Se não apareceu, o usuário já passou por ele — segue.
+  }
+
+  return { email, password };
+}
+
+/**
  * Sufixa um nome com um token único desta execução.
  *
  * Os specs compartilham UM usuário e UM banco — inclusive entre projetos: o CI

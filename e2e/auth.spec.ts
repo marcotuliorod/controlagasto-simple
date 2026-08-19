@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { generateTestEmail, waitForPageLoad } from './fixtures/test-data';
+import { generateTestEmail, signUpAndOnboard, waitForPageLoad } from './fixtures/test-data';
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -26,7 +26,11 @@ test.describe('Authentication Flow', () => {
     await signup.getByRole('button', { name: /criar conta/i }).click();
 
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
-    await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible();
+    // Mesmo timeout da navegação: /onboarding é lazy-loaded, e com a suíte
+    // inteira em 4 workers o chunk demorava mais que os 5s padrão.
+    await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('should validate email format', async ({ page }) => {
@@ -88,11 +92,17 @@ test.describe('Authentication Flow', () => {
 });
 
 test.describe('Logout', () => {
-  // Sair exige estar dentro: usa a sessão do auth.setup.ts.
-  test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
-
+  /*
+   * Usuário PRÓPRIO, não o `storageState` do auth.setup.ts.
+   *
+   * `supabase.auth.signOut()` (AppSidebar.tsx) tem escopo `global` por padrão:
+   * revoga TODOS os refresh tokens do usuário, não só o desta aba. Com a
+   * sessão compartilhada, este teste derrubava os 5 specs que rodam em
+   * paralelo com ela — e eles falhavam por token inválido, sem nenhuma pista
+   * de que a causa estava aqui.
+   */
   test('should logout successfully', async ({ page }) => {
-    await page.goto('/dashboard');
+    await signUpAndOnboard(page);
     await waitForPageLoad(page);
 
     // O botão vive na sidebar, que no mobile só existe atrás do menu.
