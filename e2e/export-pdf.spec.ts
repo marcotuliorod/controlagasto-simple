@@ -17,8 +17,10 @@ test.describe('PDF Export', () => {
   });
 
   test('should trigger PDF download on button click', async ({ page }) => {
-    // Set up download listener
-    const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
+    // Menor que o timeout do teste (30s), senão o teste estoura ANTES de o
+    // waitForEvent rejeitar e o catch abaixo nunca roda — o tratamento de
+    // "sem download" existia mas era inalcançável.
+    const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
     
     // Click PDF export button
     const pdfButton = page.getByRole('button', { name: /pdf/i });
