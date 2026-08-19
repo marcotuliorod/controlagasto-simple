@@ -384,20 +384,6 @@ execute(
 
 ---
 
-### useCategorySuggestion
-
-Sugere categoria baseada no comerciante.
-
-```typescript
-const {
-  suggestedCategory, // Category | null
-  isLoading,         // boolean
-  getSuggestion,     // (merchant: string) => Promise<Category | null>
-} = useCategorySuggestion();
-```
-
----
-
 ## 📱 UI
 
 ### useMobile

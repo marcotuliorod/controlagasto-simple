@@ -154,32 +154,35 @@ useExpensesRealtime({
 
 #### 3. Form Handling
 
-**Stack:** React Hook Form + Zod validation
+**Stack:** React Hook Form + Zod validation — onde existe schema. Nem todo
+formulário do app segue isso: `RecurringExpenses.tsx` e `EditExpense.tsx` usam
+`useState` + `required` nativo do HTML. Ao mexer num deles, confira antes o que
+o arquivo realmente usa.
 
 **Pattern:**
 1. Define schema in `src/schemas/*.ts`
 2. Use `@hookform/resolvers/zod` for validation
 3. Handle currency formatting with `src/lib/currencyUtils.ts`
 
-Example:
+Exemplo real, de `src/pages/AccountProfile.tsx` (único consumidor de Zod hoje):
 ```typescript
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { expenseSchema } from "@/schemas/expenseSchema";
+import { profileFormSchema, type ProfileFormData } from "@/schemas/profileSchema";
 
-const form = useForm({
-  resolver: zodResolver(expenseSchema),
-  defaultValues: { amount: "", merchant: "" }
+const profileForm = useForm<ProfileFormData>({
+  resolver: zodResolver(profileFormSchema),
+  defaultValues: { name: "" },
 });
 
-const onSubmit = form.handleSubmit(async (values) => {
+const onSubmit = profileForm.handleSubmit(async (values) => {
   // values are type-safe and validated
 });
 ```
 
 **Currency Formatting:**
-- Always use `parseAmount(string)` from `currencyUtils.ts` to convert display -> database
-- Use `formatCurrency(number)` for database -> display
+- Always use `parseCurrencyBR(string)` from `currencyUtils.ts` to convert display -> database
+- Use `formatCurrencyBR(number)` for database -> display
 - Format: R$ 1.234,56 (Brazilian Real with dot thousands, comma decimal)
 
 #### 4. Edge Functions
@@ -283,6 +286,15 @@ Ver `services/ai/README.md` e `docs/LGPD-IA.md`.
 5. AI insights (`insights.spec.ts`)
 6. Scheduled exports (`scheduled-exports.spec.ts`)
 7. Recurring expenses (`recurring-expenses.spec.ts`)
+
+Fora da lista: `auth.setup.ts` não é suíte, é o projeto `setup` do
+`playwright.config.ts` — cria a conta e grava o `storageState` que todas as
+outras usam. Todo projeto de browser depende dele.
+
+**Lacuna conhecida:** a importação de extrato/fatura é a única porta de entrada
+de gasto e **não tem spec**. Ao mexer em `ImportTransactions.tsx`,
+`useImportTransactions.ts` ou `components/import/*`, não conte com rede de
+proteção E2E.
 
 ### Data Model Key Points
 

@@ -48,44 +48,55 @@ Location: `e2e/*.spec.ts`
 
 Available test suites:
 - `auth.spec.ts` - Authentication flows
-- `expense-crud.spec.ts` - Expense CRUD operations
-- `ocr-basic.spec.ts` - OCR receipt processing
+- `expense-crud.spec.ts` - Listagem, edição e exclusão (criação saiu com o lançamento manual)
 - `reports-cycle.spec.ts` - Billing cycle reports
-- `export-pdf.spec.ts` - PDF export functionality
+- `export-pdf.spec.ts` - PDF/CSV/XLSX export
 - `insights.spec.ts` - Financial insights generation
+- `recurring-expenses.spec.ts` - Despesas recorrentes
+- `scheduled-exports.spec.ts` - Exportações agendadas
+
+`auth.setup.ts` não é suíte: é o projeto `setup`, que cria a conta e grava o
+`storageState` compartilhado. A importação de extrato/fatura ainda não tem
+spec.
 
 ### Writing E2E Tests
 
 Example:
 ```typescript
 import { test, expect } from '@playwright/test';
+import { waitForPageLoad } from './fixtures/test-data';
 
-test('should add expense', async ({ page }) => {
-  await page.goto('/dashboard');
-  await page.click('text=Adicionar Despesa');
-  await page.fill('[name="description"]', 'Test Expense');
-  await page.fill('[name="amount"]', '50.00');
-  await page.click('button[type="submit"]');
-  await expect(page.locator('text=Despesa adicionada')).toBeVisible();
+test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
+
+test('deve abrir a edição de uma despesa', async ({ page }) => {
+  await page.goto('/expenses');
+  await waitForPageLoad(page);
+
+  await page.getByRole('button', { name: /editar despesa/i }).first().click();
+  await expect(page).toHaveURL(/\/expenses\/.+\/edit/, { timeout: 15000 });
 });
 ```
+
+Não há caminho de criação manual de despesa para testar: gasto entra só por
+`/import-transactions`.
 
 ### Test Data
 Location: `e2e/fixtures/test-data.ts`
 
-Contains reusable test data:
+Exports em uso (os fixtures de despesa saíram junto com o formulário manual):
 ```typescript
-export const TEST_USER = {
-  email: 'test@example.com',
-  password: 'Test123!@#'
-};
+export const TEST_USER = { /* email, password, name, monthlyGoal, billingCycleDay */ };
 
-export const TEST_EXPENSE = {
-  description: 'Test Expense',
-  amount: 50.00,
-  category: 'Alimentação'
-};
+export async function waitForPageLoad(page: Page)      // sempre após navegar
+export function generateTestEmail(): string            // conta nova por execução
+export async function selectRadixOption(...)           // Select do shadcn não é <select>
+export function acceptNativeConfirm(page: Page)
+export async function signUpAndOnboard(page: Page)     // cadastro + onboarding completo
+export function uniqueLabel(base: string): string      // evita colisão entre projetos
 ```
+
+`uniqueLabel` existe porque chromium e Mobile Chrome dividem um usuário e um
+banco: nome fixo fazia a segunda execução esbarrar no registro da primeira.
 
 ## CI/CD Integration
 

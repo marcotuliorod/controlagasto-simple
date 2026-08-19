@@ -459,10 +459,9 @@ Ao criar conta, usuário recebe automaticamente:
 - Páginas do app
 
 ### 14.2 Ações Rápidas
-- Adicionar despesa
-- Ver relatórios
-- Configurações
-- Navegação rápida
+- Importar extrato ou fatura
+- Despesas recorrentes
+- Exportações agendadas
 
 ### 14.3 Interface
 - Command palette (estilo VS Code)

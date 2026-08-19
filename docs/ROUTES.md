@@ -282,7 +282,6 @@ Layout padrão com:
 | Atalho | Ação |
 |--------|------|
 | `Ctrl+K` / `Cmd+K` | Busca global |
-| `Ctrl+N` | Nova despesa |
 
 ---
 

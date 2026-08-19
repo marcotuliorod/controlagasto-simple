@@ -127,15 +127,10 @@ Três novos testes end-to-end para garantir qualidade:
 - ✅ Configuração de data final
 - ✅ Filtro por status
 
-#### Test 3: Tags & Notes (`e2e/tags-notes.spec.ts`)
-- ✅ Adicionar tags em nova despesa
-- ✅ Adicionar notas em nova despesa
-- ✅ Editar tags em despesa existente
-- ✅ Editar notas em despesa existente
-- ✅ Filtrar despesas por tags
-- ✅ Remover tag de despesa
-- ✅ Exibir notas na listagem
-- ✅ Buscar por conteúdo de nota
+#### Test 3: Tags & Notes (`e2e/tags-notes.spec.ts`) — REMOVIDO em 19/08/2026
+A suíte saiu junto com o lançamento manual: 6 dos 8 cenários dependiam de criar
+despesa pelo formulário, que não existe mais. Tags e notas continuam no app,
+pela tela de edição (`/expenses/:id/edit`), mas sem cobertura E2E própria.
 
 **Como executar:**
 ```bash
@@ -143,7 +138,7 @@ Três novos testes end-to-end para garantir qualidade:
 npm run test:e2e
 
 # Apenas novos testes do Sprint 7
-npm run test:e2e -- scheduled-exports recurring-expenses tags-notes
+npm run test:e2e -- scheduled-exports recurring-expenses
 
 # Com UI interativa
 npm run test:e2e:ui
