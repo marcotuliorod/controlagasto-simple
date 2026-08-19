@@ -25,7 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Repeat, Calendar, Trash2, Edit, Pause, Play } from "lucide-react";
-import { format } from "date-fns";
+/*
+ * `parseISO`, não `new Date(str)`: `start_date`, `end_date` e `next_occurrence`
+ * são colunas `date` (YYYY-MM-DD), e `new Date("2026-01-01")` parseia como UTC
+ * — em fuso negativo (UTC-3, Brasil) isso vira 31/12/2025 na tela. Mesmo bug
+ * que já foi corrigido em src/lib/dateRange.ts.
+ */
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function RecurringExpenses() {
@@ -315,14 +321,14 @@ export default function RecurringExpenses() {
                       <p>
                         <span>Próxima ocorrência:</span>{" "}
                         <span className="font-medium text-foreground">
-                          {format(new Date(rec.next_occurrence), "dd/MM/yyyy", { locale: ptBR })}
+                          {format(parseISO(rec.next_occurrence), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
                       </p>
                       {rec.end_date && (
                         <p>
                           <span>Encerra em:</span>{" "}
                           <span className="font-medium">
-                            {format(new Date(rec.end_date), "dd/MM/yyyy", { locale: ptBR })}
+                            {format(parseISO(rec.end_date), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         </p>
                       )}
