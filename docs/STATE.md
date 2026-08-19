@@ -228,8 +228,6 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   `aws-0` o servidor responde `tenant/user not found`, e com 6543 (transaction
   mode) migration não roda. Registrado aqui porque custou três tentativas e
   vai custar de novo na próxima migration.
-- **A branch `chore/limpeza-lancamento-manual` ainda existe no remoto** e já foi
-  incorporada — pode ser apagada.
 - **A importação de PDF continua sem cobertura E2E.** O smoke test novo
   (`import-transactions.spec.ts`) cobre só CSV, que é o caminho determinístico;
   PDF de layout desconhecido cai na IA e exigiria `AI_SERVICE_URL` no ar.
