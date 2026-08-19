@@ -129,6 +129,28 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **Três testes que passavam sem testar nada viraram testes de verdade.**
+  Criar dado real (o spec da importação) expôs o que a ausência de dado
+  escondia: `expense-crud` procurava linhas por `[class*="expense"]`, que não
+  casa com nada na lista virtualizada (as linhas são `role="listitem"` dentro
+  de `role="list"` "Lista de despesas"), e ainda embrulhava tudo em
+  `if (isVisible)` — listar, editar e excluir nunca exercitaram nada; o teste
+  de edição chegava a asserir a URL `/expenses/edit`, que não existe. Em
+  `reports-cycle`, `#reports-total-card` também não casava com nada:
+  "reports-total-card" é o `id` do `FirstVisitTip` (chave de localStorage), não
+  um id de DOM — o teste vivia do ramo do estado vazio. Ambos corrigidos contra
+  o DOM real, tolerando lista vazia porque a ordem alfabética pode rodar
+  `expense-crud` antes de `import-transactions` num banco limpo.
+- **Corrida no `signUpAndOnboard` que derrubava execuções inteiras.** O modal
+  de boas-vindas da gamificação era dispensado com "Pular (Desbloquear Tudo)",
+  mas `handleSkip` fecha o diálogo na hora e deixa o UPDATE de `profiles`
+  correndo solto; salvar o `storageState` e fechar o contexto logo depois
+  cancelava a requisição. Quando o UPDATE perdia a corrida, o modal reabria em
+  toda página da execução seguinte e ~14 testes caíam em bloco com "element not
+  found" — o diálogo tira o resto da árvore de acessibilidade do caminho. Pior:
+  o `catch {}` do helper engolia a falha e o projeto `setup` passava verde.
+  Agora o helper espera o toast de confirmação, que só sai depois do banco
+  responder.
 - **A importação ganhou spec E2E** (`e2e/import-transactions.spec.ts`,
   19/08/2026): CSV com dois débitos e um crédito → prévia (2 despesas, 1
   auto-excluído, 0 duplicados) → resumo → confirmação → a despesa aparece

@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * Test data fixtures for E2E tests
@@ -125,14 +125,27 @@ export async function signUpAndOnboard(
    *
    * Precisa ESPERAR: o modal só renderiza depois que a consulta de gamificação
    * resolve. Um isVisible() imediato retorna false e o modal segue lá.
+   *
+   * E é preciso esperar o TOAST, não bastava o modal sumir: `handleSkip` faz
+   * `setOpen(false)` na hora e deixa o UPDATE de `profiles` correndo solto
+   * (`useSkipGamification`). Salvar o `storageState` e fechar o contexto nesse
+   * intervalo cancela a requisição — o bypass não persiste, o modal reabre em
+   * TODA página da execução e as suítes caem em bloco com "element not found",
+   * porque o diálogo tira o resto da árvore de acessibilidade do caminho. Era
+   * sorte: às vezes o UPDATE ganhava a corrida, às vezes não. O toast só sai
+   * depois que o banco confirma.
    */
   const pular = page.getByRole('button', { name: /pular/i });
-  try {
-    await pular.waitFor({ state: 'visible', timeout: 15000 });
+  const modalApareceu = await pular
+    .waitFor({ state: 'visible', timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (modalApareceu) {
     await pular.click();
-    await pular.waitFor({ state: 'hidden', timeout: 15000 });
-  } catch {
-    // Se não apareceu, o usuário já passou por ele — segue.
+    await expect(page.getByText(/funcionalidades foram desbloqueadas/i)).toBeVisible({
+      timeout: 15000,
+    });
   }
 
   return { email, password };
