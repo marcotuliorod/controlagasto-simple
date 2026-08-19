@@ -95,11 +95,12 @@ test.describe('Logout', () => {
   /*
    * Usuário PRÓPRIO, não o `storageState` do auth.setup.ts.
    *
-   * `supabase.auth.signOut()` (AppSidebar.tsx) tem escopo `global` por padrão:
-   * revoga TODOS os refresh tokens do usuário, não só o desta aba. Com a
-   * sessão compartilhada, este teste derrubava os 5 specs que rodam em
-   * paralelo com ela — e eles falhavam por token inválido, sem nenhuma pista
-   * de que a causa estava aqui.
+   * O app hoje sai com `scope: 'local'` (AppSidebar.tsx), mas isso NÃO torna
+   * seguro compartilhar a sessão: o `storageState` é uma sessão só, e o escopo
+   * local revoga exatamente ela — que é justamente a que os outros 5 specs
+   * estão usando em paralelo. Com escopo global era pior (derrubava até
+   * sessões de outra execução), e o sintoma era o mesmo: eles falhavam por
+   * token inválido, sem pista nenhuma de que a causa estava aqui.
    */
   test('should logout successfully', async ({ page }) => {
     await signUpAndOnboard(page);

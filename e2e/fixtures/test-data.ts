@@ -93,12 +93,11 @@ export function acceptNativeConfirm(page: Page) {
  * modal de boas-vindas dispensado.
  *
  * O `auth.setup.ts` usa isto para gravar o `storageState` compartilhado. Quem
- * mais chama é o teste de logout — e ele PRECISA de usuário próprio: o
- * `signOut()` do Supabase tem escopo `global` por padrão, revogando todos os
- * refresh tokens do usuário. Compartilhando a sessão do setup, o logout
- * derrubava os specs que rodavam em paralelo, que passavam a falhar por token
- * inválido (diálogo de criação que não fecha, perfil que não carrega) sem
- * nenhuma pista de que a causa estava em outro arquivo.
+ * mais chama é o teste de logout — e ele PRECISA de usuário próprio: sair
+ * revoga a sessão, e o `storageState` é UMA sessão, dividida por todos os
+ * specs que rodam em paralelo. Eles passavam a falhar por token inválido
+ * (diálogo de criação que não fecha, perfil que não carrega) sem nenhuma pista
+ * de que a causa estava em outro arquivo.
  */
 export async function signUpAndOnboard(
   page: Page,

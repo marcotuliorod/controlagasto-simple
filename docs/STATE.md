@@ -65,8 +65,11 @@ projetos do CI com `--workers=1`: **101 passed, 0 failed**.
   (`AppSidebar.tsx:159`). O teste de logout usava o `storageState`
   compartilhado e revogava os refresh tokens do usuário único da suíte,
   derrubando 16 specs que rodavam em paralelo — cada um passando sozinho. O
-  teste passa a criar conta própria. **A implicação de produto continua em
-  aberto: sair no desktop desloga o celular do usuário.**
+  teste passa a criar conta própria. **A implicação de produto foi corrigida
+  em seguida:** o botão de sair agora usa `scope: 'local'`, então sair no
+  desktop não desloga mais o celular. Derrubar todas as sessões de propósito
+  (senha vazada, aparelho perdido) exigiria uma ação explícita de "sair de
+  todos os dispositivos", que não existe hoje.
 - **Mobile Chrome passou a valer.** O CI roda
   `--project=chromium --project="Mobile Chrome"`, mas os dois compartilham
   `storageState` — logo, um usuário e um banco. Nome fixo fazia a segunda
@@ -118,6 +121,7 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **Logout deixou de derrubar as outras sessões do usuário** (`AppSidebar.tsx`): `signOut({ scope: 'local' })`. O `handleSignOut` idêntico em `Dashboard.tsx:202` é código morto — nada o chama — e ficou como estava. O de `DeleteAccount.tsx` segue global de propósito: a conta acabou de ser apagada.
 - **Quarentena E2E encerrada** (branch `fix/e2e-quarentena`, PR #11). Ver seção acima. 101 testes verdes em chromium + Mobile Chrome com `--workers=1`, contra stack Supabase local com o edge runtime vivo.
 - **Desacoplamento do Lovable, fases 0-6** (branch `chore/desacoplamento-lovable`). Ver seção acima. Verificado num stack Supabase local real: 30 migrations aplicam limpas, 27 tabelas, 0 sem RLS, triggers de signup funcionam, e o RLS isola de fato (com dois usuários, o intruso recebe 0 linhas ao pedir dados do outro). Isso também fechou dois itens que estavam em aberto aqui: a migration `theme_preference` da Fase 4 nunca testada contra banco real (agora testada, inclusive o CHECK rejeitando valor inválido) e o CI quebrado por `npm run typecheck` inexistente.
 - **Phase 4 (ONBD-01/02/03) complete.** See "Guided onboarding decisions" above. `src/pages/Onboarding.tsx` rewritten as a 3-step wizard; `AccountFormFields` extracted from `AccountForm.tsx`; new `FirstVisitTip.tsx` wired into Dashboard/Reports/Accounts; new `profiles.theme_preference` migration + `useAutoTheme.ts` + `ThemeToggle.tsx`/`useProfile.ts` updates. 7 new tests (135/135 total passing, up from 128). Verified: lint 0 errors/17 pre-existing warnings, `tsc --noEmit` clean, production build clean, dev server boots with 0 console errors (Playwright smoke test). Full interactive wizard/theme-switch flows were **not** manually verified against a logged-in user — no live Supabase auth available in this environment (same constraint as the DB-access items below).
@@ -135,7 +139,6 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
 - **Serviço de IA não está deployado.** As edge functions exigem o secret `AI_SERVICE_URL`; sem ele, as 4 funcionalidades de IA respondem 503 (erro explícito, mas é quebra real se o branch for publicado antes de subir o serviço). Reconfirmado em 19/08/2026 pelos logs do edge runtime local: o `generate-insights` sobe e falha exatamente nessa variável, e em nada mais.
-- **`signOut()` com escopo global** (`src/components/AppSidebar.tsx:159`): sair numa sessão revoga os refresh tokens de todas. Contornado no E2E; virar `scope: 'local'` é decisão de produto, não tomada.
 - **Credenciais do `.env` que estava versionado seguem válidas** até serem rotacionadas no painel. O arquivo saiu do índice, mas continua no histórico do git.
 - **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
