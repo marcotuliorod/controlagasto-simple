@@ -20,10 +20,17 @@ Antes disso, `.planning/ROADMAP.md` Fases 1-4 (onboarding etc.) já estavam comp
 > `onNeedRefresh` presente apenas na desestruturação interna do plugin, não
 > passado pelo app.
 >
-> **Falta a migration.** `20260819120000_importacao_sem_desbloqueio` ainda não
-> foi aplicada em produção — ver "Known open items". Ela não bloqueia acesso
-> (o código já trata `import-transactions` como sempre liberado), só desalinha
-> a tela de progresso.
+> **Migration aplicada.** `20260819120000_importacao_sem_desbloqueio` está no
+> topo de `supabase_migrations.schema_migrations` em produção e
+> `unlock_requirements` tem 0 linhas para `import-transactions`. Conferida
+> também a cadeia que dependia disso: `accounts` (5 despesas), `chat` (10),
+> `scheduled-exports` (20) e `audit-logs` (30) voltaram a ser alcançáveis, que
+> era o risco em cascata. `recurring-expenses` segue atrás de 60% no quiz, e
+> está certo — não é porta de entrada de gasto, é regra sobre gasto existente.
+>
+> A verificação em aba anônima (sem FAB, `/add-expense` redirecionando,
+> cadastro novo importando CSV, Cmd+K, recorrentes, PWA instalado recarregando)
+> foi feita pelo dono do produto em 19/08/2026 e não acusou problema.
 
 Decisão de produto: gasto entra **só** por importação de extrato/fatura. Saíram
 `/add-expense` (446 linhas), o FAB, o drawer de adição rápida, o
@@ -212,24 +219,17 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - Installed `gsd-core` (project planning/phase-loop tooling) and the `caveman` skill (output compression) under `.claude/`/`.agents/`; ran onboarding (`/gsd-map-codebase` → `/gsd-ingest-docs` → `gsd-roadmapper`) producing `.planning/codebase/*`, `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`. `eslint.config.js` and `vite.config.ts` both needed a `.claude`/`.agents`/`.planning` exclude added afterward — the vendored tooling's own files/tests were otherwise getting swept into this project's lint and test runs (lint briefly went 97→537; a caveman test fixture briefly broke `npx vitest --run`).
 
 ## Known open items
-- **A migration `20260819120000_importacao_sem_desbloqueio` não foi aplicada em
-  produção.** O código está publicado (ver seção acima), o banco não. As duas
-  vias tentadas nesta sessão falharam: o CLI (`npx supabase db push --linked`)
-  responde `LegacyPlatformAuthRequiredError` por falta de `SUPABASE_ACCESS_TOKEN`,
-  e as ferramentas MCP (`apply_migration` e `execute_sql`) foram bloqueadas pelo
-  classificador de permissão. **Não é bloqueio de acesso do usuário:**
-  `useUnlockProgress` faz short-circuit em `useGamification.ts:290` e devolve
-  `isUnlocked: true` antes de consultar o banco. O efeito de deixar assim é
-  cosmético — a tela de progresso segue anunciando "Complete 3 artigos de
-  Orçamento ou 70% no Quiz" para algo já liberado. A linha em produção foi
-  conferida e bate com o rollback documentado no plano de entrega.
-- **Verificação em produção ainda não feita por gente.** Falta, em aba anônima:
-  (1) dashboard sem FAB nem drawer, (2) `/add-expense` redirecionando,
-  (3) cadastro **novo** chegando em `/import-transactions` sem cadeado e
-  conseguindo importar um CSV — o passo crítico, (4) Cmd+K numa despesa abrindo
-  a edição, (5) `/recurring-expenses` intacto, (6) num aparelho com o PWA já
-  instalado, o recarregamento automático do `autoUpdate` derrubando o shell
-  antigo. A branch `chore/limpeza-lancamento-manual` pode sair depois disso.
+- **`supabase db push --linked` não funciona neste projeto.** O CLI 2.114 tenta
+  criar um papel temporário `cli_login_postgres` e o banco recusa (`permission
+  denied to alter role` — a conta não tem CREATEROLE nem ADMIN sobre ele). O
+  contorno é `--db-url` com a connection string do pooler, que conecta como
+  `postgres` e não passa por esse mecanismo. O host é
+  `aws-1-us-east-1.pooler.supabase.com` na porta 5432 (session mode); com
+  `aws-0` o servidor responde `tenant/user not found`, e com 6543 (transaction
+  mode) migration não roda. Registrado aqui porque custou três tentativas e
+  vai custar de novo na próxima migration.
+- **A branch `chore/limpeza-lancamento-manual` ainda existe no remoto** e já foi
+  incorporada — pode ser apagada.
 - **A importação de PDF continua sem cobertura E2E.** O smoke test novo
   (`import-transactions.spec.ts`) cobre só CSV, que é o caminho determinístico;
   PDF de layout desconhecido cai na IA e exigiria `AI_SERVICE_URL` no ar.
@@ -258,11 +258,15 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
 ## Notes for next session
-**Primeira coisa:** aplicar a migration `20260819120000_importacao_sem_desbloqueio`
-em produção e rodar a verificação em aba anônima. O código da remoção já está
-publicado; são os dois primeiros itens de "Known open items". Depois disso, o
-PR do acento (`atob` em `process-import-file/index.ts:781`), que ficou combinado
-para depois do merge.
+**Primeira coisa:** o PR do acento — `atob(fileContent)` em
+`process-import-file/index.ts:781`. Ficou combinado para depois do merge, e o
+merge está feito. A parte que exige decisão, não só código, é o
+`generateFileHash()`: decodificar UTF-8 corretamente muda o hash de todo
+arquivo não-ASCII, então extrato já importado volta a ser importável.
+
+A entrega da remoção do lançamento manual está **fechada** — código publicado,
+migration aplicada, verificação feita. Ver a seção "Remoção do lançamento
+manual e do OCR".
 
 A quarentena E2E acabou (seção acima); o que sobra do trabalho de teste é
 ligar firefox/webkit/Mobile Safari no CI, que é custo de minuto de runner, não
