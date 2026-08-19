@@ -52,7 +52,7 @@ const Index = () => {
               </div>
               <h3 className="text-xl font-semibold mb-3">Controle Simples</h3>
               <p className="text-muted-foreground">
-                Registre seus gastos em segundos. Manual ou por foto do cupom.
+                Importe o extrato ou a fatura e veja tudo organizado. Sem digitar gasto por gasto.
               </p>
             </div>
 
