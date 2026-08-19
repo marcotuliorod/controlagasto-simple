@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Loader2 } from "lucide-react";
 import RequireOnboarding from "./routes/RequireOnboarding";
@@ -17,7 +17,6 @@ const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const AddExpense = lazy(() => import("./pages/AddExpense"));
 const Reports = lazy(() => import("./pages/Reports"));
 const ExpensesVirtualized = lazy(() => import("./pages/ExpensesVirtualized"));
 const EditExpense = lazy(() => import("./pages/EditExpense"));
@@ -93,7 +92,10 @@ const App = () => {
               
               {/* Authenticated routes with layout */}
               <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
-              <Route path="/add-expense" element={<AppLayout><AddExpense /></AppLayout>} />
+              {/* Lançamento manual saiu: gastos entram só por extrato/fatura.
+                  A rota continua existindo para não quebrar link antigo nem
+                  shell de PWA já instalado, redirecionando para a importação. */}
+              <Route path="/add-expense" element={<Navigate to="/import-transactions" replace />} />
               <Route path="/expenses" element={<AppLayout><ExpensesVirtualized /></AppLayout>} />
               <Route path="/expenses/:id/edit" element={<AppLayout><EditExpense /></AppLayout>} />
               <Route path="/reports" element={<AppLayout><Reports /></AppLayout>} />

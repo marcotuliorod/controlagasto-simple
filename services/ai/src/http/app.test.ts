@@ -8,12 +8,10 @@ import type { Config } from "../config.ts";
 
 const JWT_SECRET = "segredo-de-teste-com-tamanho-suficiente-para-hs256";
 
-const RECEIPT_JSON = JSON.stringify({
-  amount: 99.9,
-  date: "2024-03-01",
-  merchant: "Mercado",
-  cnpj: null,
-  items: [],
+const STATEMENT_JSON = JSON.stringify({
+  transactions: [
+    { date: "2024-01-15", description: "MERCADO", amount: 150.5, type: "debit" },
+  ],
 });
 
 async function makeToken(payload: Record<string, unknown> = {}, expiresIn = "1h") {
@@ -34,110 +32,23 @@ function makeApp(provider: FakeProvider, jwtKeys?: Config["jwtKeys"]) {
   return createApp(config);
 }
 
-const receiptRequest = (token?: string, body?: unknown) =>
-  new Request("http://localhost/v1/receipt", {
+/*
+ * Os testes de JWT usam este helper porque precisam de UM endpoint autenticado
+ * qualquer — era /v1/receipt, que saiu com o OCR de cupom.
+ */
+const statementRequest = (token?: string, body?: unknown) =>
+  new Request("http://localhost/v1/statement", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
     },
-    body: JSON.stringify(body ?? { mimeType: "image/jpeg", data: "ZmFrZQ==" }),
+    body: JSON.stringify(body ?? { mimeType: "application/pdf", data: "ZmFrZQ==" }),
   });
-
-describe("POST /v1/receipt", () => {
-  it("extrai o cupom para um token válido", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
-    const response = await makeApp(provider).fetch(receiptRequest(await makeToken()));
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      amount: 99.9,
-      merchant: "Mercado",
-    });
-  });
-
-  it("aceita data URL, que é o formato enviado pelo app hoje", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
-    await makeApp(provider).fetch(
-      receiptRequest(await makeToken(), {
-        mimeType: "image/jpeg",
-        data: "data:image/jpeg;base64,ZmFrZQ==",
-      }),
-    );
-
-    const part = provider.calls[0]!.messages[0]!.parts.find((p) => p.type === "image");
-    // O prefixo data: precisa ser removido antes de ir ao provedor.
-    expect(part).toMatchObject({ data: "ZmFrZQ==" });
-  });
-
-  it("rejeita requisição sem token SEM chamar o provedor (chamada paga)", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
-    const response = await makeApp(provider).fetch(receiptRequest());
-
-    expect(response.status).toBe(401);
-    expect(provider.calls).toHaveLength(0);
-  });
-
-  it("rejeita token com assinatura inválida", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
-    const foreign = await new SignJWT({ sub: "user-123" })
-      .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("1h")
-      .sign(new TextEncoder().encode("outro-segredo-completamente-diferente"));
-
-    const response = await makeApp(provider).fetch(receiptRequest(foreign));
-
-    expect(response.status).toBe(401);
-    expect(provider.calls).toHaveLength(0);
-  });
-
-  it("rejeita token expirado", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
-    const expired = await makeToken({}, "-1h");
-    const response = await makeApp(provider).fetch(receiptRequest(expired));
-
-    expect(response.status).toBe(401);
-    expect(provider.calls).toHaveLength(0);
-  });
-
-  it("rejeita corpo inválido com 400", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
-    const response = await makeApp(provider).fetch(
-      receiptRequest(await makeToken(), { mimeType: "" }),
-    );
-
-    expect(response.status).toBe(400);
-    expect(provider.calls).toHaveLength(0);
-  });
-
-  it("traduz rate limit do provedor em 429 sem citar o fornecedor", async () => {
-    const provider = createFakeProvider({
-      respondWith: "",
-      throws: new AIError("rate_limited", "429 do fornecedor X"),
-    });
-    const response = await makeApp(provider).fetch(receiptRequest(await makeToken()));
-    const body = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(429);
-    expect(body.error).not.toMatch(/gemini|lovable|google|cr[eé]dito/i);
-  });
-
-  it("traduz cota esgotada em 503 sem instruções de billing", async () => {
-    const provider = createFakeProvider({
-      respondWith: "",
-      throws: new AIError("quota_exceeded", "402"),
-    });
-    const response = await makeApp(provider).fetch(receiptRequest(await makeToken()));
-    const body = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(503);
-    expect(body.error).not.toMatch(/settings|workspace|usage|cr[eé]dito/i);
-  });
-});
 
 describe("GET /health", () => {
   it("responde sem exigir autenticação", async () => {
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
     const response = await makeApp(provider).fetch(new Request("http://localhost/health"));
 
     expect(response.status).toBe(200);
@@ -156,12 +67,6 @@ const post = (path: string, body: unknown, token?: string) =>
   });
 
 describe("POST /v1/statement", () => {
-  const STATEMENT_JSON = JSON.stringify({
-    transactions: [
-      { date: "2024-01-15", description: "MERCADO", amount: 150.5, type: "debit" },
-    ],
-  });
-
   it("extrai transações de um PDF", async () => {
     const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
     const response = await makeApp(provider).fetch(
@@ -293,21 +198,21 @@ describe("verificação de JWT assimétrico", () => {
 
   it("aceita token ES256 resolvido pelo JWKS", async () => {
     const { jwks, sign } = await makeEs256Setup();
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
     const app = makeApp(provider, createKeyResolver({ jwks }));
 
-    const response = await app.fetch(receiptRequest(await sign()));
+    const response = await app.fetch(statementRequest(await sign()));
 
     expect(response.status).toBe(200);
   });
 
   it("aceita HS256 e ES256 ao mesmo tempo, para a migração do Supabase", async () => {
     const { jwks, sign } = await makeEs256Setup();
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
     const app = makeApp(provider, createKeyResolver({ jwks, jwtSecret: JWT_SECRET }));
 
-    const assimetrico = await app.fetch(receiptRequest(await sign()));
-    const simetrico = await app.fetch(receiptRequest(await makeToken()));
+    const assimetrico = await app.fetch(statementRequest(await sign()));
+    const simetrico = await app.fetch(statementRequest(await makeToken()));
 
     expect(assimetrico.status).toBe(200);
     expect(simetrico.status).toBe(200);
@@ -316,10 +221,10 @@ describe("verificação de JWT assimétrico", () => {
   it("rejeita ES256 assinado por outra chave, sem acionar o provedor", async () => {
     const { jwks } = await makeEs256Setup();
     const intruso = await makeEs256Setup();
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
     const app = makeApp(provider, createKeyResolver({ jwks }));
 
-    const response = await app.fetch(receiptRequest(await intruso.sign()));
+    const response = await app.fetch(statementRequest(await intruso.sign()));
 
     expect(response.status).toBe(401);
     expect(provider.calls).toHaveLength(0);
@@ -327,10 +232,10 @@ describe("verificação de JWT assimétrico", () => {
 
   it("rejeita token assimétrico quando só há segredo HS256 configurado", async () => {
     const { sign } = await makeEs256Setup();
-    const provider = createFakeProvider({ respondWith: RECEIPT_JSON });
+    const provider = createFakeProvider({ respondWith: STATEMENT_JSON });
     const app = makeApp(provider, createKeyResolver({ jwtSecret: JWT_SECRET }));
 
-    const response = await app.fetch(receiptRequest(await sign()));
+    const response = await app.fetch(statementRequest(await sign()));
 
     expect(response.status).toBe(401);
     expect(provider.calls).toHaveLength(0);

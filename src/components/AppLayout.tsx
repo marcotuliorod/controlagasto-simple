@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import BottomNav from "@/components/BottomNav";
-import FABAddExpense from "@/components/FABAddExpense";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { OnboardingWelcomeModal } from "@/components/gamification/OnboardingWelcomeModal";
 
@@ -41,9 +40,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Mobile Bottom Navigation */}
         <BottomNav />
 
-        {/* Floating Action Button */}
-        <FABAddExpense />
-        
         {/* Global Search (Cmd+K) */}
         <GlobalSearch />
         

@@ -8,7 +8,7 @@ Documentação de todas as Edge Functions disponíveis.
 
 | Function | Auth | Descrição |
 |----------|------|-----------|
-| `process-receipt` | JWT | OCR de recibos |
+| `process-import-file` | JWT | Importação de extrato/fatura |
 | `export-data` | JWT | Exportação CSV/JSON |
 | `export-pdf` | JWT | Exportação PDF |
 | `delete-account` | JWT | Exclusão de conta |
@@ -25,11 +25,13 @@ Documentação de todas as Edge Functions disponíveis.
 
 ## 🔐 Functions Autenticadas (JWT)
 
-### 1. process-receipt
+### 1. process-import-file
 
-**Descrição:** Processa imagem de recibo via OCR usando IA.
+**Descrição:** Lê extrato/fatura (CSV, OFX ou PDF) e devolve as transações
+reconhecidas para revisão antes da importação. CSV e OFX são determinísticos; o
+PDF só cai na IA quando o parser não reconhece o layout do banco.
 
-**Endpoint:** `POST /functions/v1/process-receipt`
+**Endpoint:** `POST /functions/v1/process-import-file`
 
 **Headers:**
 ```
@@ -37,37 +39,8 @@ Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
-**Request Body:**
-```json
-{
-  "imageBase64": "data:image/jpeg;base64,/9j/4AAQ..."
-}
-```
-
-**Response Success (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "amount": 45.90,
-    "date": "2024-01-15",
-    "merchant": "Supermercado ABC",
-    "cnpj": "12.345.678/0001-90",
-    "items": [
-      { "name": "Arroz 5kg", "price": 25.90 },
-      { "name": "Feijão 1kg", "price": 10.00 }
-    ]
-  },
-  "receiptUrl": "https://...storage.../receipts/user_id/uuid.jpg"
-}
-```
-
-**Response Error (400/500):**
-```json
-{
-  "error": "Não foi possível processar o recibo"
-}
-```
+> **Nota histórica:** `process-receipt` (OCR de cupom fiscal) foi removida junto
+> com o lançamento manual de despesas — gastos entram só por importação.
 
 ---
 
@@ -419,7 +392,7 @@ X-Cron-Secret: <CRON_SECRET>
 ### supabase/config.toml
 
 ```toml
-[functions.process-receipt]
+[functions.process-import-file]
 verify_jwt = true
 
 [functions.export-data]

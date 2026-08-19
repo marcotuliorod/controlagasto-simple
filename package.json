@@ -69,7 +69,6 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "vaul": "^0.9.9",
     "vite-plugin-pwa": "^1.1.0",
     "workbox-cacheable-response": "^7.3.0",
     "workbox-core": "^7.3.0",

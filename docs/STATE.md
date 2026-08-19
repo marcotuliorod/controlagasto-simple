@@ -7,6 +7,39 @@ Desacoplamento da plataforma Lovable (objetivo 1.1), fases 0-6 concluídas no br
 
 Antes disso, `.planning/ROADMAP.md` Fases 1-4 (onboarding etc.) já estavam completas.
 
+## Remoção do lançamento manual e do OCR (19/08/2026)
+
+Decisão de produto: gasto entra **só** por importação de extrato/fatura. Saíram
+`/add-expense` (446 linhas), o FAB, o drawer de adição rápida, o
+`CategoryQuickPicker`, o hook `useCategorySuggestion` e todo o caminho de OCR de
+cupom — `supabase/functions/process-receipt`, `services/ai/domain/DocumentExtraction.ts`,
+`prompts/receipt.ts` e a rota `/v1/receipt` do serviço de IA.
+
+- **A rota `/add-expense` não foi apagada, virou redirect** para
+  `/import-transactions`. O app é PWA com service worker: shell já instalado e
+  link antigo continuariam apontando para lá, e um 404 seria pior que um
+  redirect de uma linha.
+- **A importação teve de sair do sistema de desbloqueio.** Ela estava em nível 5
+  (`unlock_requirements`), atrás de "2 artigos de Orçamento ou 70% no Quiz".
+  Com o lançamento manual fora, isso deixaria todo usuário novo sem **nenhuma**
+  forma de registrar despesa — e travaria em cascata os desbloqueios que exigem
+  contagem de despesas (`accounts`, `chat`, `scheduled-exports`, `audit-logs`),
+  que ficariam inalcançáveis. Migration `20260819120000_importacao_sem_desbloqueio.sql`
+  remove a linha, e `import-transactions` entrou em `ALWAYS_UNLOCKED`.
+- **Nada foi dropado do schema.** `expenses.receipt_url`, `expenses.source` e o
+  bucket privado `receipts` continuam de pé: guardam dado histórico de quem já
+  usou o OCR, e `delete-account` continua purgando o bucket. Limpeza de schema,
+  se vier, é decisão separada e destrutiva.
+- **A suíte de JWT do serviço de IA estava ancorada em `/v1/receipt`** — testava
+  autenticação usando aquele endpoint como cobaia. Repontada para `/v1/statement`;
+  os 74 testes de `services/ai` seguem passando.
+- **E2E:** `ocr-basic.spec.ts` e `tags-notes.spec.ts` (8 testes, todos `fixme` e
+  todos contra `/add-expense`) foram removidos; `expense-crud.spec.ts` perdeu
+  criação e as duas validações de formulário, e ganhou um teste do redirect.
+- **Efeito no bundle:** 99 → 95 chunks, precache 2377 KiB → 2330 KiB. O `vaul`
+  saiu do `package.json` junto com `ui/drawer.tsx`, que só o drawer rápido usava.
+  Ganho real, porém modesto — o peso do PWA está nas libs de gráfico, não aqui.
+
 ## Desacoplamento do Lovable (fases 0-6)
 
 - **O lock-in real eram 4 edge functions** chamando `ai.gateway.lovable.dev`. O resto (`lovable-tagger`, metas do `index.html`, `playwright-fixture.ts` órfão) era cosmético — o build de produção já estava limpo.

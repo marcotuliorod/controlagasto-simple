@@ -222,9 +222,9 @@ export default function Expenses() {
           <EmptyState
             icon={Search}
             title="Nenhuma despesa encontrada"
-            description="Tente ajustar os filtros ou adicione sua primeira despesa"
-            actionLabel="Adicionar Despesa"
-            onAction={() => navigate("/add-expense")}
+            description="Tente ajustar os filtros ou importe seu primeiro extrato"
+            actionLabel="Importar Extrato"
+            onAction={() => navigate("/import-transactions")}
           />
         ) : (
           <div className="space-y-3">

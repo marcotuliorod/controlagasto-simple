@@ -52,8 +52,8 @@
 - See `docs/billing-cycle.md` for details
 
 ### 2. Expense Tracking
-- CRUD operations with optimistic updates
-- OCR receipt processing
+- Entrada exclusiva por importação de extrato/fatura (sem lançamento manual)
+- Edição e exclusão do que foi importado
 - Multi-account support
 - Category-based organization
 
@@ -82,9 +82,9 @@
 ## Data Flow
 
 ### Expense Creation
-1. User fills form in `AddExpense` page
-2. Form validation with `react-hook-form` + `zod`
-3. Optimistic update in UI
+1. User envia extrato/fatura em `ImportTransactions`
+2. `process-import-file` parseia e devolve as transações para revisão
+3. User confere, ajusta categorias e confirma
 4. Mutation sent to Supabase via React Query
 5. RLS policies validate user access
 6. Database triggers create audit logs
