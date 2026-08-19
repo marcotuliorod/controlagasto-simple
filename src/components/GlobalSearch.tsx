@@ -84,7 +84,7 @@ export const GlobalSearch = () => {
             <CommandItem
               key={expense.id}
               onSelect={() => {
-                navigate(`/edit-expense/${expense.id}`);
+                navigate(`/expenses/${expense.id}/edit`);
                 setOpen(false);
               }}
             >
