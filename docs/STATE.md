@@ -9,6 +9,14 @@ Antes disso, `.planning/ROADMAP.md` Fases 1-4 (onboarding etc.) já estavam comp
 
 ## Remoção do lançamento manual e do OCR (19/08/2026)
 
+> **Status de entrega: escrita e validada, ainda NÃO em produção.** Todo o
+> conteúdo desta seção vive nas branches `fix/e2e-quarentena` (PR #11) e
+> `chore/limpeza-lancamento-manual`. `origin/main` — que a Vercel publica —
+> ainda tem `AddExpense.tsx`, `QuickAddExpense.tsx` e `FABAddExpense.tsx`, e
+> por isso o drawer "Adicionar Despesa" continua vivo no app publicado. O que
+> falta é mergear o PR #11 e aplicar a migration em produção. Ver
+> "Known open items".
+
 Decisão de produto: gasto entra **só** por importação de extrato/fatura. Saíram
 `/add-expense` (446 linhas), o FAB, o drawer de adição rápida, o
 `CategoryQuickPicker`, o hook `useCategorySuggestion` e todo o caminho de OCR de
@@ -121,6 +129,19 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **Resíduos da remoção do lançamento manual limpos** (branch
+  `chore/limpeza-lancamento-manual`, sobre `fix/e2e-quarentena`): fixtures E2E
+  órfãs (`TEST_EXPENSE`, `TEST_CATEGORIES`, `TEST_ACCOUNT`, `formatCurrency`);
+  `GlobalSearch.tsx` navegava para `/edit-expense/:id`, rota que nunca existiu
+  — clicar numa despesa no Cmd+K caía no NotFound, agora vai para
+  `/expenses/:id/edit`; a landing (`Index.tsx`) ainda prometia "Manual ou por
+  foto do cupom", duas capacidades que não existem; docs de estado atual
+  sincronizadas (CLAUDE.md, PRD, testing, ROUTES, FEATURES, HOOKS, SECURITY,
+  sprint-7); `src/pages/Expenses.tsx` (313 linhas, órfão desde a virtualização)
+  removido. Uma migration duplicada pelo iCloud
+  (`...desbloqueio 2.sql`, byte-a-byte idêntica) foi apagada — nome com espaço
+  e timestamp repetido pode quebrar `supabase db push`; era gitignored, não
+  gerou commit.
 - **Logout deixou de derrubar as outras sessões do usuário** (`AppSidebar.tsx`): `signOut({ scope: 'local' })`. O `handleSignOut` idêntico em `Dashboard.tsx:202` é código morto — nada o chama — e ficou como estava. O de `DeleteAccount.tsx` segue global de propósito: a conta acabou de ser apagada.
 - **Quarentena E2E encerrada** (branch `fix/e2e-quarentena`, PR #11). Ver seção acima. 101 testes verdes em chromium + Mobile Chrome com `--workers=1`, contra stack Supabase local com o edge runtime vivo.
 - **Desacoplamento do Lovable, fases 0-6** (branch `chore/desacoplamento-lovable`). Ver seção acima. Verificado num stack Supabase local real: 30 migrations aplicam limpas, 27 tabelas, 0 sem RLS, triggers de signup funcionam, e o RLS isola de fato (com dois usuários, o intruso recebe 0 linhas ao pedir dados do outro). Isso também fechou dois itens que estavam em aberto aqui: a migration `theme_preference` da Fase 4 nunca testada contra banco real (agora testada, inclusive o CHECK rejeitando valor inválido) e o CI quebrado por `npm run typecheck` inexistente.
@@ -135,6 +156,26 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - Installed `gsd-core` (project planning/phase-loop tooling) and the `caveman` skill (output compression) under `.claude/`/`.agents/`; ran onboarding (`/gsd-map-codebase` → `/gsd-ingest-docs` → `gsd-roadmapper`) producing `.planning/codebase/*`, `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`. `eslint.config.js` and `vite.config.ts` both needed a `.claude`/`.agents`/`.planning` exclude added afterward — the vendored tooling's own files/tests were otherwise getting swept into this project's lint and test runs (lint briefly went 97→537; a caveman test fixture briefly broke `npx vitest --run`).
 
 ## Known open items
+- **A remoção do lançamento manual não está em produção.** PR #11
+  (`fix/e2e-quarentena` → `main`) está `MERGEABLE`/`CLEAN` com os 9 checks
+  verdes, mas não foi mergeado — a tentativa de `gh pr merge 11` foi bloqueada
+  pelo modo de permissão da sessão, não pelo GitHub. Enquanto isso, o drawer
+  "Adicionar Despesa" segue funcional no app publicado. Depois do merge falta
+  ainda: aplicar `20260819120000_importacao_sem_desbloqueio.sql` em produção e
+  verificar em aba anônima que (1) não há FAB nem drawer, (2) `/add-expense`
+  redireciona, (3) um usuário **novo** chega em `/import-transactions` sem
+  cadeado, (4) Cmd+K numa despesa abre a edição, (5) `/recurring-expenses`
+  segue intacto. A branch `chore/limpeza-lancamento-manual` sai depois.
+- **PWA instalado continua com o app antigo depois do merge.**
+  `registerType: 'prompt'` (`vite.config.ts:45`) não atualiza o service worker
+  sozinho, e como não há trava no banco (decisão registrada em `CONTEXT.md`),
+  esse shell antigo ainda consegue inserir despesa manual até o usuário aceitar
+  o prompt de atualização.
+- **A importação é a única porta de entrada de gasto e não tem spec E2E.**
+  `e2e/` tem 7 suítes e nenhuma de `import-transactions`; o comentário em
+  `expense-crud.spec.ts:14` afirma que a criação está "coberta em
+  import-transactions", o que não é verdade. Vale um smoke test: CSV pequeno →
+  prévia → confirmar → aparece em `/expenses`.
 - `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
@@ -148,6 +189,11 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
 ## Notes for next session
+**Primeira coisa:** mergear o PR #11. Todo o resto do trabalho de remoção do
+lançamento manual está pronto e verde, mas o produto publicado ainda tem o
+drawer. Ver o primeiro item de "Known open items" para a lista de verificação
+pós-deploy.
+
 A quarentena E2E acabou (seção acima); o que sobra do trabalho de teste é
 ligar firefox/webkit/Mobile Safari no CI, que é custo de minuto de runner, não
 dívida na suíte. As duas pendências que continuam bloqueando funcionalidade são
