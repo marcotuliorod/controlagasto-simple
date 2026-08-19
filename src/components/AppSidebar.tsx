@@ -156,7 +156,16 @@ export function AppSidebar() {
   const { data: gamificationSettings } = useGamificationEnabled();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    /*
+     * `scope: 'local'` encerra SÓ esta sessão. O padrão do Supabase é `global`,
+     * que revoga todos os refresh tokens do usuário — sair no navegador do
+     * trabalho deslogava o celular junto, sem aviso nenhum.
+     *
+     * Para derrubar todas as sessões de propósito (senha vazada, aparelho
+     * perdido) o lugar é uma ação explícita de "sair de todos os dispositivos",
+     * não o botão de sair do menu.
+     */
+    await supabase.auth.signOut({ scope: "local" });
     navigate("/auth");
   };
 

@@ -70,8 +70,13 @@ QueryClientProvider (5min stale time, no window focus refetch)
 **Layout:** All authenticated pages use `<AppLayout>` which provides:
 - `<AppSidebar>` (desktop navigation)
 - `<BottomNav>` (mobile navigation)
-- `<FABAddExpense>` (floating action button)
 - `<GlobalSearch>` (Cmd+K command palette)
+
+**Não existe lançamento manual de despesa.** Gastos entram exclusivamente pela
+importação de extrato/fatura (`/import-transactions`). A rota `/add-expense`
+sobrevive só como redirect para lá, por causa de link antigo e shell de PWA já
+instalado. Ao criar tela ou CTA de "adicionar gasto", aponte para a importação —
+o formulário manual, o FAB, o drawer rápido e o OCR de cupom foram removidos.
 
 ### Critical Architectural Patterns
 
@@ -149,32 +154,35 @@ useExpensesRealtime({
 
 #### 3. Form Handling
 
-**Stack:** React Hook Form + Zod validation
+**Stack:** React Hook Form + Zod validation — onde existe schema. Nem todo
+formulário do app segue isso: `RecurringExpenses.tsx` e `EditExpense.tsx` usam
+`useState` + `required` nativo do HTML. Ao mexer num deles, confira antes o que
+o arquivo realmente usa.
 
 **Pattern:**
 1. Define schema in `src/schemas/*.ts`
 2. Use `@hookform/resolvers/zod` for validation
 3. Handle currency formatting with `src/lib/currencyUtils.ts`
 
-Example:
+Exemplo real, de `src/pages/AccountProfile.tsx` (único consumidor de Zod hoje):
 ```typescript
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { expenseSchema } from "@/schemas/expenseSchema";
+import { profileFormSchema, type ProfileFormData } from "@/schemas/profileSchema";
 
-const form = useForm({
-  resolver: zodResolver(expenseSchema),
-  defaultValues: { amount: "", merchant: "" }
+const profileForm = useForm<ProfileFormData>({
+  resolver: zodResolver(profileFormSchema),
+  defaultValues: { name: "" },
 });
 
-const onSubmit = form.handleSubmit(async (values) => {
+const onSubmit = profileForm.handleSubmit(async (values) => {
   // values are type-safe and validated
 });
 ```
 
 **Currency Formatting:**
-- Always use `parseAmount(string)` from `currencyUtils.ts` to convert display -> database
-- Use `formatCurrency(number)` for database -> display
+- Always use `parseCurrencyBR(string)` from `currencyUtils.ts` to convert display -> database
+- Use `formatCurrencyBR(number)` for database -> display
 - Format: R$ 1.234,56 (Brazilian Real with dot thousands, comma decimal)
 
 #### 4. Edge Functions
@@ -182,7 +190,6 @@ const onSubmit = form.handleSubmit(async (values) => {
 **Location:** `supabase/functions/*/index.ts`
 
 **Available Functions:**
-- `process-receipt` - OCR de cupom fiscal (extracts amount, merchant, date, items)
 - `chat-assistant` - AI financial advice (conversa + persistência em `chat_messages`)
 - `process-import-file` - Bank statement import (CSV/OFX determinístico; PDF em camadas)
 - `generate-insights` - AI-powered spending analysis
@@ -199,8 +206,8 @@ const onSubmit = form.handleSubmit(async (values) => {
 
 **Calling Edge Functions:**
 ```typescript
-const { data, error } = await supabase.functions.invoke("process-receipt", {
-  body: { imageUrl: receiptUrl }
+const { data, error } = await supabase.functions.invoke("process-import-file", {
+  body: { fileContent, fileName }
 });
 ```
 
@@ -220,7 +227,7 @@ if (error || !user) {
   });
 }
 ```
-**Do this before any paid/expensive work** (AI API calls, etc.) — `process-receipt` used to only check that the header was non-empty and never checked `error`/`!user`, letting unauthenticated callers burn OCR credits (fixed).
+**Do this before any paid/expensive work** (AI API calls, etc.). O bug histórico que motivou a regra: `process-receipt` só checava se o header era não-vazio e nunca olhava `error`/`!user`, deixando chamador sem autenticação queimar crédito de OCR. Aquela função não existe mais, mas a regra vale para toda function que chame IA — hoje `process-import-file`, `chat-assistant` e `generate-insights`.
 
 **Cron-triggered functions** (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`) use a different, correct pattern instead — no end user to authenticate, so they compare an `X-Cron-Secret` header against `Deno.env.get('CRON_SECRET')`.
 
@@ -271,16 +278,26 @@ Ver `services/ai/README.md` e `docs/LGPD-IA.md`.
 - Use `page.getByRole()` for accessibility-first selectors
 - Timeout: 15s for navigation assertions
 
-**E2E Test Suites (9 total):**
+**E2E Test Suites:**
 1. Authentication flow (`auth.spec.ts`)
-2. Expense CRUD (`expenses.spec.ts`)
-3. OCR receipt processing (`ocr-basic.spec.ts`)
-4. Reports with billing cycle (`reports-cycle.spec.ts`)
-5. PDF/CSV/XLSX export (`export-pdf.spec.ts`, `export-excel.spec.ts`)
-6. AI insights (`insights.spec.ts`)
-7. Scheduled exports (`scheduled-exports.spec.ts`)
-8. Recurring expenses (`recurring-expenses.spec.ts`)
-9. Tags & notes (`tags.spec.ts`)
+2. Expense list & edit (`expense-crud.spec.ts`) — criação saiu com o lançamento manual
+3. Reports with billing cycle (`reports-cycle.spec.ts`)
+4. PDF/CSV/XLSX export (`export-pdf.spec.ts`)
+5. AI insights (`insights.spec.ts`)
+6. Scheduled exports (`scheduled-exports.spec.ts`)
+7. Recurring expenses (`recurring-expenses.spec.ts`)
+8. Importação de extrato (`import-transactions.spec.ts`) — a única entrada de gasto
+
+Fora da lista: `auth.setup.ts` não é suíte, é o projeto `setup` do
+`playwright.config.ts` — cria a conta e grava o `storageState` que todas as
+outras usam. Todo projeto de browser depende dele.
+
+**Cobertura da importação:** `import-transactions.spec.ts` cobre o caminho
+determinístico — CSV → prévia → confirmar → a despesa aparece em `/expenses` —
+e a recusa de formato não suportado. **PDF fica de fora**: o layout
+desconhecido cai na IA, e o teste precisaria de `AI_SERVICE_URL` no ar. Ao
+mexer em `components/import/*` ou no `statementParser.ts`, o caminho de PDF
+continua sem rede de proteção E2E.
 
 ### Data Model Key Points
 
@@ -431,8 +448,10 @@ Configured in `tsconfig.json` and `vite.config.ts`.
 
 **Sensitive Data:**
 - Never commit `.env` to git (already in `.gitignore`)
-- Receipts stored in private Supabase storage bucket
-- Use signed URLs with 60s expiration via `getSignedReceiptUrl()`
+- O bucket privado `receipts` continua existindo e ainda é purgado por
+  `delete-account`, mas nada mais escreve nele: guarda só cupons de antes da
+  remoção do OCR. `getSignedReceiptUrl()` saiu junto — para expor um arquivo
+  privado novo, gere signed URL curta no ponto de uso
 
 **Input Validation:**
 - Client-side: Zod schemas

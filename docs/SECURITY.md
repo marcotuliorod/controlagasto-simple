@@ -96,11 +96,14 @@ if (!session) redirect('/auth');
 ### Com JWT (verify_jwt = true)
 | Function | Validação Adicional |
 |----------|---------------------|
-| process-receipt | - |
+| process-import-file | - |
+| chat-assistant | - |
 | export-data | - |
 | export-pdf | - |
 | delete-account | Confirmação "EXCLUIR" |
 | generate-insights | - |
+| check-category-variations | - |
+| send-push-notification | - |
 | check-category-variations | - |
 | send-push-notification | - |
 | chat-assistant | Rate limit 10/min |

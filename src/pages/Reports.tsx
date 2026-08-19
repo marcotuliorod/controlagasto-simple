@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { exportToXLSX } from "@/lib/exportUtils";
 import { useBillingCycle } from "@/hooks/useBillingCycle";
-import { format } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +34,32 @@ interface ExpenseData {
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+
+/**
+ * Envolve o botão de ciclo num tooltip — e some do caminho quando `enabled` é
+ * falso (ciclo padrão não tem intervalo próprio a explicar, e o botão está
+ * desabilitado, logo sem pointer-events).
+ */
+function CycleTooltip({
+  enabled,
+  label,
+  children,
+}: {
+  enabled: boolean;
+  label: React.ReactNode;
+  children: React.ReactElement;
+}) {
+  if (!enabled) return children;
+
+  return (
+    <TooltipProvider>
+      <UITooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </UITooltip>
+    </TooltipProvider>
+  );
+}
 
 export default function Reports() {
   const navigate = useNavigate();
@@ -314,44 +340,51 @@ export default function Reports() {
 
         <Card className="p-6">
           <div className="space-y-4">
-            <Button
-              variant={hasCustomCycle ? "default" : "outline"}
-              onClick={() => {
-                if (hasCustomCycle) {
-                  const { start, end } = getCurrentCycle();
-                  const endDate = new Date(end);
-                  endDate.setDate(endDate.getDate() - 1);
-                  setDateFrom(start);
-                  setDateTo(endDate.toISOString().split('T')[0]);
-                  toast.info(`Ciclo personalizado aplicado (dia ${cycleDay})`);
-                }
-              }}
-              disabled={!hasCustomCycle}
-              className="w-full md:w-auto"
+            {/*
+              * O gatilho do tooltip é o BOTÃO, não o ícone. O ícone estava
+              * dentro dele como TooltipTrigger, mas a classe base do Button traz
+              * `[&_svg]:pointer-events-none` — nenhum <svg> ali recebe hover, e o
+              * tooltip nunca abria para ninguém.
+              */}
+            <CycleTooltip
+              enabled={hasCustomCycle}
+              label={
+                <p>
+                  Seu ciclo: {format(parseISO(getCurrentCycle().start), 'dd/MM', { locale: ptBR })} -{' '}
+                  {format(subDays(parseISO(getCurrentCycle().end), 1), 'dd/MM', { locale: ptBR })}
+                </p>
+              }
             >
-              <Calendar className="mr-2 h-4 w-4" />
-              {hasCustomCycle ? `Ciclo Atual (dia ${cycleDay})` : 'Ciclo Mensal (padrão)'}
-              {hasCustomCycle && (
-                <TooltipProvider>
-                  <UITooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="ml-2 h-4 w-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Seu ciclo: {format(new Date(getCurrentCycle().start), 'dd/MM', { locale: ptBR })} -{' '}
-                        {format(new Date(new Date(getCurrentCycle().end).setDate(new Date(getCurrentCycle().end).getDate() - 1)), 'dd/MM', { locale: ptBR })}
-                      </p>
-                    </TooltipContent>
-                  </UITooltip>
-                </TooltipProvider>
-              )}
-            </Button>
+              <Button
+                variant={hasCustomCycle ? "default" : "outline"}
+                onClick={() => {
+                  if (hasCustomCycle) {
+                    const { start, end } = getCurrentCycle();
+                    setDateFrom(start);
+                    setDateTo(format(subDays(parseISO(end), 1), 'yyyy-MM-dd'));
+                    toast.info(`Ciclo personalizado aplicado (dia ${cycleDay})`);
+                  }
+                }}
+                disabled={!hasCustomCycle}
+                className="w-full md:w-auto"
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {hasCustomCycle ? `Ciclo Atual (dia ${cycleDay})` : 'Ciclo Mensal (padrão)'}
+                {hasCustomCycle && <Info className="ml-2 h-4 w-4" />}
+              </Button>
+            </CycleTooltip>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/*
+                * htmlFor/id são o que liga rótulo e campo. Sem eles o leitor de
+                * tela anuncia dois campos de data sem nome, e clicar no rótulo
+                * não foca o campo. Era também o motivo de `getByLabel(/data
+                * inicial/i)` não achar nada no teste de export.
+                */}
               <div className="space-y-2">
-                <Label>Data Inicial</Label>
+                <Label htmlFor="report-date-from">Data Inicial</Label>
                 <Input
+                  id="report-date-from"
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
@@ -359,8 +392,9 @@ export default function Reports() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Data Final</Label>
+                <Label htmlFor="report-date-to">Data Final</Label>
                 <Input
+                  id="report-date-to"
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}

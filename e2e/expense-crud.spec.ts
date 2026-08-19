@@ -1,28 +1,7 @@
-/*
- * QUARENTENA — os `test.fixme` abaixo ainda não passam.
- *
- * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
- *
- *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
- *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
- *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
- *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
- *     e depois na opção, por role.
- *
- * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
- *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
- *    storageState do auth.setup.ts;
- *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
- *    dispensava — nenhum seletor era encontrado por baixo dele;
- *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
- *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
- *
- * Cada fixme é dívida explícita: reative ao ajustar a interação.
- */
 import { test, expect } from '@playwright/test';
-import { TEST_EXPENSE, waitForPageLoad, formatCurrency } from './fixtures/test-data';
+import { waitForPageLoad } from './fixtures/test-data';
 
-test.describe('Expense CRUD Operations', () => {
+test.describe('Expense List & Edit', () => {
   test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
 
   test.beforeEach(async ({ page }) => {
@@ -30,27 +9,34 @@ test.describe('Expense CRUD Operations', () => {
     await waitForPageLoad(page);
   });
 
-  test.fixme('should create new expense successfully', async ({ page }) => {
-    // Navigate to add expense
-    await page.getByRole('link', { name: /adicionar/i }).click();
-    await page.waitForURL('/add-expense');
+  /*
+   * A lista é virtualizada: cada linha é um `role="listitem"` dentro do
+   * `role="list"` rotulado "Lista de despesas". Os testes daqui usavam
+   * `[class*="expense"], [data-testid*="expense"]`, que não casa com nada
+   * nessa árvore — combinado com o `if (isVisible)` que os embrulha, passavam
+   * sem exercitar nada e continuariam passando com a lista quebrada.
+   */
+  const linhas = (page: import('@playwright/test').Page) =>
+    page.getByRole('list', { name: 'Lista de despesas' }).getByRole('listitem');
 
-    // Fill expense form
-    await page.getByLabel(/valor/i).fill(TEST_EXPENSE.amount);
-    await page.getByLabel(/data/i).fill(TEST_EXPENSE.date);
-    await page.getByLabel(/estabelecimento/i).fill(TEST_EXPENSE.merchant);
-    await page.getByLabel(/observações/i).fill(TEST_EXPENSE.notes);
-    
-    // Select payment method
-    await page.getByLabel(/forma de pagamento/i).click();
-    await page.getByRole('option', { name: TEST_EXPENSE.paymentMethod }).click();
+  /*
+   * Rodando um projeto por vez contra banco limpo, esta suíte vem antes de
+   * `import-transactions` na ordem alfabética — o usuário ainda pode não ter
+   * despesa nenhuma. Por isso os testes abaixo aceitam os dois estados, mas
+   * agora contra o DOM real: havendo dado, a asserção é de verdade.
+   */
+  const listaVazia = (page: import('@playwright/test').Page) =>
+    page.getByText('Nenhuma despesa encontrada');
 
-    // Submit form
-    await page.getByRole('button', { name: /salvar/i }).click();
-
-    // Should show success message and redirect
-    await expect(page.locator('text=/adicionada|sucesso/i')).toBeVisible({ timeout: 5000 });
-    await expect(page).toHaveURL(/\/(dashboard|expenses)/, { timeout: 5000 });
+  /*
+   * Criar despesa saiu daqui junto com o lançamento manual: /add-expense,
+   * FAB e drawer rápido não existem mais. A entrada de gastos é a importação
+   * de extrato/fatura, coberta em `import-transactions.spec.ts`. O que resta
+   * abaixo é o ciclo de vida do que já entrou: listar, editar e excluir.
+   */
+  test('deve redirecionar /add-expense para a importação', async ({ page }) => {
+    await page.goto('/add-expense');
+    await expect(page).toHaveURL(/\/import-transactions/, { timeout: 15000 });
   });
 
   test('should display expense in list', async ({ page }) => {
@@ -63,92 +49,52 @@ test.describe('Expense CRUD Operations', () => {
     // Mobile Chrome, com strict mode violation.
     await expect(page.getByRole('heading', { name: 'Minhas Despesas' })).toBeVisible();
     
-    // Check if there are any expenses
-    const noExpensesText = await page.locator('text=/nenhuma despesa|sem despesas/i').isVisible({ timeout: 2000 }).catch(() => false);
-    
-    if (!noExpensesText) {
-      // Should have at least one expense card/row
-      const expenseItems = page.locator('[class*="expense"], [data-testid*="expense"]').first();
-      await expect(expenseItems).toBeVisible();
-    }
+    await expect(linhas(page).first().or(listaVazia(page))).toBeVisible({ timeout: 15000 });
   });
 
   test('should edit existing expense', async ({ page }) => {
     await page.goto('/expenses');
     await waitForPageLoad(page);
+    await expect(linhas(page).first().or(listaVazia(page))).toBeVisible({ timeout: 15000 });
 
-    // Find first expense and click edit
-    const firstExpense = page.locator('[class*="expense"], [data-testid*="expense"]').first();
-    
-    if (await firstExpense.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await firstExpense.click();
-      
-      // Should navigate to edit page
-      await expect(page).toHaveURL(/\/expenses\/edit/, { timeout: 5000 });
-      
-      // Update amount
-      const newAmount = '200.00';
-      await page.getByLabel(/valor/i).fill(newAmount);
-      
-      // Save changes
-      await page.getByRole('button', { name: /salvar/i }).click();
-      
-      // Should show success message
-      await expect(page.locator('text=/atualizada|sucesso/i')).toBeVisible({ timeout: 5000 });
-    } else {
-      console.log('⚠️ No expenses found to edit');
-    }
+    test.skip(await listaVazia(page).isVisible(), 'sem despesa importada nesta passagem');
+
+    // A rota é /expenses/:id/edit — a asserção antiga era /expenses/edit, que
+    // não existe; nunca rodou, então nunca reclamou.
+    await page.getByRole('button', { name: /^Editar despesa/ }).first().click();
+    await expect(page).toHaveURL(/\/expenses\/[^/]+\/edit/, { timeout: 15000 });
+
+    await page.getByLabel('Valor (R$)').fill('200.00');
+    await page.getByRole('button', { name: 'Salvar Alterações' }).click();
+
+    await expect(page.getByText(/atualizada|sucesso/i).first()).toBeVisible({ timeout: 15000 });
   });
 
   test('should delete expense', async ({ page }) => {
     await page.goto('/expenses');
     await waitForPageLoad(page);
+    await expect(linhas(page).first().or(listaVazia(page))).toBeVisible({ timeout: 15000 });
 
-    const firstExpense = page.locator('[class*="expense"], [data-testid*="expense"]').first();
-    
-    if (await firstExpense.isVisible({ timeout: 2000 }).catch(() => false)) {
-      // Find and click delete button
-      const deleteButton = firstExpense.locator('button[aria-label*="delete"], button[aria-label*="excluir"]').first();
-      
-      if (await deleteButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await deleteButton.click();
-        
-        // Confirm deletion in dialog
-        await page.getByRole('button', { name: /confirmar|excluir|deletar/i }).click();
-        
-        // Should show success message
-        await expect(page.locator('text=/excluída|removida|sucesso/i')).toBeVisible({ timeout: 5000 });
-      }
-    } else {
-      console.log('⚠️ No expenses found to delete');
-    }
+    test.skip(await listaVazia(page).isVisible(), 'sem despesa importada nesta passagem');
+
+    /*
+     * Contar linhas não serve de asserção: a lista é virtualizada, então o
+     * número de `listitem` no DOM é o que cabe na viewport, não o total.
+     * O que dá para afirmar é que a linha excluída sumiu — daí guardar o
+     * comerciante dela antes.
+     */
+    const excluir = page.getByRole('button', { name: /^Excluir despesa/ }).first();
+    const comerciante = (await excluir.getAttribute('aria-label')).replace('Excluir despesa ', '');
+
+    await excluir.click();
+    // Nome exato: o botão da linha também casa com /excluir/i, e o diálogo
+    // renderiza por cima dela.
+    await page.getByRole('button', { name: 'Excluir', exact: true }).click();
+
+    await expect(page.getByText('Despesa excluída com sucesso')).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole('button', { name: `Excluir despesa ${comerciante}` }),
+    ).toHaveCount(0, { timeout: 15000 });
   });
 
-  test('should validate required fields', async ({ page }) => {
-    await page.goto('/add-expense');
-    await waitForPageLoad(page);
-
-    // Try to submit empty form
-    await page.getByRole('button', { name: /salvar/i }).click();
-
-    // Should show validation errors or prevent submission
-    const url = page.url();
-    expect(url).toContain('/add-expense'); // Should stay on same page
-  });
-
-  test.fixme('should not allow future dates', async ({ page }) => {
-    await page.goto('/add-expense');
-    await waitForPageLoad(page);
-
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 7);
-    const futureDateStr = futureDate.toISOString().split('T')[0];
-
-    await page.getByLabel(/valor/i).fill('100.00');
-    await page.getByLabel(/data/i).fill(futureDateStr);
-    await page.getByRole('button', { name: /salvar/i }).click();
-
-    // Should show error or prevent submission
-    await expect(page.locator('text=/data.*futura|não pode ser futura/i')).toBeVisible({ timeout: 5000 });
-  });
 });

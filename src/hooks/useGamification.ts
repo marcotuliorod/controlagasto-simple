@@ -103,9 +103,11 @@ export interface UnlockProgress {
 }
 
 // Menu items that are always unlocked (Level 1)
+// import-transactions entrou aqui quando o lançamento manual saiu: é o único
+// caminho de entrada de gastos, então não pode ficar atrás de desbloqueio.
 const ALWAYS_UNLOCKED = [
   "dashboard",
-  "add-expense",
+  "import-transactions",
   "expenses",
   "education",
   "quiz",

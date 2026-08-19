@@ -25,7 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Repeat, Calendar, Trash2, Edit, Pause, Play } from "lucide-react";
-import { format } from "date-fns";
+/*
+ * `parseISO`, não `new Date(str)`: `start_date`, `end_date` e `next_occurrence`
+ * são colunas `date` (YYYY-MM-DD), e `new Date("2026-01-01")` parseia como UTC
+ * — em fuso negativo (UTC-3, Brasil) isso vira 31/12/2025 na tela. Mesmo bug
+ * que já foi corrigido em src/lib/dateRange.ts.
+ */
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function RecurringExpenses() {
@@ -178,7 +184,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoria</Label>
                   <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger>
+                    <SelectTrigger id="category">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -194,7 +200,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="account">Conta</Label>
                   <Select value={accountId} onValueChange={setAccountId}>
-                    <SelectTrigger>
+                    <SelectTrigger id="account">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -210,7 +216,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="frequency">Frequência *</Label>
                   <Select value={frequency} onValueChange={(v) => setFrequency(v as RecurringExpense["frequency"])}>
-                    <SelectTrigger>
+                    <SelectTrigger id="frequency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -247,7 +253,7 @@ export default function RecurringExpenses() {
                 <div className="space-y-2">
                   <Label htmlFor="payment">Forma de Pagamento</Label>
                   <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger>
+                    <SelectTrigger id="payment">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -315,14 +321,14 @@ export default function RecurringExpenses() {
                       <p>
                         <span>Próxima ocorrência:</span>{" "}
                         <span className="font-medium text-foreground">
-                          {format(new Date(rec.next_occurrence), "dd/MM/yyyy", { locale: ptBR })}
+                          {format(parseISO(rec.next_occurrence), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
                       </p>
                       {rec.end_date && (
                         <p>
                           <span>Encerra em:</span>{" "}
                           <span className="font-medium">
-                            {format(new Date(rec.end_date), "dd/MM/yyyy", { locale: ptBR })}
+                            {format(parseISO(rec.end_date), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         </p>
                       )}
@@ -333,6 +339,7 @@ export default function RecurringExpenses() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`${rec.is_active ? "Pausar" : "Retomar"} recorrência ${rec.merchant}`}
                       onClick={() => toggleActive(rec.id, rec.is_active)}
                     >
                       {rec.is_active ? (
@@ -341,12 +348,18 @@ export default function RecurringExpenses() {
                         <Play className="w-4 h-4" />
                       )}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(rec)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Editar recorrência ${rec.merchant}`}
+                      onClick={() => handleEdit(rec)}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Excluir recorrência ${rec.merchant}`}
                       onClick={() => {
                         if (confirm("Confirma exclusão desta recorrência?")) {
                           deleteRecurring.mutate(rec.id);

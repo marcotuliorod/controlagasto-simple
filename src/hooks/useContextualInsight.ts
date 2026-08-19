@@ -27,9 +27,9 @@ export function useContextualInsight(
     if (expenses.length === 0) {
       insights.push({
         type: "info",
-        title: "Comece a adicionar despesas",
-        message: "Adicione suas primeiras despesas para receber insights personalizados.",
-        action: "Adicionar despesa",
+        title: "Importe seu primeiro extrato",
+        message: "Importe o extrato ou a fatura para receber insights personalizados.",
+        action: "Importar extrato",
       });
       return insights;
     }

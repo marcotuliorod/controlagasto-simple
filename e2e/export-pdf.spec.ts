@@ -1,24 +1,3 @@
-/*
- * QUARENTENA — os `test.fixme` abaixo ainda não passam.
- *
- * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
- *
- *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
- *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
- *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
- *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
- *     e depois na opção, por role.
- *
- * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
- *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
- *    storageState do auth.setup.ts;
- *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
- *    dispensava — nenhum seletor era encontrado por baixo dele;
- *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
- *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
- *
- * Cada fixme é dívida explícita: reative ao ajustar a interação.
- */
 import { test, expect } from '@playwright/test';
 import { waitForPageLoad } from './fixtures/test-data';
 
@@ -38,8 +17,10 @@ test.describe('PDF Export', () => {
   });
 
   test('should trigger PDF download on button click', async ({ page }) => {
-    // Set up download listener
-    const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
+    // Menor que o timeout do teste (30s), senão o teste estoura ANTES de o
+    // waitForEvent rejeitar e o catch abaixo nunca roda — o tratamento de
+    // "sem download" existia mas era inalcançável.
+    const downloadPromise = page.waitForEvent('download', { timeout: 20000 });
     
     // Click PDF export button
     const pdfButton = page.getByRole('button', { name: /pdf/i });
@@ -134,7 +115,7 @@ test.describe('PDF Export', () => {
     await expect(page.locator('text=/exportado.*sucesso|download/i')).toBeVisible({ timeout: 15000 });
   });
 
-  test.fixme('should handle export errors gracefully', async ({ page }) => {
+  test('should handle export errors gracefully', async ({ page }) => {
     // Navigate to page with no data
     await page.goto('/reports');
     
@@ -148,11 +129,20 @@ test.describe('PDF Export', () => {
     
     // Try to export
     await page.getByRole('button', { name: /pdf/i }).click();
-    
-    // Should either succeed with empty report or show appropriate message
-    const hasError = await page.locator('text=/erro|falha/i').isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSuccess = await page.locator('text=/sucesso|exportado/i').isVisible({ timeout: 5000 }).catch(() => false);
-    
-    expect(hasError || hasSuccess).toBeTruthy();
+
+    /*
+     * Uma espera só para as duas hipóteses. Antes eram dois `isVisible` de 5s em
+     * série, e isso nunca podia passar no caminho de sucesso: o primeiro
+     * queimava os 5s esperando por "erro" e o toast de sucesso — que o sonner
+     * remove sozinho — já tinha sumido quando o segundo começava.
+     *
+     * O que o teste garante é que exportar um intervalo sem despesa devolve
+     * resposta ao usuário em vez de falhar calado. Qual das duas não importa.
+     */
+    const toast = page
+      .locator('[data-sonner-toast]')
+      .filter({ hasText: /erro|falha|sucesso|exportado|baixado/i });
+
+    await expect(toast.first()).toBeVisible({ timeout: 20000 });
   });
 });

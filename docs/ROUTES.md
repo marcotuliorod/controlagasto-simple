@@ -72,16 +72,15 @@ Requerem login. Protegidas por `RequireOnboarding`.
 
 | Rota | Componente | Descrição |
 |------|------------|-----------|
-| `/add-expense` | `AddExpense` | Nova despesa |
+| `/add-expense` | — | Redirect para `/import-transactions` (compatibilidade) |
 | `/expenses` | `ExpensesVirtualized` | Lista de despesas |
 | `/expenses/:id/edit` | `EditExpense` | Editar despesa |
 | `/recurring-expenses` | `RecurringExpenses` | Despesas recorrentes |
 
 #### `/add-expense`
-- Formulário completo de despesa
-- Suporte a OCR de recibos
-- Sugestão automática de categoria
-- Quick picker de categorias
+- Não é mais uma tela: redireciona para `/import-transactions`
+- O lançamento manual e o OCR de cupom foram removidos; a rota só sobrevive
+  para não quebrar link antigo nem shell de PWA já instalado
 
 #### `/expenses`
 - Lista virtualizada (performance)
@@ -283,7 +282,6 @@ Layout padrão com:
 | Atalho | Ação |
 |--------|------|
 | `Ctrl+K` / `Cmd+K` | Busca global |
-| `Ctrl+N` | Nova despesa |
 
 ---
 
@@ -301,7 +299,7 @@ Layout padrão com:
   <Route element={<RequireOnboarding />}>
     <Route element={<AppLayout />}>
       <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/add-expense" element={<AddExpense />} />
+      <Route path="/add-expense" element={<Navigate to="/import-transactions" replace />} />
       <Route path="/expenses" element={<ExpensesVirtualized />} />
       <Route path="/expenses/:id/edit" element={<EditExpense />} />
       <Route path="/reports" element={<Reports />} />

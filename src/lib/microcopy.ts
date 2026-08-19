@@ -27,12 +27,12 @@ export const microcopy = {
   empty: {
     expenses: {
       title: 'Nenhuma despesa ainda',
-      description: 'Comece adicionando sua primeira despesa para acompanhar seus gastos.',
-      action: 'Adicionar primeira despesa',
+      description: 'Importe seu extrato ou fatura para acompanhar seus gastos.',
+      action: 'Importar extrato',
     },
     reports: {
       title: 'Sem dados para exibir',
-      description: 'Adicione algumas despesas para visualizar relatórios detalhados.',
+      description: 'Importe um extrato para visualizar relatórios detalhados.',
       action: 'Ir para despesas',
     },
     notifications: {

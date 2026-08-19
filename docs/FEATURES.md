@@ -33,41 +33,17 @@ Documentação completa de todas as funcionalidades disponíveis em produção.
 
 ## 1. Gestão de Despesas
 
-### 1.1 Adicionar Despesa Manual
-**Rota:** `/add-expense`
+### 1.1 Entrada de Despesas
+**Rota:** `/import-transactions`
 
-| Campo | Tipo | Obrigatório | Descrição |
-|-------|------|-------------|-----------|
-| Valor | number | ✅ | Valor da despesa |
-| Data | date | ✅ | Data da despesa (padrão: hoje) |
-| Categoria | select | ❌ | Categoria da despesa |
-| Conta | select | ❌ | Conta de origem |
-| Comerciante | text | ❌ | Nome do estabelecimento |
-| Método de Pagamento | select | ❌ | Dinheiro, Débito, Crédito, PIX |
-| Tags | multi-select | ❌ | Tags personalizadas |
-| Notas | textarea | ❌ | Observações adicionais |
+Não há lançamento manual. Toda despesa entra por importação de extrato ou
+fatura — o formulário `/add-expense`, o botão flutuante, o drawer de adição
+rápida e o OCR de cupom fiscal foram removidos (custo de manutenção e peso no
+PWA sem contrapartida, já que o extrato traz o mesmo dado com mais precisão).
+`/add-expense` continua respondendo apenas como redirect para a importação.
 
-**Funcionalidades:**
-- Sugestão automática de categoria baseada no comerciante
-- Quick picker de categorias frequentes
-- Campo de valor com formatação monetária (R$)
-
-### 1.2 OCR de Recibos
-**Edge Function:** `process-receipt`
-
-Permite fotografar ou fazer upload de recibos para extração automática de:
-- Valor total
-- Data da compra
-- Nome do comerciante
-- CNPJ (quando disponível)
-- Itens (quando disponível)
-
-**Fluxo:**
-1. Usuário captura/seleciona imagem
-2. Imagem é enviada como base64
-3. IA processa e extrai dados
-4. Formulário é preenchido automaticamente
-5. Imagem é armazenada no bucket `receipts`
+Depois de importada, a despesa é editável em `/expenses/:id/edit`: categoria,
+conta, tags e notas.
 
 ### 1.3 Listar Despesas
 **Rota:** `/expenses`
@@ -483,10 +459,9 @@ Ao criar conta, usuário recebe automaticamente:
 - Páginas do app
 
 ### 14.2 Ações Rápidas
-- Adicionar despesa
-- Ver relatórios
-- Configurações
-- Navegação rápida
+- Importar extrato ou fatura
+- Despesas recorrentes
+- Exportações agendadas
 
 ### 14.3 Interface
 - Command palette (estilo VS Code)

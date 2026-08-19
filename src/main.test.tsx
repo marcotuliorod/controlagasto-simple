@@ -45,12 +45,28 @@ describe('main.tsx - PWA Registration', () => {
 
     expect(registerSW).toHaveBeenCalledWith(
       expect.objectContaining({
-        onNeedRefresh: expect.any(Function),
+        immediate: true,
         onOfflineReady: expect.any(Function),
         onRegisteredSW: expect.any(Function),
         onRegisterError: expect.any(Function),
       })
     );
+  });
+
+  it('should not pass onNeedRefresh — autoUpdate never calls it', async () => {
+    const { registerSW } = await import('virtual:pwa-register');
+
+    await import('./main');
+
+    /*
+     * Com `registerType: 'autoUpdate'` (vite.config.ts) o vite-plugin-pwa não
+     * chama `onNeedRefresh`: ele escuta 'activated' e recarrega a página
+     * sozinho. Um callback aqui seria código morto que aparenta estar tratando
+     * a atualização — foi o que existiu até 19/08/2026, um `confirm()` que
+     * deixava o PWA instalado servindo o app antigo.
+     */
+    const opcoes = vi.mocked(registerSW).mock.calls[0][0];
+    expect(opcoes).not.toHaveProperty('onNeedRefresh');
   });
 
   it('should handle service worker registration callbacks', async () => {

@@ -19,7 +19,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Plus, Calendar, FileText, Trash2, Edit, Pause, Play } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -126,7 +125,7 @@ export default function ScheduledExports() {
                 <div className="space-y-2">
                   <Label htmlFor="frequency">Frequência</Label>
                   <Select value={frequency} onValueChange={(v) => setFrequency(v as ScheduledExport["frequency"])}>
-                    <SelectTrigger>
+                    <SelectTrigger id="frequency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -140,7 +139,7 @@ export default function ScheduledExports() {
                 <div className="space-y-2">
                   <Label htmlFor="format">Formato</Label>
                   <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ScheduledExport["format"])}>
-                    <SelectTrigger>
+                    <SelectTrigger id="format">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -209,6 +208,7 @@ export default function ScheduledExports() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`${exp.is_active ? "Pausar" : "Retomar"} exportação ${exp.name}`}
                       onClick={() => toggleActive(exp.id, exp.is_active)}
                     >
                       {exp.is_active ? (
@@ -217,12 +217,18 @@ export default function ScheduledExports() {
                         <Play className="w-4 h-4" />
                       )}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(exp)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Editar exportação ${exp.name}`}
+                      onClick={() => handleEdit(exp)}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`Excluir exportação ${exp.name}`}
                       onClick={() => {
                         if (confirm("Confirma exclusão desta exportação?")) {
                           deleteExport.mutate(exp.id);

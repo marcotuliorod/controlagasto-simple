@@ -84,7 +84,7 @@ export const GlobalSearch = () => {
             <CommandItem
               key={expense.id}
               onSelect={() => {
-                navigate(`/edit-expense/${expense.id}`);
+                navigate(`/expenses/${expense.id}/edit`);
                 setOpen(false);
               }}
             >
@@ -134,21 +134,17 @@ export const GlobalSearch = () => {
         </CommandGroup>
 
         <CommandGroup heading="Ações Rápidas">
-          <CommandItem onSelect={() => { navigate("/add-expense"); setOpen(false); }}>
+          <CommandItem onSelect={() => { navigate("/import-transactions"); setOpen(false); }}>
             <DollarSign className="mr-2 h-4 w-4" />
-            Nova Despesa
+            Importar Extrato ou Fatura
           </CommandItem>
-          <CommandItem onSelect={() => { navigate("/recurring"); setOpen(false); }}>
+          <CommandItem onSelect={() => { navigate("/recurring-expenses"); setOpen(false); }}>
             <Target className="mr-2 h-4 w-4" />
             Despesas Recorrentes
           </CommandItem>
           <CommandItem onSelect={() => { navigate("/scheduled-exports"); setOpen(false); }}>
             <Search className="mr-2 h-4 w-4" />
             Exportações Agendadas
-          </CommandItem>
-          <CommandItem onSelect={() => { navigate("/import-transactions"); setOpen(false); }}>
-            <Search className="mr-2 h-4 w-4" />
-            Importar Extrato
           </CommandItem>
         </CommandGroup>
       </CommandList>

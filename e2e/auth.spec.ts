@@ -1,26 +1,5 @@
-/*
- * QUARENTENA — os `test.fixme` abaixo ainda não passam.
- *
- * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
- *
- *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
- *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
- *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
- *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
- *     e depois na opção, por role.
- *
- * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
- *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
- *    storageState do auth.setup.ts;
- *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
- *    dispensava — nenhum seletor era encontrado por baixo dele;
- *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
- *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
- *
- * Cada fixme é dívida explícita: reative ao ajustar a interação.
- */
 import { test, expect } from '@playwright/test';
-import { generateTestEmail, waitForPageLoad } from './fixtures/test-data';
+import { generateTestEmail, signUpAndOnboard, waitForPageLoad } from './fixtures/test-data';
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,68 +13,106 @@ test.describe('Authentication Flow', () => {
     await expect(page.getByRole('tab', { name: 'Criar Conta' })).toBeVisible();
   });
 
-  test.fixme('should sign up new user successfully', async ({ page }) => {
+  test('should sign up new user successfully', async ({ page }) => {
+    // "Criar Conta" é uma aba, não um botão: sem clicar nela o formulário
+    // preenchido era o de login. E o campo de senha do cadastro tem outro
+    // placeholder — "Sua senha", que o teste antigo procurava, não existe.
+    await page.getByRole('tab', { name: 'Criar Conta' }).click();
+    const signup = page.getByRole('tabpanel');
+
+    await signup.getByPlaceholder('Seu nome').fill('Novo Usuário');
+    await signup.getByPlaceholder('seu@email.com').fill(generateTestEmail());
+    await signup.getByPlaceholder('Mínimo 6 caracteres').fill('TestPassword123!');
+    await signup.getByRole('button', { name: /criar conta/i }).click();
+
+    await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
+    // Mesmo timeout da navegação: /onboarding é lazy-loaded, e com a suíte
+    // inteira em 4 workers o chunk demorava mais que os 5s padrão.
+    await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible({
+      timeout: 15000,
+    });
+  });
+
+  test('should validate email format', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Criar Conta' }).click();
+    const signup = page.getByRole('tabpanel');
+
+    const email = signup.getByPlaceholder('seu@email.com');
+    await signup.getByPlaceholder('Seu nome').fill('Novo Usuário');
+    await email.fill('invalid-email');
+    await signup.getByPlaceholder('Mínimo 6 caracteres').fill('TestPassword123!');
+    await signup.getByRole('button', { name: /criar conta/i }).click();
+
+    /*
+     * `type="email"` faz o próprio navegador barrar o submit, então não há
+     * mensagem na tela para esperar — era isso que o teste antigo fazia.
+     * Verifica-se a rejeição de fato: campo inválido e nenhuma conta criada.
+     */
+    const typeMismatch = await email.evaluate(
+      (el: HTMLInputElement) => el.validity.typeMismatch
+    );
+    expect(typeMismatch).toBe(true);
+    await expect(page).toHaveURL(/\/auth/);
+  });
+
+  test('should login existing user', async ({ page }) => {
+    /*
+     * Não existe usuário fixo no banco — o teste antigo usava um inventado e
+     * passava aceitando "logou OU deu erro", o que qualquer resultado
+     * satisfaz. Aqui o usuário é criado, a sessão é descartada, e o login é
+     * de verdade.
+     */
     const email = generateTestEmail();
     const password = 'TestPassword123!';
 
-    await page.getByPlaceholder('seu@email.com').fill(email);
-    await page.getByPlaceholder('Sua senha').fill(password);
-    await page.getByRole('button', { name: /criar conta/i }).click();
+    await page.getByRole('tab', { name: 'Criar Conta' }).click();
+    const signup = page.getByRole('tabpanel');
+    await signup.getByPlaceholder('Seu nome').fill('Usuário Existente');
+    await signup.getByPlaceholder('seu@email.com').fill(email);
+    await signup.getByPlaceholder('Mínimo 6 caracteres').fill(password);
+    await signup.getByRole('button', { name: /criar conta/i }).click();
+    await page.waitForURL(/\/onboarding/, { timeout: 15000 });
 
-    // Should redirect to onboarding
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
-    await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible();
+    // Descarta a sessão sem passar pelo logout, que é o teste seguinte.
+    await page.evaluate(() => window.localStorage.clear());
+    await page.goto('/auth');
+    await waitForPageLoad(page);
+
+    const signin = page.getByRole('tabpanel');
+    await signin.getByPlaceholder('seu@email.com').fill(email);
+    await signin.getByPlaceholder('••••••••').fill(password);
+    await signin.getByRole('button', { name: /entrar/i }).click();
+
+    await expect(
+      page.locator('[data-sonner-toast]').filter({ hasText: /login realizado/i }).first()
+    ).toBeVisible({ timeout: 15000 });
+    // Com o onboarding incompleto o app manda para o wizard, não ao dashboard.
+    await expect(page).toHaveURL(/\/(dashboard|onboarding)/, { timeout: 15000 });
   });
+});
 
-  test.fixme('should validate email format', async ({ page }) => {
-    await page.getByPlaceholder('seu@email.com').fill('invalid-email');
-    await page.getByPlaceholder('Sua senha').fill('Password123!');
-    await page.getByRole('button', { name: /criar conta/i }).click();
+test.describe('Logout', () => {
+  /*
+   * Usuário PRÓPRIO, não o `storageState` do auth.setup.ts.
+   *
+   * O app hoje sai com `scope: 'local'` (AppSidebar.tsx), mas isso NÃO torna
+   * seguro compartilhar a sessão: o `storageState` é uma sessão só, e o escopo
+   * local revoga exatamente ela — que é justamente a que os outros 5 specs
+   * estão usando em paralelo. Com escopo global era pior (derrubava até
+   * sessões de outra execução), e o sintoma era o mesmo: eles falhavam por
+   * token inválido, sem pista nenhuma de que a causa estava aqui.
+   */
+  test('should logout successfully', async ({ page }) => {
+    await signUpAndOnboard(page);
+    await waitForPageLoad(page);
 
-    // Should show error (either inline or toast)
-    await expect(page.locator('text=/email|e-mail|inválido/i')).toBeVisible({ timeout: 5000 });
-  });
-
-  test.fixme('should login existing user', async ({ page }) => {
-    // Use a pre-existing test user
-    const email = 'existing-user@test.com';
-    const password = 'TestPassword123!';
-
-    await page.getByPlaceholder('seu@email.com').fill(email);
-    await page.getByPlaceholder('Sua senha').fill(password);
-    await page.getByRole('button', { name: /entrar/i }).click();
-
-    // Should redirect to dashboard (or show error if user doesn't exist)
-    const url = page.url();
-    const isDashboard = url.includes('/dashboard');
-    const hasError = await page.locator('text=/erro|error|incorreto/i').isVisible({ timeout: 3000 }).catch(() => false);
-    
-    expect(isDashboard || hasError).toBeTruthy();
-  });
-
-  test.fixme('should logout successfully', async ({ page }) => {
-    // First login with test user
-    const email = 'existing-user@test.com';
-    const password = 'TestPassword123!';
-
-    await page.getByPlaceholder('seu@email.com').fill(email);
-    await page.getByPlaceholder('Sua senha').fill(password);
-    await page.getByRole('button', { name: /entrar/i }).click();
-
-    try {
-      await page.waitForURL('/dashboard', { timeout: 10000 });
-      
-      // Open settings menu and logout
-      await page.getByRole('link', { name: /configurações/i }).click();
-      await page.waitForURL('/settings');
-      
-      await page.getByRole('button', { name: /sair|logout/i }).click();
-      
-      // Should redirect back to auth
-      await expect(page).toHaveURL(/\/auth/, { timeout: 5000 });
-    } catch (error) {
-      // If login failed, that's expected for non-existent user
-      console.log('⚠️ Login failed (expected for test user)');
+    // O botão vive na sidebar, que no mobile só existe atrás do menu.
+    const menuTrigger = page.getByRole('button', { name: /abrir menu de navegação/i });
+    if (await menuTrigger.isVisible()) {
+      await menuTrigger.click();
     }
+
+    await page.getByRole('button', { name: 'Sair' }).click();
+    await expect(page).toHaveURL(/\/auth/, { timeout: 15000 });
   });
 });

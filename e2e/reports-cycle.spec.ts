@@ -1,164 +1,130 @@
-/*
- * QUARENTENA — os `test.fixme` abaixo ainda não passam.
- *
- * O diagnóstico agora é específico (antes era só "seletores desatualizados"):
- *
- *  1. Formulários usam `input[name="x"]`, mas os campos têm apenas `id="x"`,
- *     sem atributo name. Use `page.locator('#x')` ou `getByLabel`.
- *  2. `selectOption('select[name="x"]')` não funciona: a UI usa o Select do
- *     shadcn (Radix), que não é um <select> nativo. Precisa clicar no trigger
- *     e depois na opção, por role.
- *
- * Causas sistêmicas JÁ resolvidas nesta rodada, que valiam 10 testes:
- *  - 3 arquivos faziam login manual com um usuário inexistente; agora usam o
- *    storageState do auth.setup.ts;
- *  - o modal de boas-vindas da gamificação cobria toda página, e o setup não o
- *    dispensava — nenhum seletor era encontrado por baixo dele;
- *  - `locator('h1')` casa 2 elementos (o do AppLayout e o da página);
- *  - a tela de auth usa abas, não os placeholders que os testes esperavam.
- *
- * Cada fixme é dívida explícita: reative ao ajustar a interação.
- */
 import { test, expect } from '@playwright/test';
-import { waitForPageLoad } from './fixtures/test-data';
+import { TEST_USER, waitForPageLoad } from './fixtures/test-data';
 
 test.describe('Reports with Billing Cycle', () => {
   test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
 
   test.beforeEach(async ({ page }) => {
+    /*
+     * O `FirstVisitTip` do cartão "Total no Período" abre sozinho enquanto o
+     * localStorage não tiver a chave de dispensa — e ele é um segundo
+     * `role="tooltip"` na tela, o que quebra por strict mode a asserção do
+     * tooltip do ciclo. Ele só aparece quando há despesa, então isso ficou
+     * invisível enquanto o usuário de teste não tinha nenhuma; passou a valer
+     * quando `import-transactions.spec.ts` começou a criar dados. Marcar a
+     * dica como vista antes do load tira do caminho uma peça que não é o
+     * objeto deste spec.
+     */
+    await page.addInitScript(() => {
+      localStorage.setItem('tip-seen-reports-total-card', 'true');
+    });
+
     await page.goto('/reports');
     await waitForPageLoad(page);
   });
 
-  test.fixme('should display reports page with date filters', async ({ page }) => {
+  /*
+   * O `auth.setup.ts` completa o onboarding com TEST_USER.billingCycleDay, que
+   * não é 1 — então `hasCustomCycle` é SEMPRE verdadeiro aqui. Os testes antigos
+   * embrulhavam tudo em `if (await botão.isVisible())` e passavam sem testar
+   * nada quando o seletor não casava. Asserção direta expõe a regressão.
+   */
+  const cycleButton = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: `Ciclo Atual (dia ${TEST_USER.billingCycleDay})` });
+
+  /*
+   * O Reports renderiza <EmptyState> NO LUGAR dos KPIs e dos gráficos quando
+   * não há despesa no período. Como a importação pode ou não ter rodado antes
+   * nesta passagem, o contrato honesto é: a página resolve para um dos dois
+   * estados, nunca para tela quebrada.
+   *
+   * O KPI é localizado pelo rótulo, não por `#reports-total-card`:
+   * "reports-total-card" é o `id` do FirstVisitTip (chave de localStorage),
+   * não um id de DOM — nenhum elemento na página o carrega. O seletor antigo
+   * não casava com nada e o teste vivia do ramo do estado vazio, que era o
+   * único que existia enquanto ninguém criava despesa.
+   */
+  const kpisOrEmptyState = (page: import('@playwright/test').Page) =>
+    page.getByText('Total no Período').or(page.getByText('Nenhuma despesa no período'));
+
+  test('should display reports page with date filters', async ({ page }) => {
     await expect(page.getByRole('heading', { name: /relatórios/i })).toBeVisible();
-    await expect(page.getByLabel(/data.*inicial|de/i)).toBeVisible();
-    await expect(page.getByLabel(/data.*final|até/i)).toBeVisible();
+    await expect(page.getByLabel('Data Inicial', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Data Final', { exact: true })).toBeVisible();
   });
 
   test('should show "Ciclo Atual" button when custom cycle is set', async ({ page }) => {
-    // Check if user has custom billing cycle (day != 1)
-    const cycleButton = page.getByRole('button', { name: /ciclo atual/i });
-    
-    const isVisible = await cycleButton.isVisible({ timeout: 2000 }).catch(() => false);
-    
-    if (isVisible) {
-      await expect(cycleButton).toBeEnabled();
-      
-      // Button text should show cycle day
-      const buttonText = await cycleButton.textContent();
-      expect(buttonText).toMatch(/dia \d+/i);
-    } else {
-      console.log('⚠️ User has default cycle (day 1) - custom cycle button not shown');
-    }
+    await expect(cycleButton(page)).toBeVisible();
+    await expect(cycleButton(page)).toBeEnabled();
   });
 
-  test.fixme('should apply current cycle dates when clicking "Ciclo Atual"', async ({ page }) => {
-    const cycleButton = page.getByRole('button', { name: /ciclo atual/i });
-    
-    if (await cycleButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      // Get initial date values
-      const dateFromBefore = await page.getByLabel(/data.*inicial|de/i).inputValue();
-      const dateToBefore = await page.getByLabel(/data.*final|até/i).inputValue();
-      
-      // Click cycle button
-      await cycleButton.click();
-      
-      // Wait for toast notification
-      await expect(page.locator('text=/ciclo.*aplicado|personalizado/i')).toBeVisible({ timeout: 3000 });
-      
-      // Date fields should be updated
-      const dateFromAfter = await page.getByLabel(/data.*inicial|de/i).inputValue();
-      const dateToAfter = await page.getByLabel(/data.*final|até/i).inputValue();
-      
-      // Dates should have changed
-      const datesChanged = dateFromAfter !== dateFromBefore || dateToAfter !== dateToBefore;
-      expect(datesChanged).toBeTruthy();
-      
-      console.log(`📅 Cycle applied: ${dateFromAfter} to ${dateToAfter}`);
-    } else {
-      console.log('⚠️ Skipping test - user does not have custom billing cycle');
-    }
+  test('should apply current cycle dates when clicking "Ciclo Atual"', async ({ page }) => {
+    const dateFrom = page.getByLabel('Data Inicial', { exact: true });
+    const dateTo = page.getByLabel('Data Final', { exact: true });
+
+    const fromBefore = await dateFrom.inputValue();
+    const toBefore = await dateTo.inputValue();
+
+    await cycleButton(page).click();
+
+    await expect(page.getByText(/ciclo personalizado aplicado/i)).toBeVisible({ timeout: 5000 });
+
+    // O ciclo começa no dia configurado do usuário.
+    await expect(dateFrom).toHaveValue(
+      new RegExp(`-${String(TEST_USER.billingCycleDay).padStart(2, '0')}$`),
+    );
+    expect(
+      (await dateFrom.inputValue()) !== fromBefore || (await dateTo.inputValue()) !== toBefore,
+    ).toBeTruthy();
   });
 
-  test.fixme('should show tooltip with cycle information', async ({ page }) => {
-    const cycleButton = page.getByRole('button', { name: /ciclo atual/i });
-    
-    if (await cycleButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      // Hover over info icon
-      const infoIcon = page.locator('svg[class*="lucide-info"]').first();
-      
-      if (await infoIcon.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await infoIcon.hover();
-        
-        // Tooltip should appear
-        await expect(page.locator('[role="tooltip"], [class*="tooltip"]')).toBeVisible({ timeout: 2000 });
-      }
-    }
+  test('should show tooltip with cycle information', async ({ page }) => {
+    // Hover no BOTÃO, não no ícone: a classe base do Button traz
+    // `[&_svg]:pointer-events-none`, então nenhum <svg> dentro dele recebe hover
+    // — era por isso que o tooltip não abria nem aqui nem para o usuário.
+    await cycleButton(page).hover();
+
+    const tooltipDoCiclo = page.getByRole('tooltip').filter({ hasText: 'Seu ciclo:' });
+    await expect(tooltipDoCiclo).toBeVisible({ timeout: 5000 });
   });
 
-  test.fixme('should filter expenses by selected date range', async ({ page }) => {
-    // Set specific date range
-    const dateFrom = '2025-01-01';
-    const dateTo = '2025-01-31';
-    
-    await page.getByLabel(/data.*inicial|de/i).fill(dateFrom);
-    await page.getByLabel(/data.*final|até/i).fill(dateTo);
-    
-    // Wait for data to load
+  test('should filter expenses by selected date range', async ({ page }) => {
+    await page.getByLabel('Data Inicial', { exact: true }).fill('2026-01-01');
+    await page.getByLabel('Data Final', { exact: true }).fill('2026-01-31');
+
     await waitForPageLoad(page);
-    await page.waitForTimeout(1000);
-    
-    // Check if KPIs are displayed
-    const totalCard = page.locator('text=/total.*período|total/i').first();
-    await expect(totalCard).toBeVisible({ timeout: 5000 });
+
+    await expect(kpisOrEmptyState(page).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('should display KPI cards with data', async ({ page }) => {
-    // Should show: Total, Average, Count
-    await expect(page.locator('text=/total|média|despesas/i').first()).toBeVisible();
-    
-    // Check if values are displayed (R$ format)
-    const hasValue = await page.locator('text=/R\\$\\s*[0-9]/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    
-    if (hasValue) {
-      console.log('✅ KPIs are displaying data');
-    } else {
-      console.log('⚠️ No expense data found for selected period');
+    await expect(kpisOrEmptyState(page).first()).toBeVisible({ timeout: 10000 });
+
+    // Havendo dados, os valores saem formatados em real.
+    if (await page.getByText('Total no Período').isVisible()) {
+      await expect(page.getByText(/R\$\s*[\d.,]+/).first()).toBeVisible();
     }
   });
 
   test('should display charts when data is available', async ({ page }) => {
-    // Wait for charts to render
-    await page.waitForTimeout(2000);
-    
-    // Check for chart containers
-    const pieChart = page.locator('svg').filter({ hasText: /categoria/i }).first();
-    const barChart = page.locator('svg').filter({ hasText: /mês/i }).first();
-    
-    const hasPieChart = await pieChart.isVisible({ timeout: 2000 }).catch(() => false);
-    const hasBarChart = await barChart.isVisible({ timeout: 2000 }).catch(() => false);
-    
-    if (hasPieChart || hasBarChart) {
-      console.log('✅ Charts are rendering');
-    } else {
-      console.log('⚠️ Charts not visible - might be no data or loading');
-    }
+    // Sem despesas o app mostra estado vazio em vez de gráfico — aceitar os dois
+    // evita um teste que depende da ordem de execução dos specs.
+    const chart = page.locator('.recharts-wrapper').first();
+
+    await expect(
+      chart.or(page.getByText('Nenhuma despesa no período')).first(),
+    ).toBeVisible({ timeout: 10000 });
   });
 
-  test.fixme('should validate date range constraints', async ({ page }) => {
+  test('should validate date range constraints', async ({ page }) => {
     const today = new Date().toISOString().split('T')[0];
-    const future = new Date();
-    future.setDate(future.getDate() + 7);
-    const futureDate = future.toISOString().split('T')[0];
-    
-    // Try to set future date
-    await page.getByLabel(/data.*final|até/i).fill(futureDate);
-    
-    // Should be constrained to today or show error
-    const actualValue = await page.getByLabel(/data.*final|até/i).inputValue();
-    
-    // Date should not be in future
-    expect(new Date(actualValue) <= new Date(today)).toBeTruthy();
+
+    // `fill()` IGNORA o atributo max — o teste antigo esperava que o valor fosse
+    // recusado e falhava sempre. A restrição real é o atributo, não o valor.
+    await expect(page.getByLabel('Data Final', { exact: true })).toHaveAttribute('max', today);
+    await expect(page.getByLabel('Data Inicial', { exact: true })).toHaveAttribute(
+      'max',
+      await page.getByLabel('Data Final', { exact: true }).inputValue(),
+    );
   });
 });

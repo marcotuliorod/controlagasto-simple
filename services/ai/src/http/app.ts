@@ -9,20 +9,14 @@ import { z } from "zod";
 import type { Config } from "../config.ts";
 import { AIError } from "../shared/errors.ts";
 import { authenticate, UnauthorizedError } from "./auth.ts";
-import { createDocumentExtraction } from "../domain/DocumentExtraction.ts";
 import { createTransactionClassification } from "../domain/TransactionClassification.ts";
 import { createFinancialInsights } from "../domain/FinancialInsights.ts";
 import { createFinancialAssistant } from "../domain/FinancialAssistant.ts";
 
-/** 10MB em base64 ≈ 7.5MB de arquivo — acima do limite de 5MB do app. */
+/** 10MB em base64 ≈ 7.5MB de arquivo — teto do PDF de extrato aceito. */
 const MAX_BASE64_LENGTH = 10 * 1024 * 1024;
 /** Extrato em texto puro: generoso, mas evita prompt sem limite. */
 const MAX_TEXT_LENGTH = 500_000;
-
-const receiptSchema = z.object({
-  mimeType: z.string().min(1),
-  data: z.string().min(1).max(MAX_BASE64_LENGTH),
-});
 
 /** Aceita o PDF ou o texto já extraído localmente (caminho da Fase 4). */
 const statementSchema = z.union([
@@ -91,7 +85,6 @@ function stripDataUrlPrefix(data: string): string {
 
 export function createApp(config: Config) {
   const app = new Hono();
-  const documentExtraction = createDocumentExtraction(config.provider);
   const transactions = createTransactionClassification(config.provider);
   const insights = createFinancialInsights(config.provider);
   const assistant = createFinancialAssistant(config.provider);
@@ -107,28 +100,6 @@ export function createApp(config: Config) {
 
   // Sem auth: usado por health check de orquestrador. Não expõe nada sensível.
   app.get("/health", (c) => c.json({ status: "ok", provider: config.provider.name }));
-
-  app.post("/v1/receipt", async (c) => {
-    // Autentica ANTES de ler o corpo e antes de qualquer chamada paga.
-    const user = await authenticate(c.req.header("Authorization"), config.jwtKeys);
-
-    const parsed = receiptSchema.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) {
-      return c.json({ error: "Requisição inválida." }, 400);
-    }
-
-    const receipt = await documentExtraction.extractReceipt(
-      { mimeType: parsed.data.mimeType, data: stripDataUrlPrefix(parsed.data.data) },
-      // Se o cliente desistir, o provedor é abortado junto.
-      c.req.raw.signal,
-    );
-
-    console.info(
-      JSON.stringify({ event: "receipt_extracted", userId: user.id, provider: config.provider.name }),
-    );
-
-    return c.json(receipt);
-  });
 
   app.post("/v1/statement", async (c) => {
     const user = await authenticate(c.req.header("Authorization"), config.jwtKeys);

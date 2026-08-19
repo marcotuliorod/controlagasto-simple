@@ -112,10 +112,31 @@ jobs:
           echo "VITE_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "VITE_SUPABASE_PUBLISHABLE_KEY=$PUB_KEY" >> "$GITHUB_ENV"
 
+      # `supabase start` sobe o edge-runtime junto, mas ele morre calado quando
+      # falta memória — e o sintoma vira teste de export vermelho, não erro de
+      # infra. Aconteceu no desenvolvimento local (container Exited 137) e custou
+      # horas até alguém olhar `docker ps -a`. 503 aqui = Kong sem upstream =
+      # runtime fora; 401 é o gateway pedindo token, ou seja, function no ar.
+      - name: Verificar que as edge functions respondem
+        run: |
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X POST "$VITE_SUPABASE_URL/functions/v1/get-vapid-public-key")
+          echo "get-vapid-public-key -> $CODE"
+          if [ "$CODE" = "503" ]; then
+            docker logs "$(docker ps -aqf name=edge_runtime)" 2>&1 | tail -30
+            echo "::error::edge-runtime fora do ar; os testes de export falhariam sem explicar por quê"
+            exit 1
+          fi
+
       # Só os projetos baseados em chromium, que é o único navegador instalado
       # acima. O playwright.config.ts declara 5 projetos; rodar todos aqui faz
-      # firefox, webkit e Mobile Safari falharem por binário ausente.
-      # Cross-browser volta quando a suíte for tirada da quarentena.
+      # firefox, webkit e Mobile Safari falharem por binário ausente. Ligar os
+      # outros é questão de instalar os binários (custo de minuto de runner),
+      # não de dívida na suíte — a quarentena acabou.
+      #
+      # Os dois projetos dividem UM usuário e UM banco (mesmo storageState),
+      # então dado criado no chromium é visível no Mobile Chrome. Os specs lidam
+      # com isso sorteando nome por execução (`uniqueLabel`).
       - name: Run Playwright tests
         run: npx playwright test --project=chromium --project="Mobile Chrome"
 

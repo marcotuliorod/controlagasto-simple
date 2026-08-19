@@ -375,7 +375,7 @@ export default function Dashboard() {
                 title={insight.title}
                 message={insight.message}
                 action={insight.action}
-                onAction={insight.action === "Adicionar despesa" ? () => navigate("/add-expense") : undefined}
+                onAction={insight.action === "Importar extrato" ? () => navigate("/import-transactions") : undefined}
               />
             ))}
           </div>
@@ -455,9 +455,9 @@ export default function Dashboard() {
               <EmptyState
                 icon={Receipt}
                 title="Nenhuma despesa ainda"
-                description="Comece registrando sua primeira despesa para acompanhar seus gastos"
-                actionLabel="Adicionar Despesa"
-                onAction={() => navigate("/add-expense")}
+                description="Importe o extrato ou a fatura para acompanhar seus gastos"
+                actionLabel="Importar Extrato"
+                onAction={() => navigate("/import-transactions")}
               />
             ) : (
               <div className="space-y-3">

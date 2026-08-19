@@ -24,7 +24,17 @@ import {
   STATEMENT_USER_PROMPT,
 } from "../prompts/statement.ts";
 import { parseAmount, parseDate, parseText } from "./normalize.ts";
-import type { BinaryInput } from "./DocumentExtraction.ts";
+
+/**
+ * Documento binário enviado ao modelo. Morava em DocumentExtraction.ts, que
+ * saiu junto com o OCR de cupom; extrato/fatura é o único documento que o
+ * serviço ainda recebe.
+ */
+export interface BinaryInput {
+  mimeType: string;
+  /** base64 puro, sem o prefixo `data:`. */
+  data: string;
+}
 
 export type TransactionType = "debit" | "credit" | "investment";
 

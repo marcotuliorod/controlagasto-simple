@@ -21,7 +21,7 @@ A comprehensive personal finance management application built with React, TypeSc
 - **Custom Billing Cycles** - Configure billing cycle day (1-28) for accurate budget tracking
 - **Category Management** - Organize expenses with customizable categories
 - **Multi-Account Support** - Track expenses across multiple wallets and accounts
-- **OCR Receipt Processing** - Extract expense data from receipt images
+- **Statement Import** - Extract expenses from bank statements and card bills (CSV/OFX/PDF)
 - **Audit Logs** - Complete history of all data changes
 
 ### Reports & Analytics
@@ -142,7 +142,7 @@ Coverage: >70% unit test coverage (currently 72%)
 **E2E Test Suites (9 total):**
 1. Authentication flow
 2. Expense CRUD operations
-3. OCR receipt processing
+3. Statement/bill import
 4. Reports with billing cycle
 5. PDF/CSV/XLSX export
 6. AI insights generation
