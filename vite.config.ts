@@ -42,7 +42,11 @@ export default defineConfig(() => ({
       brotliSize: true,
     }),
     VitePWA({
-      registerType: 'prompt',
+      // O shell antigo seguia servindo funcionalidade removida ate o usuario
+      // aceitar o prompt de atualizacao. Com 'autoUpdate' o service worker
+      // novo assume sozinho -- public/sw.js ja chama skipWaiting() e
+      // clientsClaim(), que e o que a estrategia injectManifest exige.
+      registerType: 'autoUpdate',
       strategies: 'injectManifest',
       srcDir: 'public',
       filename: 'sw.js',

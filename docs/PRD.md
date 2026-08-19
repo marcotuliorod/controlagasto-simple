@@ -47,7 +47,7 @@ foi remedido — evitar reafirmar números antigos como se fossem atuais.
 |---------|----------|----------------------------------|
 | Lint (`npm run lint`) | 0 erros | ✅ 0 erros, 17 warnings (não bloqueantes) |
 | Testes unitários (Vitest) | Cobertura das áreas de maior risco | ✅ 135/135 passando (18 arquivos) |
-| Testes E2E (Playwright) | 9 suítes | ✅ 9 suítes mantidas (ver "Estratégia de Testes") |
+| Testes E2E (Playwright) | Cobrir os fluxos críticos | ✅ 8 suítes + 1 setup (ver "Estratégia de Testes") |
 | TypeScript (`tsc --noEmit`) | 0 erros | ✅ 0 erros |
 | Build de produção | Sem falhas | ✅ Build limpo; Vite ainda avisa que 3 chunks (`Reports`, `generateCategoricalChart`, `index`) passam de 500KB minificados — não houve code-splitting adicional nesta revisão |
 | Vulnerabilidades de dependência (`npm audit`) | 0 não mitigadas | ✅ 7 encontradas, todas com decisão documentada (ver "Segurança") — nenhuma corrigível sem bump de major version |
@@ -116,12 +116,17 @@ foi remedido — evitar reafirmar números antigos como se fossem atuais.
 
 ### Epic 1: Gestão de Despesas
 
-#### US1.1: Adicionar Despesa Manual
+#### US1.1: Adicionar Despesa Manual — ❌ REMOVIDA em 19/08/2026
+**Status:** entregue e depois retirada do produto. Gasto entra exclusivamente
+por importação de extrato/fatura (`/import-transactions`); `/add-expense`
+sobrevive só como redirect. Os critérios abaixo ficam como registro do que
+existiu — nenhum deles descreve o app atual.
+
 **Como** usuário,
 **Quero** adicionar uma despesa manualmente,
 **Para** manter registro de meus gastos.
 
-**Critérios de Aceite:**
+**Critérios de Aceite (histórico):**
 - [x] Campos obrigatórios: valor, data
 - [x] Campos opcionais: categoria, conta, comerciante, método pagamento, tags, notas
 - [x] Valor formatado em R$ (ponto milhar, vírgula decimal)
@@ -132,12 +137,17 @@ foi remedido — evitar reafirmar números antigos como se fossem atuais.
 - [x] Feedback visual: loading state, sucesso, erro
 - [x] Atalho: FAB (+) ou Cmd+N
 
-#### US1.2: Processar Recibo com OCR
+#### US1.2: Processar Recibo com OCR — ❌ REMOVIDA em 19/08/2026
+**Status:** entregue e depois retirada. A edge function `process-receipt` e a
+capacidade `DocumentExtraction` saíram; o bucket privado `receipts` continua
+existindo só para guardar os cupons anteriores, e segue sendo purgado por
+`delete-account`. Critérios abaixo são registro histórico.
+
 **Como** usuário,
 **Quero** fotografar/fazer upload de recibo,
 **Para** preencher despesa automaticamente sem digitação.
 
-**Critérios de Aceite:**
+**Critérios de Aceite (histórico):**
 - [x] Aceita formatos: JPG, PNG, PDF
 - [x] Tamanho máximo: 5MB
 - [x] Extrai: valor total, data, comerciante, CNPJ, itens
@@ -444,7 +454,7 @@ foi remedido — evitar reafirmar números antigos como se fossem atuais.
 - [x] Atalho: Cmd+K (Mac) ou Ctrl+K (Windows/Linux)
 - [x] Command palette estilo VS Code
 - [x] Busca em: despesas, categorias, contas, páginas
-- [x] Ações rápidas: Nova Despesa, Despesas Recorrentes, Exportações
+- [x] Ações rápidas: Importar Extrato, Despesas Recorrentes, Exportações Agendadas
 - [x] Resultados em tempo real
 - [x] Navegação por teclado (↑↓ Enter Esc)
 
@@ -635,7 +645,7 @@ Detalhes completos de cada decisão: `docs/STATE.md`.
 
 1. **Mobile-First**: 70% dos usuários acessam via mobile
 2. **Dark Mode Padrão**: Reduz fadiga visual (agora com alternância automática por horário — Epic 15)
-3. **One-Tap Actions**: FAB para adicionar despesa
+3. **Caminho curto**: importar extrato/fatura em poucos toques, sem digitar gasto por gasto
 4. **Zero Empty States**: Sempre mostrar next action
 5. **Feedback Imediato**: Loading, success, error em <100ms
 6. **Progressividade**: funcionalidades avançadas se revelam conforme o uso (gamificação, Epic 13),
@@ -680,9 +690,9 @@ Outros: #6b7280
 
 | Breakpoint | Largura | Layout |
 |------------|---------|--------|
-| Mobile | <768px | BottomNav + FAB |
-| Tablet | 768-1024px | Sidebar + FAB |
-| Desktop | ≥1024px | Sidebar Expanded + FAB |
+| Mobile | <768px | BottomNav |
+| Tablet | 768-1024px | Sidebar |
+| Desktop | ≥1024px | Sidebar Expanded |
 
 ### Acessibilidade (WCAG 2.1 AAA)
 
@@ -726,7 +736,7 @@ Outros: #6b7280
 
 **Testing:**
 - Vitest 4.0.1 (Unit tests) — 135 testes em 18 arquivos
-- Playwright 1.57.0 (E2E tests) — 9 suítes
+- Playwright 1.57.0 (E2E tests) — 8 suítes + 1 setup
 - Testing Library (Component tests)
 
 **Tooling:**
@@ -760,8 +770,7 @@ Outros: #6b7280
 │  └──────────────┘  └──────────────┘  └──────────────┘ │
 │                                                         │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │         Edge Functions (Deno) — 13 total          │ │
-│  │  • process-receipt (OCR)                         │ │
+│  │         Edge Functions (Deno) — 12 total          │ │
 │  │  • process-import-file (extrato bancário, IA)    │ │
 │  │  • chat-assistant (IA)                           │ │
 │  │  • generate-insights (IA)                        │ │
@@ -928,31 +937,33 @@ reverificado).
 
 ### E2E Tests (Playwright)
 
-**9 Suítes Completas:**
-1. `auth.spec.ts` - Authentication flow
-2. `expenses.spec.ts` - Expense CRUD
-3. `ocr-basic.spec.ts` - Receipt OCR
-4. `reports-cycle.spec.ts` - Billing cycle reports
-5. `export-pdf.spec.ts` - PDF export
-6. `insights.spec.ts` - AI insights
-7. `scheduled-exports.spec.ts` - Scheduled exports
-8. `recurring-expenses.spec.ts` - Recurring expenses
-9. `tags-notes.spec.ts` - Tags & notes
+**8 suítes + 1 setup** (estado real de `e2e/`):
+- `auth.setup.ts` — projeto `setup`, gera o `storageState` que as suítes reusam (não é suíte)
+1. `auth.spec.ts` — cadastro, login, logout
+2. `expense-crud.spec.ts` — lista, edição e exclusão de despesa já importada
+   (criação saiu junto com o lançamento manual; o spec guarda o redirect de `/add-expense`)
+3. `reports-cycle.spec.ts` — relatórios por ciclo de faturamento
+4. `export-pdf.spec.ts` — exportação PDF/CSV/XLSX
+5. `insights.spec.ts` — insights de IA
+6. `scheduled-exports.spec.ts` — exportações agendadas
+7. `recurring-expenses.spec.ts` — despesas recorrentes
+8. `import-transactions.spec.ts` — importação de CSV: prévia, classificação
+   de crédito como receita, confirmação e a despesa na lista (PDF fora, exige IA)
 
 **Browsers:** Chrome, Firefox, Safari
 **Viewports:** Desktop (1920x1080), Mobile (390x844)
 
-> Nenhuma suíte E2E nova foi adicionada para Gamificação, Import de Extratos ou Onboarding
-> Guiado — é um gap de cobertura conhecido, não um esquecimento silencioso (ver "Notas para
-> Próxima Revisão" no final).
+> Import de Extratos ganhou suíte em 19/08/2026 (`import-transactions.spec.ts`, só o
+> caminho CSV). Gamificação e Onboarding Guiado seguem sem suíte E2E — é um gap de
+> cobertura conhecido, não um esquecimento silencioso (ver "Notas para Próxima Revisão"
+> no final).
 
 ### Manual QA Checklist
 
 **Crítico:**
 - [ ] Signup/Login flow
-- [ ] Add/Edit/Delete expense
-- [ ] OCR receipt processing
-- [ ] Import de extrato bancário (CSV/PDF)
+- [ ] Import de extrato bancário (CSV/PDF) — **única** porta de entrada de gasto
+- [ ] Editar/excluir despesa importada
 - [ ] Reports generation
 - [ ] PDF/Excel export
 - [ ] Billing cycle calculation edge cases

@@ -8,14 +8,10 @@ import { devLog } from "./lib/logger";
 // Register service worker with enhanced debugging
 devLog('[PWA] 🚀 Iniciando registro do Service Worker...');
 
-const updateSW = registerSW({
+// Com registerType: 'autoUpdate' o service worker novo assume sozinho, entao
+// nao ha onNeedRefresh para tratar nem retorno de registerSW a guardar.
+registerSW({
   immediate: true,
-  onNeedRefresh() {
-    devLog('[PWA] 🔄 Nova versão disponível');
-    if (confirm('Nova versão disponível! Recarregar para atualizar?')) {
-      updateSW(true);
-    }
-  },
   onOfflineReady() {
     devLog('[PWA] ✅ App pronto para funcionar offline');
   },

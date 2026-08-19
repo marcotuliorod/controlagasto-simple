@@ -5,6 +5,20 @@ test.describe('Reports with Billing Cycle', () => {
   test.use({ storageState: 'artifacts/e2e/.auth/user.json' });
 
   test.beforeEach(async ({ page }) => {
+    /*
+     * O `FirstVisitTip` do cartão "Total no Período" abre sozinho enquanto o
+     * localStorage não tiver a chave de dispensa — e ele é um segundo
+     * `role="tooltip"` na tela, o que quebra por strict mode a asserção do
+     * tooltip do ciclo. Ele só aparece quando há despesa, então isso ficou
+     * invisível enquanto o usuário de teste não tinha nenhuma; passou a valer
+     * quando `import-transactions.spec.ts` começou a criar dados. Marcar a
+     * dica como vista antes do load tira do caminho uma peça que não é o
+     * objeto deste spec.
+     */
+    await page.addInitScript(() => {
+      localStorage.setItem('tip-seen-reports-total-card', 'true');
+    });
+
     await page.goto('/reports');
     await waitForPageLoad(page);
   });
@@ -19,14 +33,19 @@ test.describe('Reports with Billing Cycle', () => {
     page.getByRole('button', { name: `Ciclo Atual (dia ${TEST_USER.billingCycleDay})` });
 
   /*
-   * Com o lançamento manual removido, o usuário do auth.setup.ts não tem
-   * despesa nenhuma: o Reports renderiza <EmptyState> NO LUGAR dos KPIs e dos
-   * gráficos (src/pages/Reports.tsx:412). Asserir só o KPI faria o teste
-   * depender de dados que nada mais cria. O contrato honesto é: a página
-   * resolve para um dos dois estados, nunca para tela quebrada.
+   * O Reports renderiza <EmptyState> NO LUGAR dos KPIs e dos gráficos quando
+   * não há despesa no período. Como a importação pode ou não ter rodado antes
+   * nesta passagem, o contrato honesto é: a página resolve para um dos dois
+   * estados, nunca para tela quebrada.
+   *
+   * O KPI é localizado pelo rótulo, não por `#reports-total-card`:
+   * "reports-total-card" é o `id` do FirstVisitTip (chave de localStorage),
+   * não um id de DOM — nenhum elemento na página o carrega. O seletor antigo
+   * não casava com nada e o teste vivia do ramo do estado vazio, que era o
+   * único que existia enquanto ninguém criava despesa.
    */
   const kpisOrEmptyState = (page: import('@playwright/test').Page) =>
-    page.locator('#reports-total-card').or(page.getByText('Nenhuma despesa no período'));
+    page.getByText('Total no Período').or(page.getByText('Nenhuma despesa no período'));
 
   test('should display reports page with date filters', async ({ page }) => {
     await expect(page.getByRole('heading', { name: /relatórios/i })).toBeVisible();
@@ -65,8 +84,8 @@ test.describe('Reports with Billing Cycle', () => {
     // — era por isso que o tooltip não abria nem aqui nem para o usuário.
     await cycleButton(page).hover();
 
-    await expect(page.getByRole('tooltip')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('tooltip')).toContainText('Seu ciclo:');
+    const tooltipDoCiclo = page.getByRole('tooltip').filter({ hasText: 'Seu ciclo:' });
+    await expect(tooltipDoCiclo).toBeVisible({ timeout: 5000 });
   });
 
   test('should filter expenses by selected date range', async ({ page }) => {
@@ -82,7 +101,7 @@ test.describe('Reports with Billing Cycle', () => {
     await expect(kpisOrEmptyState(page).first()).toBeVisible({ timeout: 10000 });
 
     // Havendo dados, os valores saem formatados em real.
-    if (await page.locator('#reports-total-card').isVisible()) {
+    if (await page.getByText('Total no Período').isVisible()) {
       await expect(page.getByText(/R\$\s*[\d.,]+/).first()).toBeVisible();
     }
   });

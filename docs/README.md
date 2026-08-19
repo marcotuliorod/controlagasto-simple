@@ -59,7 +59,7 @@
 
 ## 🎯 Principais Funcionalidades
 
-1. **Gestão de Despesas** - Registro manual e via OCR de recibos
+1. **Gestão de Despesas** - Entrada exclusiva por importação de extrato/fatura
 2. **Despesas Recorrentes** - Automação de gastos fixos
 3. **Múltiplas Contas** - Carteira, conta corrente, cartões
 4. **Metas e Orçamento** - Controle mensal e por categoria
