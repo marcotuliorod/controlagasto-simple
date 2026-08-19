@@ -129,6 +129,19 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **A importação ganhou spec E2E** (`e2e/import-transactions.spec.ts`,
+  19/08/2026): CSV com dois débitos e um crédito → prévia (2 despesas, 1
+  auto-excluído, 0 duplicados) → resumo → confirmação → a despesa aparece
+  filtrada em `/expenses`; mais a recusa de formato não suportado. Verde nos
+  dois projetos com `--workers=1`, rodado duas vezes seguidas para provar que
+  a segunda passagem não tropeça na primeira. Três armadilhas viraram
+  comentário no arquivo, porque cada uma quebrou o teste antes: o
+  `checkDuplicates()` casa comerciante pelos **10 primeiros** caracteres (com
+  o token de unicidade no fim do nome, a segunda passagem marcava tudo como
+  duplicata e a aba Despesas ia a 0 — o token passou a ser prefixo);
+  `extractMerchant()` apaga sequências de 5+ dígitos (o token é só de letras);
+  e o aviso do gamification também é `role="alert"`, então a asserção do erro
+  precisa filtrar por texto.
 - **Resíduos da remoção do lançamento manual limpos** (branch
   `chore/limpeza-lancamento-manual`, sobre `fix/e2e-quarentena`): fixtures E2E
   órfãs (`TEST_EXPENSE`, `TEST_CATEGORIES`, `TEST_ACCOUNT`, `formatCurrency`);
@@ -171,11 +184,21 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   sozinho, e como não há trava no banco (decisão registrada em `CONTEXT.md`),
   esse shell antigo ainda consegue inserir despesa manual até o usuário aceitar
   o prompt de atualização.
-- **A importação é a única porta de entrada de gasto e não tem spec E2E.**
-  `e2e/` tem 7 suítes e nenhuma de `import-transactions`; o comentário em
-  `expense-crud.spec.ts:14` afirma que a criação está "coberta em
-  import-transactions", o que não é verdade. Vale um smoke test: CSV pequeno →
-  prévia → confirmar → aparece em `/expenses`.
+- **A importação de PDF continua sem cobertura E2E.** O smoke test novo
+  (`import-transactions.spec.ts`) cobre só CSV, que é o caminho determinístico;
+  PDF de layout desconhecido cai na IA e exigiria `AI_SERVICE_URL` no ar.
+- **A edge function corrompe acento no arquivo importado.**
+  `process-import-file/index.ts:781` faz `atob(fileContent)` e trata o
+  resultado como texto, sem decodificar UTF-8: cada byte vira um code point.
+  Reproduzido em Node — `"PADARIA SAO JOAO ACAI ção;-12,34"` volta como
+  `"PADARIA SAO JOAO ACAI Ã§Ã£o;-12,34"`. Consequências reais em extrato
+  brasileiro: comerciante gravado com mojibake e cabeçalho `Descrição` não
+  reconhecido pelo `autoDetectMapping`, o que joga o usuário no mapeamento
+  manual de colunas. **Não corrigido de propósito:** o mesmo `content`
+  alimenta o `generateFileHash()` que guarda contra reimportação, então
+  decodificar direito muda o hash de todo arquivo não-ASCII e precisa de
+  decisão sobre os `import_sessions` já gravados. O spec usa dados sem acento
+  e comenta o porquê.
 - `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.

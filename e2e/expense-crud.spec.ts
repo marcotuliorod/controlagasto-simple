@@ -12,8 +12,8 @@ test.describe('Expense List & Edit', () => {
   /*
    * Criar despesa saiu daqui junto com o lançamento manual: /add-expense,
    * FAB e drawer rápido não existem mais. A entrada de gastos é a importação
-   * de extrato/fatura, coberta em import-transactions. O que resta abaixo é o
-   * ciclo de vida do que já entrou: listar, editar e excluir.
+   * de extrato/fatura, coberta em `import-transactions.spec.ts`. O que resta
+   * abaixo é o ciclo de vida do que já entrou: listar, editar e excluir.
    */
   test('deve redirecionar /add-expense para a importação', async ({ page }) => {
     await page.goto('/add-expense');

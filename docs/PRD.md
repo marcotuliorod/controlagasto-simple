@@ -47,7 +47,7 @@ foi remedido — evitar reafirmar números antigos como se fossem atuais.
 |---------|----------|----------------------------------|
 | Lint (`npm run lint`) | 0 erros | ✅ 0 erros, 17 warnings (não bloqueantes) |
 | Testes unitários (Vitest) | Cobertura das áreas de maior risco | ✅ 135/135 passando (18 arquivos) |
-| Testes E2E (Playwright) | 9 suítes | ✅ 9 suítes mantidas (ver "Estratégia de Testes") |
+| Testes E2E (Playwright) | Cobrir os fluxos críticos | ✅ 8 suítes + 1 setup (ver "Estratégia de Testes") |
 | TypeScript (`tsc --noEmit`) | 0 erros | ✅ 0 erros |
 | Build de produção | Sem falhas | ✅ Build limpo; Vite ainda avisa que 3 chunks (`Reports`, `generateCategoricalChart`, `index`) passam de 500KB minificados — não houve code-splitting adicional nesta revisão |
 | Vulnerabilidades de dependência (`npm audit`) | 0 não mitigadas | ✅ 7 encontradas, todas com decisão documentada (ver "Segurança") — nenhuma corrigível sem bump de major version |
@@ -736,7 +736,7 @@ Outros: #6b7280
 
 **Testing:**
 - Vitest 4.0.1 (Unit tests) — 135 testes em 18 arquivos
-- Playwright 1.57.0 (E2E tests) — 9 suítes
+- Playwright 1.57.0 (E2E tests) — 8 suítes + 1 setup
 - Testing Library (Component tests)
 
 **Tooling:**
@@ -937,7 +937,7 @@ reverificado).
 
 ### E2E Tests (Playwright)
 
-**7 suítes + 1 setup** (estado real de `e2e/`):
+**8 suítes + 1 setup** (estado real de `e2e/`):
 - `auth.setup.ts` — projeto `setup`, gera o `storageState` que as suítes reusam (não é suíte)
 1. `auth.spec.ts` — cadastro, login, logout
 2. `expense-crud.spec.ts` — lista, edição e exclusão de despesa já importada
@@ -947,13 +947,16 @@ reverificado).
 5. `insights.spec.ts` — insights de IA
 6. `scheduled-exports.spec.ts` — exportações agendadas
 7. `recurring-expenses.spec.ts` — despesas recorrentes
+8. `import-transactions.spec.ts` — importação de CSV: prévia, classificação
+   de crédito como receita, confirmação e a despesa na lista (PDF fora, exige IA)
 
 **Browsers:** Chrome, Firefox, Safari
 **Viewports:** Desktop (1920x1080), Mobile (390x844)
 
-> Nenhuma suíte E2E nova foi adicionada para Gamificação, Import de Extratos ou Onboarding
-> Guiado — é um gap de cobertura conhecido, não um esquecimento silencioso (ver "Notas para
-> Próxima Revisão" no final).
+> Import de Extratos ganhou suíte em 19/08/2026 (`import-transactions.spec.ts`, só o
+> caminho CSV). Gamificação e Onboarding Guiado seguem sem suíte E2E — é um gap de
+> cobertura conhecido, não um esquecimento silencioso (ver "Notas para Próxima Revisão"
+> no final).
 
 ### Manual QA Checklist
 

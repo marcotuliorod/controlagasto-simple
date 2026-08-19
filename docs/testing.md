@@ -54,10 +54,11 @@ Available test suites:
 - `insights.spec.ts` - Financial insights generation
 - `recurring-expenses.spec.ts` - Despesas recorrentes
 - `scheduled-exports.spec.ts` - Exportações agendadas
+- `import-transactions.spec.ts` - Importação de CSV (única entrada de gasto)
 
 `auth.setup.ts` não é suíte: é o projeto `setup`, que cria a conta e grava o
-`storageState` compartilhado. A importação de extrato/fatura ainda não tem
-spec.
+`storageState` compartilhado. A importação cobre só CSV — PDF depende do
+serviço de IA no ar e ficou de fora de propósito.
 
 ### Writing E2E Tests
 

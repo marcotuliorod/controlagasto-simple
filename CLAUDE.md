@@ -286,15 +286,18 @@ Ver `services/ai/README.md` e `docs/LGPD-IA.md`.
 5. AI insights (`insights.spec.ts`)
 6. Scheduled exports (`scheduled-exports.spec.ts`)
 7. Recurring expenses (`recurring-expenses.spec.ts`)
+8. Importação de extrato (`import-transactions.spec.ts`) — a única entrada de gasto
 
 Fora da lista: `auth.setup.ts` não é suíte, é o projeto `setup` do
 `playwright.config.ts` — cria a conta e grava o `storageState` que todas as
 outras usam. Todo projeto de browser depende dele.
 
-**Lacuna conhecida:** a importação de extrato/fatura é a única porta de entrada
-de gasto e **não tem spec**. Ao mexer em `ImportTransactions.tsx`,
-`useImportTransactions.ts` ou `components/import/*`, não conte com rede de
-proteção E2E.
+**Cobertura da importação:** `import-transactions.spec.ts` cobre o caminho
+determinístico — CSV → prévia → confirmar → a despesa aparece em `/expenses` —
+e a recusa de formato não suportado. **PDF fica de fora**: o layout
+desconhecido cai na IA, e o teste precisaria de `AI_SERVICE_URL` no ar. Ao
+mexer em `components/import/*` ou no `statementParser.ts`, o caminho de PDF
+continua sem rede de proteção E2E.
 
 ### Data Model Key Points
 
