@@ -86,6 +86,61 @@ function getFileType(file: File): 'csv' | 'ofx' | 'pdf' | null {
   return null;
 }
 
+/**
+ * Limite de tamanho por tipo, em MB.
+ *
+ * O PDF tem limite menor porque trafega em base64 no corpo da requisição, o que
+ * infla o payload em cerca de um terço.
+ *
+ * Exportado para a zona de upload anunciar exatamente o número que o hook
+ * cobra: ela dizia 10MB para tudo, e o PDF entre 5MB e 10MB só era recusado
+ * depois de o usuário escolher o arquivo.
+ */
+export const MAX_FILE_SIZE_MB: Record<'csv' | 'ofx' | 'pdf', number> = {
+  csv: 10,
+  ofx: 10,
+  pdf: 5,
+};
+
+/** O mesmo limite indexado pela extensão, que é o que a zona de upload vê. */
+export const MAX_FILE_SIZE_MB_BY_EXTENSION: Record<string, number> = {
+  '.csv': MAX_FILE_SIZE_MB.csv,
+  '.ofx': MAX_FILE_SIZE_MB.ofx,
+  '.qfx': MAX_FILE_SIZE_MB.ofx,
+  '.pdf': MAX_FILE_SIZE_MB.pdf,
+};
+
+/**
+ * Extrai a mensagem que a edge function escreveu no corpo da resposta.
+ *
+ * `supabase.functions.invoke` devolve `data: null` em qualquer status não-2xx,
+ * então o `data.error` em português nunca era lido e o usuário via
+ * "Edge Function returned a non-2xx status code". A resposta crua fica em
+ * `error.context`; é de lá que a mensagem tem que sair.
+ */
+async function messageFromInvokeError(error: unknown): Promise<string> {
+  const context = (error as { context?: unknown })?.context;
+
+  if (context instanceof Response) {
+    try {
+      const body = await context.clone().json();
+      if (typeof body?.error === 'string' && body.error.trim()) {
+        return body.error;
+      }
+    } catch {
+      // Corpo não-JSON (timeout de gateway, HTML de erro): cai no genérico.
+    }
+
+    if (context.status === 504 || context.status === 408) {
+      return 'O processamento demorou demais. Tente um arquivo menor ou exporte o extrato em CSV.';
+    }
+  }
+
+  // Nunca repassar `error.message` aqui: é sempre a mensagem em inglês do SDK.
+  console.error('Falha na chamada de process-import-file:', error);
+  return 'Não foi possível processar o arquivo. Tente novamente ou exporte o extrato em CSV.';
+}
+
 export function useImportTransactions() {
   const queryClient = useQueryClient();
 
@@ -104,12 +159,11 @@ export function useImportTransactions() {
         throw new Error('Formato de arquivo não suportado. Use CSV, OFX ou PDF.');
       }
 
-      // Check file size (5MB for PDF, 10MB for others)
-      const maxSize = fileType === 'pdf' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        throw new Error(fileType === 'pdf' 
-          ? 'PDF muito grande. O limite é 5MB. Tente exportar em CSV.' 
-          : 'Arquivo muito grande. O limite é 10MB.');
+      const maxSizeMB = MAX_FILE_SIZE_MB[fileType];
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        throw new Error(fileType === 'pdf'
+          ? `PDF muito grande. O limite é ${maxSizeMB}MB. Tente exportar em CSV.`
+          : `Arquivo muito grande. O limite é ${maxSizeMB}MB.`);
       }
 
       const fileContent = await fileToBase64(file);
@@ -123,8 +177,10 @@ export function useImportTransactions() {
         }
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error);
+      if (error) throw new Error(await messageFromInvokeError(error));
+      if (!data?.success) {
+        throw new Error(data?.error || 'Não foi possível processar o arquivo.');
+      }
 
       return data as ImportResult;
     },

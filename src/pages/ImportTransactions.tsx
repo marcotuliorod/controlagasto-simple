@@ -48,39 +48,51 @@ export default function ImportTransactions() {
 
   const handleFileSelect = async (file: File) => {
     setSelectedFile(file);
-    
-    const result = await processFile.mutateAsync({ file, accountId });
-    
-    if (result.needsMapping) {
-      setColumns(result.columns || []);
-      setPreviewRows(result.previewRows || []);
-      setAutoMapping(result.autoMapping || {});
-      setStep('mapping');
-    } else {
+
+    try {
+      const result = await processFile.mutateAsync({ file, accountId });
+
+      if (result.needsMapping) {
+        setColumns(result.columns || []);
+        setPreviewRows(result.previewRows || []);
+        setAutoMapping(result.autoMapping || {});
+        setStep('mapping');
+      } else {
+        setTransactions(result.transactions.map(t => ({ ...t, selected: t.classification === 'expense' && !t.isDuplicate })));
+        setCategories(result.categories || []);
+        setFileHash(result.fileHash || '');
+        setDetectedBank(result.detectedBank || null);
+        setStep('preview');
+      }
+    } catch {
+      // O toast com a mensagem já sai do onError do hook. O que falta aqui é
+      // liberar a zona de upload: sem isto o card do arquivo ficava preso na
+      // tela até clicar no X, e a rejeição subia como unhandled rejection.
+      setSelectedFile(null);
+    }
+  };
+
+  const handleMappingComplete = async (mapping: ColumnMapping, saveName?: string) => {
+    try {
+      if (saveName) {
+        await saveMapping.mutateAsync({ bankName: saveName, mapping });
+      }
+
+      const result = await processFile.mutateAsync({
+        file: selectedFile!,
+        mapping,
+        accountId
+      });
+
       setTransactions(result.transactions.map(t => ({ ...t, selected: t.classification === 'expense' && !t.isDuplicate })));
       setCategories(result.categories || []);
       setFileHash(result.fileHash || '');
       setDetectedBank(result.detectedBank || null);
       setStep('preview');
+    } catch {
+      // Fica na tela de mapeamento de propósito: o usuário acabou de montar as
+      // colunas e só precisa corrigir o que o toast apontou.
     }
-  };
-
-  const handleMappingComplete = async (mapping: ColumnMapping, saveName?: string) => {
-    if (saveName) {
-      await saveMapping.mutateAsync({ bankName: saveName, mapping });
-    }
-
-    const result = await processFile.mutateAsync({ 
-      file: selectedFile!, 
-      mapping, 
-      accountId 
-    });
-
-    setTransactions(result.transactions.map(t => ({ ...t, selected: t.classification === 'expense' && !t.isDuplicate })));
-    setCategories(result.categories || []);
-    setFileHash(result.fileHash || '');
-    setDetectedBank(result.detectedBank || null);
-    setStep('preview');
   };
 
   const handleTransferDecisions = (decisions: Array<{ originalRow: number; decision: 'expense' | 'ignore' }>) => {

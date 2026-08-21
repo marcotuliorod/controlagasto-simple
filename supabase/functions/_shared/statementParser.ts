@@ -20,6 +20,8 @@
  * existe — sem isso, o valor de um lançamento emenda na descrição do seguinte.
  */
 
+import { matchStatementLayout } from "./statementLayouts.ts";
+
 export interface RawTransaction {
   date: string;
   description: string;
@@ -74,9 +76,28 @@ function toIsoDate(raw: string): string | null {
   return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
-function toAmount(raw: string): number | null {
+/** `1.234,56` → `1234.56`. Exportada para os leitores de layout. */
+export function toAmount(raw: string): number | null {
   const value = Number.parseFloat(raw.replace(/\./g, "").replace(",", "."));
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * Ponto de entrada da leitura determinística.
+ *
+ * Tenta primeiro os leitores de layout conhecido (`statementLayouts.ts`), que
+ * lidam com formatos que a regra genérica não alcança — data que se propaga por
+ * várias linhas, data sem ano, sinal herdado de cabeçalho de seção. Sem
+ * casamento de assinatura, cai na regra genérica de sempre.
+ *
+ * Um leitor de layout que casa a assinatura mas não devolve transação nenhuma
+ * não bloqueia a genérica: pode ser um documento do banco certo num formato
+ * diferente do previsto.
+ */
+export function parseStatement(text: string): ParseTextResult {
+  const matched = matchStatementLayout(text);
+  if (matched && matched.result.transactions.length > 0) return matched.result;
+  return parseStatementText(text);
 }
 
 /**

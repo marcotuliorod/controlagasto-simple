@@ -1,12 +1,21 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Upload, FileText, FileSpreadsheet, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { MAX_FILE_SIZE_MB_BY_EXTENSION } from "@/hooks/useImportTransactions";
+
+/** Usado quando a extensão não está no mapa. Nunca deve acontecer na prática. */
+const DEFAULT_MAX_SIZE_MB = 10;
 
 interface FileUploadZoneProps {
   onFileSelect: (file: File) => void;
   acceptedFormats?: string[];
-  maxSizeMB?: number;
+  /**
+   * Limite em MB por extensão. O padrão vem do hook de importação — os dois
+   * precisam concordar, senão a zona aceita um arquivo que o hook recusa
+   * depois.
+   */
+  maxSizeMB?: Record<string, number>;
   selectedFile?: File | null;
   onClear?: () => void;
   isLoading?: boolean;
@@ -15,7 +24,7 @@ interface FileUploadZoneProps {
 export function FileUploadZone({
   onFileSelect,
   acceptedFormats = ['.csv', '.ofx', '.qfx', '.pdf'],
-  maxSizeMB = 10,
+  maxSizeMB = MAX_FILE_SIZE_MB_BY_EXTENSION,
   selectedFile,
   onClear,
   isLoading = false
@@ -23,6 +32,29 @@ export function FileUploadZone({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const limitFor = useCallback(
+    (extension: string) => maxSizeMB[extension] ?? DEFAULT_MAX_SIZE_MB,
+    [maxSizeMB]
+  );
+
+  /**
+   * Agrupa as extensões por limite: "CSV, OFX, QFX: 10MB · PDF: 5MB".
+   *
+   * Antes a zona anunciava um número só (10MB) enquanto o PDF era cortado em
+   * 5MB, então o usuário só descobria o limite real depois de escolher.
+   */
+  const sizeSummary = useMemo(() => {
+    const byLimit = new Map<number, string[]>();
+    for (const format of acceptedFormats) {
+      const limit = limitFor(format);
+      byLimit.set(limit, [...(byLimit.get(limit) ?? []), format.replace('.', '').toUpperCase()]);
+    }
+    return Array.from(byLimit.entries())
+      .sort(([a], [b]) => b - a)
+      .map(([limit, extensions]) => `${extensions.join(', ')}: ${limit}MB`)
+      .join(' · ');
+  }, [acceptedFormats, limitFor]);
 
   const validateFile = useCallback((file: File): boolean => {
     setError(null);
@@ -35,13 +67,14 @@ export function FileUploadZone({
     }
 
     // Check file size
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      setError(`Arquivo muito grande. O limite é ${maxSizeMB}MB.`);
+    const limit = limitFor(extension);
+    if (file.size > limit * 1024 * 1024) {
+      setError(`Arquivo muito grande. O limite para ${extension.replace('.', '').toUpperCase()} é ${limit}MB.`);
       return false;
     }
 
     return true;
-  }, [acceptedFormats, maxSizeMB]);
+  }, [acceptedFormats, limitFor]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -179,7 +212,7 @@ export function FileUploadZone({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Tamanho máximo: {maxSizeMB}MB
+        Tamanho máximo: {sizeSummary}
       </p>
 
       {error && (

@@ -3,9 +3,55 @@
 Living snapshot of where the project stands. Update at the end of any session that ships a change — this is what the next session (human or agent) reads first to avoid re-discovering context.
 
 ## Current focus
-Desacoplamento da plataforma Lovable (objetivo 1.1), fases 0-6 concluídas no branch `chore/desacoplamento-lovable`. **Zero dependência de runtime do Lovable.** O que falta é operacional, não de código: subir o serviço de IA e apontar `AI_SERVICE_URL`, rotacionar as credenciais do `.env` que estavam versionadas, e escolher o provedor de IA definitivo.
+Desacoplamento da plataforma Lovable (objetivo 1.1), fases 0-6 concluídas no branch `chore/desacoplamento-lovable`. **Zero dependência de runtime do Lovable.** O que falta é operacional, não de código: consertar o serviço de IA no endereço já apontado por `AI_SERVICE_URL` (responde, mas com HTTP 500 — ver "Serviço de IA" nos itens abertos), rotacionar as credenciais do `.env` que estavam versionadas, e escolher o provedor de IA definitivo.
 
 Antes disso, `.planning/ROADMAP.md` Fases 1-4 (onboarding etc.) já estavam completas.
+
+## Importação Nubank lida por regra (21/08/2026)
+
+O usuário tentou importar um extrato de conta e uma fatura de cartão do Nubank
+e recebeu erro na tela. Eram **duas falhas independentes**, e é a combinação que
+derrubava o fluxo — importar é a única porta de entrada de gasto do app desde a
+remoção do lançamento manual, então um layout não reconhecido virava
+indisponibilidade total do produto.
+
+**1. A regra determinística não lia o layout.** `statementParser.ts` ancorava em
+data `DD/MM/AAAA`; o extrato usa `01 JUL 2026` e a fatura usa `26 JUN`, sem ano.
+Zero casamentos — e como `LOOKS_LIKE_TRANSACTION` também procurava barras, nem o
+contador de ilegíveis subia, daí o `(0 lidas, 0 ilegíveis)` do log.
+
+Corrigido com um **registro de layouts** (`supabase/functions/_shared/statementLayouts.ts`),
+não afrouxando a regex genérica. Os dois formatos Nubank exigem leitura com
+estado — data que se propaga por várias linhas e atravessa a quebra de página,
+sinal herdado do cabeçalho `Total de entradas`/`Total de saídas`, ano inferido do
+vencimento — e aplicar isso genericamente geraria transação fantasma nos outros
+bancos. `parseStatement()` tenta o registro e delega para `parseStatementText()`
+sem casamento; os 20 testes do parser genérico passaram **sem edição**.
+
+Os dois PDFs agora são lidos **sem IA nenhuma**. Verificação por checksum contra
+os totais impressos nos próprios documentos, o que pega tanto lançamento perdido
+quanto duplicado: extrato 4 créditos / R$ 1.259,00 e 9 débitos / R$ 4.280,06;
+fatura 69 compras / R$ 6.263,50 mais o pagamento de R$ 4.575,66 marcado como
+crédito. Esse pagamento usa `−` (U+2212), não hífen ASCII — lido como débito,
+`classifyTransaction` criaria uma despesa fantasma do valor da fatura anterior.
+
+As fixtures (`_shared/fixtures/nubank-*.txt`) são a saída real de
+`extractPdfText()` sobre os PDFs do usuário, com titular e contrapartes trocados
+por nomes fictícios de mesmo formato. Datas e valores estão intactos — é o que
+faz os checksums valerem.
+
+**2. O fallback de IA está fora do ar** — ver a correção do item nos gaps abaixo.
+
+**Também corrigidos** (três bugs de superfície do mesmo fluxo): a mensagem em
+português da edge function era engolida no HTTP 500 e virava
+`Edge Function returned a non-2xx status code` (o hook agora lê `error.context`);
+o catch final da function devolvia `String(error)` cru em inglês e com 500 para
+erro de cliente; a zona de upload ficava travada com o card do arquivo preso
+depois de uma falha; e o limite de tamanho anunciado (10MB) não era o cobrado
+(5MB para PDF) — agora vêm os dois do mesmo mapa exportado pelo hook.
+
+**O que ficou fora, de propósito:** o bug de acento do `atob` (item próprio
+abaixo), dedupe entre extrato e fatura, e capturar `Parcela 3/12` como metadado.
 
 ## Remoção do lançamento manual e do OCR (19/08/2026)
 
@@ -144,6 +190,12 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
 ## Recently shipped
+- **Extrato e fatura do Nubank passaram a ser lidos por regra, sem IA.** Um
+  registro de layouts (`_shared/statementLayouts.ts`) casa por assinatura do
+  documento e faz leitura com estado; a regex genérica ficou intacta. Junto
+  saíram três bugs de superfície do mesmo fluxo (mensagem de erro em inglês,
+  zona de upload travada após falha, limite de tamanho anunciado errado).
+  Detalhe e checksums na seção "Importação Nubank lida por regra".
 - **O PWA instalado passou a se atualizar sozinho.** `registerType: 'prompt'`
   (`vite.config.ts`) virou `'autoUpdate'`. Com `'prompt'`, quem tinha o app
   instalado continuava com o bundle antigo — que ainda tem o drawer de
@@ -228,9 +280,11 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   `aws-0` o servidor responde `tenant/user not found`, e com 6543 (transaction
   mode) migration não roda. Registrado aqui porque custou três tentativas e
   vai custar de novo na próxima migration.
-- **A importação de PDF continua sem cobertura E2E.** O smoke test novo
-  (`import-transactions.spec.ts`) cobre só CSV, que é o caminho determinístico;
-  PDF de layout desconhecido cai na IA e exigiria `AI_SERVICE_URL` no ar.
+- **A importação de PDF continua sem cobertura E2E** — mas agora é fácil de
+  resolver, e não estava. `import-transactions.spec.ts` cobre só CSV. Antes,
+  qualquer PDF caía na IA e o teste exigiria `AI_SERVICE_URL` no ar; desde
+  21/08/2026 os dois layouts Nubank são lidos por regra, então dá para montar
+  um caso de PDF sem rede nenhuma. Falta fazer.
 - **A edge function corrompe acento no arquivo importado.**
   `process-import-file/index.ts:781` faz `atob(fileContent)` e trata o
   resultado como texto, sem decodificar UTF-8: cada byte vira um code point.
@@ -246,11 +300,11 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
-- **Serviço de IA não está deployado.** As edge functions exigem o secret `AI_SERVICE_URL`; sem ele, as 4 funcionalidades de IA respondem 503 (erro explícito, mas é quebra real se o branch for publicado antes de subir o serviço). Reconfirmado em 19/08/2026 pelos logs do edge runtime local: o `generate-insights` sobe e falha exatamente nessa variável, e em nada mais.
+- **Serviço de IA está no ar e responde HTTP 500.** *Corrige o que este item dizia até 20/08/2026 ("não está deployado", secret ausente): em produção o secret `AI_SERVICE_URL` **está** configurado.* Prova, nos `function_logs` de 21/08/2026: `process-import-file` e `generate-insights` falharam com `AIServiceError` de **status 500**. Em `_shared/aiService.ts` os status 502 (rede), 503 (secret ausente) e 504 (timeout) são todos literais no código — 500 só pode vir de `response.status`, ou seja, houve resposta HTTP do serviço. Logo ele está deployado, alcançável, e quebrando por dentro. O que ainda não se sabe é *por quê*: o corpo do 500 não trazia campo `error`, e o `response.json()` de então engolia o resto. Agora o corpo cru vai truncado para o `console.error`, então o próximo 500 diz o motivo. As 4 funcionalidades de IA seguem indisponíveis; o import de extrato deixou de depender disso para os layouts Nubank (seção de 21/08).
 - **Credenciais do `.env` que estava versionado seguem válidas** até serem rotacionadas no painel. O arquivo saiu do índice, mas continua no histórico do git.
 - **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
-- **A regra determinística do extrato foi validada só em PDF sintético.** A taxa de acerto em extratos reais (BB, Itaú, Nubank) é desconhecida; por isso o fallback é conservador. Vale medir quantos caem no fallback quando houver arquivos reais.
+- **A regra determinística só foi validada contra o Nubank em documento real.** Extrato de conta e fatura de cartão do Nubank passaram a ser conferidos por checksum contra dois PDFs de verdade (21/08/2026). Os demais bancos (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) continuam validados só em PDF sintético, e a taxa de acerto real segue desconhecida — por isso o fallback continua conservador. O jeito de fechar isso é o mesmo que funcionou aqui: um PDF real por banco virando fixture, com os totais impressos no próprio documento como checksum.
 - **`major_version = 15`** em `supabase/config.toml` foi escolha minha e pode não bater com a versão do Postgres em produção — conferir antes de usar o self-host para valer.
 - `docs/STATE.md` (this file, hand-written) and `.planning/STATE.md`/`.planning/ROADMAP.md` (gsd-core-generated) now both exist and overlap in purpose — not yet consolidated into one source of truth for "what's left to do."
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
@@ -269,7 +323,8 @@ manual e do OCR".
 A quarentena E2E acabou (seção acima); o que sobra do trabalho de teste é
 ligar firefox/webkit/Mobile Safari no CI, que é custo de minuto de runner, não
 dívida na suíte. As duas pendências que continuam bloqueando funcionalidade são
-operacionais: subir o serviço de IA e apontar `AI_SERVICE_URL`, e rotacionar as
+operacionais: descobrir por que o serviço de IA em `AI_SERVICE_URL` responde
+500 (ele está no ar — o próximo log já traz o corpo do erro), e rotacionar as
 credenciais do `.env` que estava versionado.
 
 All 4 phases of `.planning/ROADMAP.md` are complete — this milestone's planned work is done. Nothing is queued. Next session should ask the user what's next: pick up a `.planning/REQUIREMENTS.md` v2 item, start a new `gsd-core` milestone, do the manual end-to-end verification noted above once live Supabase access is available, or handle new ad hoc requests.
