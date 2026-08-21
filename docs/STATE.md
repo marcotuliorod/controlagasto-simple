@@ -53,6 +53,20 @@ depois de uma falha; e o limite de tamanho anunciado (10MB) não era o cobrado
 **O que ficou fora, de propósito:** o bug de acento do `atob` (item próprio
 abaixo), dedupe entre extrato e fatura, e capturar `Parcela 3/12` como metadado.
 
+**Sobra encontrada no deploy: `process-receipt` continuava no ar.** A pasta saiu
+do repo em 19/08 junto com o OCR, mas a function seguia deployada e `ACTIVE`
+(v7) — `supabase functions deploy` não apaga o que sumiu do disco, e ninguém
+rodou o delete. Era código sem versão correspondente exposto em produção, e
+justamente a function do gap de auth de SEC-02: aceitava qualquer header
+`Authorization` não-vazio e chamava a API paga de OCR antes de validar o token.
+Apagada em 21/08/2026 com `supabase functions delete`, depois de confirmar que
+nada a invoca (nenhuma referência em `src/`, `e2e/` ou `services/`) e que ela
+teve **zero** invocações nas 24h anteriores nos `function_edge_logs`. Produção
+ficou com 12 functions, todas com código no repo.
+
+Vale como regra: remover a pasta é metade do trabalho; o delete remoto é passo
+próprio, e nenhum comando de deploy avisa que ele ficou faltando.
+
 ## Remoção do lançamento manual e do OCR (19/08/2026)
 
 > **Status de entrega: em produção desde 19/08/2026.** PR #12 entrou na
@@ -305,6 +319,15 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
 - **A regra determinística só foi validada contra o Nubank em documento real.** Extrato de conta e fatura de cartão do Nubank passaram a ser conferidos por checksum contra dois PDFs de verdade (21/08/2026). Os demais bancos (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) continuam validados só em PDF sintético, e a taxa de acerto real segue desconhecida — por isso o fallback continua conservador. O jeito de fechar isso é o mesmo que funcionou aqui: um PDF real por banco virando fixture, com os totais impressos no próprio documento como checksum.
+- **Os snapshots em `.planning/codebase/` descrevem `process-receipt` como
+  existente** — `STRUCTURE.md` conta "14 Edge functions" e desenha a pasta na
+  árvore, `ARCHITECTURE.md` e `INTEGRATIONS.md` a listam, e `CONCERNS.md` aponta
+  `process-receipt/index.ts:34` como risco vivo. Já estava desatualizado desde
+  19/08 (pasta removida) e ficou mais com o delete de 21/08. São snapshots
+  datados e gerados; **não** foram remendados à mão de propósito, porque
+  meio-regenerado engana mais que claramente velho. Regenerar quando o
+  `map-codebase` rodar de novo. O que incomoda agora é o `CONCERNS.md`: doc de
+  segurança apontando para arquivo inexistente faz perder tempo em triagem.
 - **`major_version = 15`** em `supabase/config.toml` foi escolha minha e pode não bater com a versão do Postgres em produção — conferir antes de usar o self-host para valer.
 - `docs/STATE.md` (this file, hand-written) and `.planning/STATE.md`/`.planning/ROADMAP.md` (gsd-core-generated) now both exist and overlap in purpose — not yet consolidated into one source of truth for "what's left to do."
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
