@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { AIServiceError, callAIService } from '../_shared/aiService.ts';
 import { extractPdfText } from '../_shared/pdfText.ts';
 import { autoDetectMapping, needsColumnMapping } from '../_shared/csvMapping.ts';
-import { isReliable, parseStatementText } from '../_shared/statementParser.ts';
+import { isReliable, parseStatement } from '../_shared/statementParser.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -435,7 +435,7 @@ async function parsePDF(
   }
 
   if (extracted?.hasTextLayer) {
-    const parsed = parseStatementText(extracted.text);
+    const parsed = parseStatement(extracted.text);
     const detectedBank = detectBank(extracted.text);
 
     if (isReliable(parsed)) {
