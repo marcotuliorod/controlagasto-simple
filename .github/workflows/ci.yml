@@ -75,8 +75,11 @@ jobs:
 
       # --allow-net porque os imports vêm de deno.land/esm.sh, não porque os
       # testes acessem rede: são todos determinísticos, sem Supabase e sem IA.
+      # --allow-read para as fixtures em _shared/fixtures/, que são a saída real
+      # de extractPdfText() sobre PDF de banco e ficam em arquivo justamente
+      # para poderem ser conferidas contra o documento original.
       - name: Run Deno tests
-        run: deno test --allow-net supabase/functions/_shared/
+        run: deno test --allow-net --allow-read supabase/functions/_shared/
 
   e2e-tests:
     name: E2E Tests (Playwright)
