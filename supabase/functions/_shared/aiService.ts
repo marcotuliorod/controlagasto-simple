@@ -79,7 +79,7 @@ export async function callAIService<T>(
     }
     throw new AIServiceError(
       502,
-      "O serviço de IA falhou. Tente novamente.",
+      "Não foi possível alcançar o serviço de IA.",
       `falha de rede: ${String(error)}`,
     );
   } finally {
@@ -87,11 +87,29 @@ export async function callAIService<T>(
   }
 
   if (!response.ok) {
+    // Ler como texto, não como JSON: quando o serviço quebra de verdade, o
+    // corpo vem em HTML ou vazio, e `response.json()` engolia o único
+    // diagnóstico disponível. Em produção isso deixou um 500 do serviço
+    // indistinguível de qualquer outra falha.
+    const raw = await response.text().catch(() => "");
+    console.error(
+      `Serviço de IA respondeu ${response.status} em ${path}: ${raw.slice(0, 500) || "(corpo vazio)"}`,
+    );
+
     // O serviço já devolve mensagem pública neutra em `error`.
-    const payload = await response.json().catch(() => null);
-    const publicMessage =
-      (payload as { error?: string } | null)?.error ?? "O serviço de IA falhou. Tente novamente.";
-    throw new AIServiceError(response.status, publicMessage);
+    let publicMessage: string | null = null;
+    try {
+      publicMessage = (JSON.parse(raw) as { error?: string })?.error ?? null;
+    } catch {
+      // Corpo não-JSON: sem mensagem pública, usa a genérica abaixo.
+    }
+
+    // Sem "tente novamente": um 5xx do serviço não se resolve repetindo, e a
+    // mensagem antiga mandava o usuário insistir num caminho que não ia abrir.
+    throw new AIServiceError(
+      response.status,
+      publicMessage?.trim() || "O serviço de IA respondeu com erro.",
+    );
   }
 
   return (await response.json()) as T;

@@ -132,6 +132,42 @@ const EXPENSE_PATTERNS = [
   /pag\s+(boleto|titulo|conta)/i,
 ];
 
+/**
+ * Traduz um erro interno na resposta que o usuário pode ver.
+ *
+ * O catch final serializava `String(error)` cru, então quem exportava um CSV
+ * vazio recebia "Error: CSV file must have at least a header and one data row"
+ * na tela. Erro de cliente também virava 500, o que confunde a observabilidade.
+ */
+function toPublicError(error: unknown): { status: number; message: string } {
+  if (error instanceof AIServiceError) {
+    return { status: error.status, message: error.publicMessage };
+  }
+
+  const raw = error instanceof Error ? error.message : String(error);
+
+  if (raw.includes('Missing authorization header') || raw.includes('Invalid user token')) {
+    return { status: 401, message: 'Sessão expirada. Entre novamente para importar.' };
+  }
+  if (raw.includes('at least a header and one data row')) {
+    return {
+      status: 400,
+      message: 'O arquivo está vazio ou só tem o cabeçalho. Exporte o extrato novamente.',
+    };
+  }
+  if (raw.includes('Missing required fields')) {
+    return { status: 400, message: 'Requisição incompleta. Recarregue a página e tente de novo.' };
+  }
+  if (raw.startsWith('Formato não suportado')) {
+    return { status: 400, message: raw };
+  }
+
+  return {
+    status: 500,
+    message: 'Não foi possível processar o arquivo. Tente novamente ou exporte o extrato em CSV.',
+  };
+}
+
 function detectBank(content: string): BankInfo | null {
   for (const bank of SUPPORTED_BANKS) {
     if (bank.patterns.some(p => p.test(content))) {
@@ -606,7 +642,12 @@ async function parseStatementViaAI(
     console.error("Error in parseStatementViaAI:", error);
 
     if (error instanceof AIServiceError) {
-      return { transactions: [], error: error.publicMessage };
+      // Aqui existe uma saída concreta que o usuário pode tomar sozinho, então
+      // vale apontá-la: a importação de CSV não passa por IA nenhuma.
+      return {
+        transactions: [],
+        error: `${error.publicMessage} Exporte o extrato em CSV — esse formato é lido sem IA.`,
+      };
     }
 
     if (error instanceof Error) {
@@ -1010,12 +1051,14 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    // O detalhe técnico fica no log; o usuário recebe português.
     console.error('Error processing import file:', error);
+    const { status, message } = toPublicError(error);
     return new Response(
-      JSON.stringify({ success: false, error: String(error) }),
-      { 
+      JSON.stringify({ success: false, error: message }),
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status
       }
     );
   }
