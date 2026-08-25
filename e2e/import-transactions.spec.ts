@@ -58,16 +58,17 @@ test.describe('Importação de extrato', () => {
 
   test('importa um CSV e a despesa aparece na lista', async ({ page }) => {
     const token = tokenUnico();
-    const mercado = `${token} SUPERMERCADO`;
+    const mercado = `${token} PADARIA AÇAÍ`;
     const padaria = `${token} PADARIA`;
     const salario = `${token} SALARIO`;
     const data = hojeBR();
 
     /*
-     * Sem acento de propósito. A edge function faz `atob()` no arquivo e trata
-     * o resultado como texto, sem decodificar UTF-8: "ç" chega como "Ã§". Um
-     * cabeçalho "Descrição" nem seria reconhecido pelo detector de colunas.
-     * É defeito de produto, não do teste — está registrado em docs/STATE.md.
+     * Comerciante com acento de propósito: cobre o bug de encoding já
+     * corrigido em `process-import-file/index.ts` (`atob()` sozinho tratava
+     * o arquivo como Latin-1, e "ção" chegava como "Ã§Ã£o"). A asserção lá
+     * embaixo, que já procurava `mercado` na lista de despesas, passa a
+     * provar ponta-a-ponta que o texto acentuado chega correto.
      *
      * Débito vira despesa; o crédito do salário é classificado como receita e
      * auto-excluído, o que dá a contagem 2/1 conferida abaixo.
