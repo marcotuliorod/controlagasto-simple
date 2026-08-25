@@ -819,7 +819,12 @@ serve(async (req) => {
 
     console.log(`Processing ${fileType} file for user ${user.id}`);
 
-    const content = atob(fileContent);
+    // atob() sozinho mapeia byte-a-byte como Latin-1; extrato PT-BR com
+    // acento (UTF-8 multi-byte) chegava como mojibake ("ção" -> "Ã§Ã£o") e
+    // o cabeçalho "Descrição" nem era reconhecido por autoDetectMapping.
+    const content = new TextDecoder('utf-8').decode(
+      Uint8Array.from(atob(fileContent), (c) => c.charCodeAt(0)),
+    );
     const fileHash = await generateFileHash(content);
 
     // Check for existing import

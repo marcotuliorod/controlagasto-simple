@@ -3,7 +3,7 @@
 Living snapshot of where the project stands. Update at the end of any session that ships a change — this is what the next session (human or agent) reads first to avoid re-discovering context.
 
 ## Current focus
-Desacoplamento da plataforma Lovable (objetivo 1.1), fases 0-6 concluídas no branch `chore/desacoplamento-lovable`. **Zero dependência de runtime do Lovable.** O que falta é operacional, não de código: consertar o serviço de IA no endereço já apontado por `AI_SERVICE_URL` (responde, mas com HTTP 500 — ver "Serviço de IA" nos itens abertos), rotacionar as credenciais do `.env` que estavam versionadas, e escolher o provedor de IA definitivo.
+Desacoplamento da plataforma Lovable (objetivo 1.1), fases 0-6 concluídas no branch `chore/desacoplamento-lovable`. **Zero dependência de runtime do Lovable.** O 500 do serviço de IA foi investigado e fechado (23-24/08, ver "Serviço de IA — causa do 500 encontrada" nos itens fechados). O que ainda falta é operacional: rotacionar as credenciais do `.env` que estavam versionadas, e escolher o provedor de IA definitivo.
 
 Antes disso, `.planning/ROADMAP.md` Fases 1-4 (onboarding etc.) já estavam completas.
 
@@ -299,23 +299,42 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   qualquer PDF caía na IA e o teste exigiria `AI_SERVICE_URL` no ar; desde
   21/08/2026 os dois layouts Nubank são lidos por regra, então dá para montar
   um caso de PDF sem rede nenhuma. Falta fazer.
-- **A edge function corrompe acento no arquivo importado.**
-  `process-import-file/index.ts:781` faz `atob(fileContent)` e trata o
-  resultado como texto, sem decodificar UTF-8: cada byte vira um code point.
-  Reproduzido em Node — `"PADARIA SAO JOAO ACAI ção;-12,34"` volta como
-  `"PADARIA SAO JOAO ACAI Ã§Ã£o;-12,34"`. Consequências reais em extrato
-  brasileiro: comerciante gravado com mojibake e cabeçalho `Descrição` não
-  reconhecido pelo `autoDetectMapping`, o que joga o usuário no mapeamento
-  manual de colunas. **Não corrigido de propósito:** o mesmo `content`
-  alimenta o `generateFileHash()` que guarda contra reimportação, então
-  decodificar direito muda o hash de todo arquivo não-ASCII e precisa de
-  decisão sobre os `import_sessions` já gravados. O spec usa dados sem acento
-  e comenta o porquê.
+- ~~A edge function corrompe acento no arquivo importado.~~ **Corrigido
+  (25/08/2026).** `process-import-file/index.ts:822` trocou `atob(fileContent)`
+  por `new TextDecoder('utf-8').decode(Uint8Array.from(atob(fileContent), c =>
+  c.charCodeAt(0)))`. Decisão sobre `generateFileHash()`: o hash continua
+  calculado sobre o `content` já decodificado (não sobre o base64 bruto) — é
+  a correção mínima, e arquivo só-ASCII mantém o mesmo hash de antes (Latin-1
+  e UTF-8 coincidem em ASCII). Efeito colateral aceito: `import_sessions.file_hash`
+  já gravado para um arquivo **com acento** fica desatualizado; se o usuário
+  re-subir o arquivo idêntico, o check "já importado" não vai mais barrar.
+  Não há backfill possível (o conteúdo original do arquivo não é armazenado,
+  só as transações extraídas), e não vale a complexidade — `checkDuplicates()`
+  já casa transações por comerciante (10 primeiros caracteres) + data ±1 dia +
+  valor igual, independente do hash, e continua pegando a maioria dos casos
+  reais de reimportação acidental. `e2e/import-transactions.spec.ts` passou a
+  usar um comerciante acentuado (`AÇAÍ`) para provar o fix ponta-a-ponta via a
+  asserção que já existia. **Falta rodar `npx supabase functions deploy
+  process-import-file`** — só foi commitado, não deployado (mesma lição do
+  item do 500: aqui em cima).
 - `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
-- **Serviço de IA está no ar e responde HTTP 500.** *Corrige o que este item dizia até 20/08/2026 ("não está deployado", secret ausente): em produção o secret `AI_SERVICE_URL` **está** configurado.* Prova, nos `function_logs` de 21/08/2026: `process-import-file` e `generate-insights` falharam com `AIServiceError` de **status 500**. Em `_shared/aiService.ts` os status 502 (rede), 503 (secret ausente) e 504 (timeout) são todos literais no código — 500 só pode vir de `response.status`, ou seja, houve resposta HTTP do serviço. Logo ele está deployado, alcançável, e quebrando por dentro. O que ainda não se sabe é *por quê*: o corpo do 500 não trazia campo `error`, e o `response.json()` de então engolia o resto. Agora o corpo cru vai truncado para o `console.error`, então o próximo 500 diz o motivo. As 4 funcionalidades de IA seguem indisponíveis; o import de extrato deixou de depender disso para os layouts Nubank (seção de 21/08).
+- ~~Serviço de IA está no ar e responde HTTP 500.~~ **Resolvido — ver "Serviço de IA — causa do 500 encontrada (23-24/08/2026)" nos itens fechados abaixo.**
 - **Credenciais do `.env` que estava versionado seguem válidas** até serem rotacionadas no painel. O arquivo saiu do índice, mas continua no histórico do git.
+  **Severidade revista (25/08/2026):** conferido via `git show <commit>:.env`
+  (só nomes de variável, nunca valores) — o único `.env` que já esteve
+  versionado (commit `26f29d3`, removido em `bc5bee4`) tinha só
+  `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY` e
+  `VITE_SUPABASE_URL`. Nenhuma chave de servidor (`SUPABASE_SERVICE_ROLE_KEY`,
+  `SUPABASE_JWT_SECRET`, chave de IA) esteve nesse arquivo. A publishable key é
+  projetada pela Supabase para ir no bundle do cliente — a proteção real é RLS,
+  não o sigilo dela — e URL/project ID já são visíveis em qualquer request do
+  app em produção. Continua valendo rotacionar por higiene, mas não é um
+  segredo de servidor vazado. Ação manual, fora do alcance de qualquer
+  ferramenta disponível aqui: painel Supabase → Project Settings → API →
+  regenerar a publishable key; depois atualizar a variável na plataforma de
+  deploy do front e em qualquer `.env` local de desenvolvimento.
 - **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
 - **A regra determinística só foi validada contra o Nubank em documento real.** Extrato de conta e fatura de cartão do Nubank passaram a ser conferidos por checksum contra dois PDFs de verdade (21/08/2026). Os demais bancos (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) continuam validados só em PDF sintético, e a taxa de acerto real segue desconhecida — por isso o fallback continua conservador. O jeito de fechar isso é o mesmo que funcionou aqui: um PDF real por banco virando fixture, com os totais impressos no próprio documento como checksum.
@@ -332,12 +351,61 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - `docs/STATE.md` (this file, hand-written) and `.planning/STATE.md`/`.planning/ROADMAP.md` (gsd-core-generated) now both exist and overlap in purpose — not yet consolidated into one source of truth for "what's left to do."
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
+## Serviço de IA — causa do 500 encontrada (24/08/2026)
+
+Investigado via `mcp__Supabase__query_logs` (projeto `zbnrgtndhofhvhavscrp`) e
+`git log` cruzados por horário. **Duas coisas distintas estavam misturadas no
+item antigo, e as duas já estão resolvidas:**
+
+1. **Os 500 reais aconteceram numa janela de ~46 min, só em 21/08/2026,
+   14:34–15:20 UTC**, em `generate-insights` e `process-import-file`. Não se
+   repetiram desde então — toda chamada de `generate-insights` de 21/08 15:52
+   até agora (24/08) voltou 200. `process-import-file` não teve nova chamada
+   para confirmar, mas a causa é a mesma (mesmo `_shared/aiService.ts`).
+2. **Por que o diagnóstico nunca apareceu:** o commit `115df99` (21/08,
+   12:22 -03) já tinha corrigido `_shared/aiService.ts` para logar o corpo cru
+   do erro (`console.error("Serviço de IA respondeu ...")`) antes desses 500 —
+   mas **o deploy das edge functions só aconteceu às 15:48 UTC**, isto é,
+   *depois* dos três 500 (confirmado batendo `git log` contra
+   `updated_at`/`version` de `mcp__Supabase__list_edge_functions`:
+   `generate-insights`/`process-import-file`/`chat-assistant` estão na versão
+   8/10/8, deployadas às 15:48:23–15:48:27 UTC de 21/08; todas as outras
+   functions seguem na versão 6, deployadas no boot inicial). Ou seja: os 500
+   de produção rodaram contra o código **anterior** ao fix, que engolia o
+   corpo do erro com `response.json()` — por isso nunca havia um `error` no
+   payload e o `console.error` de diagnóstico nunca disparou. O primeiro log
+   com o corpo cru só existiria numa falha *depois* das 15:48, e não houve
+   mais nenhuma.
+3. **Causa da falha em si (a origem do HTTP 500 do serviço `services/ai`):**
+   não deu para confirmar a stack trace exata — esse log vive no host do
+   `services/ai`, fora do Supabase, sem acesso daqui. Mas dá para eliminar as
+   hipóteses óbvias: não é o modelo (`gemini-3.5-flash` existe e é o modelo
+   correto, verificado; nenhum log mostra 404 de modelo), não é
+   `AI_SERVICE_URL` ausente (503 tem mensagem própria e não apareceu), não é
+   RLS/auth (as três functions passam no auth antes de chamar a IA). O padrão
+   — 500 genérico (`app.onError`'s branch `unhandled_error`, o único que
+   devolve 500 em `services/ai/src/http/app.ts:182-183`) concentrado numa
+   janela curta e nunca mais repetido — é consistente com uma instabilidade
+   transitória do provedor Gemini (ou do host do serviço) que não caiu em
+   nenhum dos `catch`/`AIError.fromHttpStatus` categorizados, e por isso virou
+   exceção não tratada em vez de um 502/503 apropriado. Não é um bug de
+   código para corrigir; é o tipo de falha que o fix de 12:22 já teria
+   diagnosticado corretamente na próxima ocorrência (correto: log com corpo
+   cru; correto: mapeamento de status), só que a janela de falha acabou antes
+   do deploy.
+
+**Conclusão prática:** nada para corrigir no código agora. O item some da
+lista de pendências. O único aprendizado que vale carregar adiante: depois de
+um commit em `supabase/functions/*`, confirmar o deploy
+(`npx supabase functions deploy <nome>`) antes de considerar o fix "no ar" —
+neste caso o commit e o deploy ficaram separados por ~3h20 sem que ninguém
+notasse até agora.
+
 ## Notes for next session
-**Primeira coisa:** o PR do acento — `atob(fileContent)` em
-`process-import-file/index.ts:781`. Ficou combinado para depois do merge, e o
-merge está feito. A parte que exige decisão, não só código, é o
-`generateFileHash()`: decodificar UTF-8 corretamente muda o hash de todo
-arquivo não-ASCII, então extrato já importado volta a ser importável.
+**Primeira coisa:** deployar o fix do acento —
+`npx supabase functions deploy process-import-file`. Código e teste E2E já
+estão prontos (25/08/2026, ver "A edge function corrompe acento..." acima,
+agora riscado/fechado), só falta o deploy em si.
 
 A entrega da remoção do lançamento manual está **fechada** — código publicado,
 migration aplicada, verificação feita. Ver a seção "Remoção do lançamento
@@ -345,9 +413,9 @@ manual e do OCR".
 
 A quarentena E2E acabou (seção acima); o que sobra do trabalho de teste é
 ligar firefox/webkit/Mobile Safari no CI, que é custo de minuto de runner, não
-dívida na suíte. As duas pendências que continuam bloqueando funcionalidade são
-operacionais: descobrir por que o serviço de IA em `AI_SERVICE_URL` responde
-500 (ele está no ar — o próximo log já traz o corpo do erro), e rotacionar as
-credenciais do `.env` que estava versionado.
+dívida na suíte. O 500 do serviço de IA já foi investigado e fechado (ver
+"Serviço de IA — causa do 500 encontrada" acima) — foi um deploy atrasado em
+relação ao commit do fix, não um bug vivo. A única pendência operacional que
+resta é rotacionar as credenciais do `.env` que estava versionado.
 
 All 4 phases of `.planning/ROADMAP.md` are complete — this milestone's planned work is done. Nothing is queued. Next session should ask the user what's next: pick up a `.planning/REQUIREMENTS.md` v2 item, start a new `gsd-core` milestone, do the manual end-to-end verification noted above once live Supabase access is available, or handle new ad hoc requests.
