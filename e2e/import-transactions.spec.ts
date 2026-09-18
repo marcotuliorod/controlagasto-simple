@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { waitForPageLoad } from './fixtures/test-data';
+import { buildNubankExtratoPdf } from './fixtures/nubankPdf';
 
 /**
  * Importação de extrato — a ÚNICA porta de entrada de gasto do app.
@@ -9,11 +10,12 @@ import { waitForPageLoad } from './fixtures/test-data';
  * em `expense-crud.spec.ts` chegava a afirmar que a criação estava "coberta em
  * import-transactions", o que não era verdade.
  *
- * Escopo deliberado: CSV, que é o caminho **determinístico** — a edge function
- * `process-import-file` lê CSV e OFX por regra e só chama IA para PDF de
- * layout desconhecido. Isso mantém o teste hermético: roda contra o stack
- * Supabase local do CI sem `AI_SERVICE_URL` e sem chave de fornecedor nenhum.
- * Cobrir PDF exigiria o serviço de IA no ar, que é outro tipo de teste.
+ * Escopo original: só CSV, que é o caminho **determinístico** — a edge
+ * function `process-import-file` lê CSV e OFX por regra e só chama IA para
+ * PDF de layout desconhecido. Desde 21/08/2026 os dois layouts Nubank
+ * (extrato/fatura) também são lidos por regra, sem IA nenhuma — o que abriu
+ * espaço para cobrir PDF sem exigir `AI_SERVICE_URL` no ar. O teste abaixo
+ * cobre exatamente esse caminho.
  */
 
 /** Cabeçalhos que o `autoDetectMapping` reconhece — sem eles o fluxo desviaria
@@ -146,6 +148,59 @@ test.describe('Importação de extrato', () => {
     // `toFixed(2)` em vez de `formatCurrencyBR()`. Está errado para pt-BR, mas
     // é o que o app mostra hoje — o teste registra o comportamento real.
     await expect(page.getByText('R$ 123.45').first()).toBeVisible();
+  });
+
+  test('importa um PDF (extrato Nubank lido por regra, sem IA)', async ({ page }) => {
+    /*
+     * O PDF é gerado em memória (`buildNubankExtratoPdf`), não commitado como
+     * binário: `process-import-file` calcula um hash do arquivo ANTES de
+     * qualquer parsing e recusa reimportação ("Este arquivo já foi importado
+     * anteriormente."), então um PDF estático faria este teste passar uma vez
+     * e falhar em toda re-execução contra o mesmo usuário. `tokenUnico()` vira
+     * uma linha extra no fim do texto extraído — muda o hash a cada rodada
+     * sem criar uma transação fantasma (não bate o padrão de valor no fim da
+     * linha, então o parser descarta como continuação).
+     *
+     * Conteúdo do PDF: o extrato Nubank anonimizado de
+     * `_shared/fixtures/nubank-conta.txt`, o mesmo já coberto pelos testes
+     * Deno de `statementLayouts.test.ts` — checksum contra os totais impressos
+     * no próprio documento: 4 créditos somando R$ 1.259,00 (auto-excluídos,
+     * como o salário no teste de CSV acima) e 9 débitos somando R$ 4.280,06
+     * (viram despesa).
+     */
+    const token = tokenUnico();
+    const pdfBuffer = buildNubankExtratoPdf(token);
+
+    await page.goto('/import-transactions');
+    await waitForPageLoad(page);
+
+    await expect(page.getByRole('heading', { name: 'Importar Transações' })).toBeVisible();
+
+    const contaDestino = page.getByRole('combobox');
+    await expect(contaDestino).not.toContainText('Selecione uma conta', { timeout: 15000 });
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'extrato-nubank-teste.pdf',
+      mimeType: 'application/pdf',
+      buffer: pdfBuffer,
+    });
+
+    // PDF de layout reconhecido não passa por IA, mas ainda envolve extração
+    // de texto local + parsing com máquina de estado — mesma folga de tempo
+    // do caminho CSV (cold start da edge function).
+    await expect(page.getByRole('heading', { name: 'Revisar Transações' })).toBeVisible({
+      timeout: 30000,
+    });
+
+    await expect(page.getByRole('tab', { name: /Despesas/ })).toContainText('9');
+    await expect(page.getByRole('tab', { name: /Excluídos/ })).toContainText('4');
+    await expect(page.getByRole('tab', { name: /Duplicados/ })).toContainText('0');
+
+    await page.getByRole('button', { name: 'Continuar para Resumo' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Resumo da Importação' })).toBeVisible();
+    // Soma dos 9 débitos — "Total de saídas -4.280,06" no próprio documento.
+    await expect(page.getByRole('paragraph').filter({ hasText: '4.280,06' })).toBeVisible();
   });
 
   test('recusa arquivo de formato não suportado', async ({ page }) => {
