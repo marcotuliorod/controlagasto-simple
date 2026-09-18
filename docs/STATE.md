@@ -415,18 +415,17 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   escolhe o adapter), trocar de fornecedor mais tarde continua barato caso
   surja motivo concreto (custo, cota, novo modelo relevante) — não há decisão
   a revisitar até lá.
-- **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
+- ~~`.env.example` não pôde ser criado~~ **Criado em 17/09/2026** — o bloqueio de permissão daquela sessão não se repetiu depois.
 - **A regra determinística só foi validada contra o Nubank em documento real.** Extrato de conta e fatura de cartão do Nubank passaram a ser conferidos por checksum contra dois PDFs de verdade (21/08/2026). Os demais bancos (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) continuam validados só em PDF sintético, e a taxa de acerto real segue desconhecida — por isso o fallback continua conservador. O jeito de fechar isso é o mesmo que funcionou aqui: um PDF real por banco virando fixture, com os totais impressos no próprio documento como checksum.
-- **Os snapshots em `.planning/codebase/` descrevem `process-receipt` como
-  existente** — `STRUCTURE.md` conta "14 Edge functions" e desenha a pasta na
-  árvore, `ARCHITECTURE.md` e `INTEGRATIONS.md` a listam, e `CONCERNS.md` aponta
-  `process-receipt/index.ts:34` como risco vivo. Já estava desatualizado desde
-  19/08 (pasta removida) e ficou mais com o delete de 21/08. São snapshots
-  datados e gerados; **não** foram remendados à mão de propósito, porque
-  meio-regenerado engana mais que claramente velho. Regenerar quando o
-  `map-codebase` rodar de novo. O que incomoda agora é o `CONCERNS.md`: doc de
-  segurança apontando para arquivo inexistente faz perder tempo em triagem.
-- **`major_version = 15`** em `supabase/config.toml` foi escolha minha e pode não bater com a versão do Postgres em produção — conferir antes de usar o self-host para valer.
+- ~~Os snapshots em `.planning/codebase/` descrevem `process-receipt` como
+  existente~~ **Regenerado em 17/09/2026** (`/gsd-map-codebase`, branch
+  `chore/fechar-pendencias-vps`) — os 7 documentos foram reescritos do zero
+  contra o repo atual, sem `process-receipt`.
+- **`major_version = 17`** em `supabase/config.toml` (corrigido do `15`
+  original, que era escolha minha e não batia com nada) — `npx supabase
+  projects list` confirma que o Postgres real de produção é `17.6.1.025`,
+  então **bate**. Vale reconferir se o self-host avançar de verdade, já que a
+  imagem oficial do compose pode trazer um patch diferente.
 - ~~`docs/STATE.md` and `.planning/STATE.md`/`ROADMAP.md` overlap, not consolidated.~~
   **Resolvido (17/09/2026): não fundidos — divisão de papéis explícita em
   vez disso.** `docs/STATE.md` (este arquivo) é a narrativa viva e detalhada
