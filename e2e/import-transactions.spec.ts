@@ -164,9 +164,14 @@ test.describe('Importação de extrato', () => {
      * Conteúdo do PDF: o extrato Nubank anonimizado de
      * `_shared/fixtures/nubank-conta.txt`, o mesmo já coberto pelos testes
      * Deno de `statementLayouts.test.ts` — checksum contra os totais impressos
-     * no próprio documento: 4 créditos somando R$ 1.259,00 (auto-excluídos,
-     * como o salário no teste de CSV acima) e 9 débitos somando R$ 4.280,06
-     * (viram despesa).
+     * no próprio documento: 4 créditos somando R$ 1.259,00 e 9 débitos somando
+     * R$ 4.280,06. Não confundir esse checksum (extração/parsing corretos)
+     * com classificação de UI: dos 9 débitos, 8 são "Transferência
+     * enviada/recebida pelo Pix" — `TransactionFilterTabs.tsx` classifica
+     * transferência à parte de despesa (`needsReview`, aba "Revisar"), com
+     * `selected: false` por padrão (`ImportTransactions.tsx`). Só o
+     * "Pagamento de boleto efetuado" (R$ 199,00) é despesa de verdade. Os 4
+     * créditos vão para "Excluídos" (classification: income).
      */
     const token = tokenUnico();
     const pdfBuffer = buildNubankExtratoPdf(token);
@@ -192,15 +197,17 @@ test.describe('Importação de extrato', () => {
       timeout: 30000,
     });
 
-    await expect(page.getByRole('tab', { name: /Despesas/ })).toContainText('9');
+    await expect(page.getByRole('tab', { name: /Despesas/ })).toContainText('1');
     await expect(page.getByRole('tab', { name: /Excluídos/ })).toContainText('4');
+    await expect(page.getByRole('tab', { name: /Revisar/ })).toContainText('8');
     await expect(page.getByRole('tab', { name: /Duplicados/ })).toContainText('0');
 
     await page.getByRole('button', { name: 'Continuar para Resumo' }).click();
 
     await expect(page.getByRole('heading', { name: 'Resumo da Importação' })).toBeVisible();
-    // Soma dos 9 débitos — "Total de saídas -4.280,06" no próprio documento.
-    await expect(page.getByRole('paragraph').filter({ hasText: '4.280,06' })).toBeVisible();
+    // Só a despesa de verdade entra no total — as 8 transferências ficam de
+    // fora por padrão (`selected: false`), o usuário decidiria em "Revisar".
+    await expect(page.getByRole('paragraph').filter({ hasText: '199,00' })).toBeVisible();
   });
 
   test('recusa arquivo de formato não suportado', async ({ page }) => {
