@@ -106,9 +106,24 @@ test.describe('Logout', () => {
     await signUpAndOnboard(page);
     await waitForPageLoad(page);
 
-    // O botão vive na sidebar, que no mobile só existe atrás do menu.
+    /*
+     * O botão vive na sidebar, que no mobile só existe atrás do menu. No
+     * desktop o header inteiro que contém esse trigger é `md:hidden`
+     * (AppLayout.tsx) — permanentemente oculto, então o timeout abaixo é
+     * esperado ali. `isVisible()` sozinho já causou flake real aqui: é uma
+     * checagem instantânea, sem espera, e corria contra o layout do
+     * dashboard ainda se estabilizando logo após o mount (o trigger existe e
+     * fica visível pouco depois, mas não no instante exato do check) —
+     * intermitente o bastante para derrubar o teste 3x seguidas numa run de
+     * CI mais lenta. `waitFor` dá a folga que falta sem perder a distinção
+     * entre "ainda não apareceu" (mobile) e "nunca vai aparecer" (desktop).
+     */
     const menuTrigger = page.getByRole('button', { name: /abrir menu de navegação/i });
-    if (await menuTrigger.isVisible()) {
+    const menuTriggerVisible = await menuTrigger
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (menuTriggerVisible) {
       await menuTrigger.click();
     }
 
