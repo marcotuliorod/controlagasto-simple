@@ -321,11 +321,16 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   `aws-0` o servidor responde `tenant/user not found`, e com 6543 (transaction
   mode) migration não roda. Registrado aqui porque custou três tentativas e
   vai custar de novo na próxima migration.
-- **A importação de PDF continua sem cobertura E2E** — mas agora é fácil de
-  resolver, e não estava. `import-transactions.spec.ts` cobre só CSV. Antes,
-  qualquer PDF caía na IA e o teste exigiria `AI_SERVICE_URL` no ar; desde
-  21/08/2026 os dois layouts Nubank são lidos por regra, então dá para montar
-  um caso de PDF sem rede nenhuma. Falta fazer.
+- ~~A importação de PDF continua sem cobertura E2E~~ **Feito (17/09/2026,
+  branch `chore/fechar-pendencias-vps`).** Novo teste em
+  `import-transactions.spec.ts` cobre o extrato Nubank via PDF gerado em
+  memória (`e2e/fixtures/nubankPdf.ts`, não commitado como binário — ver
+  comentário no arquivo sobre por quê: hash de "já importado" exige conteúdo
+  variável por rodada). Validado manualmente com `unpdf` que a extração
+  reproduz o texto original linha a linha e a detecção de layout reconhece o
+  documento; **não executado de ponta a ponta** (Docker indisponível no
+  ambiente onde foi escrito, `npx supabase start` não roda) — rodar
+  `npm run test:e2e` para confirmar antes de considerar fechado de verdade.
 - ~~A edge function corrompe acento no arquivo importado.~~ **Corrigido
   (25/08/2026).** `process-import-file/index.ts:822` trocou `atob(fileContent)`
   por `new TextDecoder('utf-8').decode(Uint8Array.from(atob(fileContent), c =>
