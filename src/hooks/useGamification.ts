@@ -183,6 +183,15 @@ export function useGamificationEnabled() {
   });
 }
 
+interface UnlockProgressData {
+  educationByCategory: Record<string, number>;
+  quizScoresByCategory: Record<string, { correct: number; total: number }>;
+  totalEducationCompleted: number;
+  totalQuizResponses: number;
+  expenseCount: number;
+  daysActive: number;
+}
+
 /**
  * Calculate unlock progress for a specific menu item
  */
@@ -193,85 +202,14 @@ export function useUnlockProgress() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      // These 6 reads are all independent (scoped only by user.id or static
-      // content tables) — fetch them concurrently instead of one at a time.
-      const [
-        { data: educationProgress },
-        { data: educationalContent },
-        { data: quizResponses },
-        { data: quizQuestions },
-        { count: expenseCount },
-        { data: expenseDates },
-      ] = await Promise.all([
-        // Education progress
-        supabase
-          .from("user_content_progress")
-          .select("content_id, completed")
-          .eq("user_id", user.id)
-          .eq("completed", true),
-        // Educational content, to map categories
-        supabase
-          .from("educational_content")
-          .select("id, category"),
-        // Quiz responses
-        supabase
-          .from("quiz_responses")
-          .select("question_id, is_correct"),
-        // Quiz questions, for categories
-        supabase
-          .from("quiz_questions")
-          .select("id, category"),
-        // Expense count
-        supabase
-          .from("expenses")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id),
-        // Days active (unique dates with expenses in last 30 days)
-        supabase
-          .from("expenses")
-          .select("date")
-          .eq("user_id", user.id)
-          .gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]),
-      ]);
+      // Antes eram 6 round-trips HTTP separados (Promise.all já eliminava a
+      // espera sequencial, mas não o número de requisições). Consolidado numa
+      // única RPC (`get_unlock_progress`, migration 20260918020000) que faz
+      // os mesmos joins/agregações no banco.
+      const { data, error } = await supabase.rpc("get_unlock_progress");
+      if (error) throw error;
 
-      const uniqueDays = new Set(expenseDates?.map(e => e.date) || []).size;
-
-      // Build category education counts
-      const educationByCategory: Record<string, number> = {};
-      const contentMap = new Map(educationalContent?.map(c => [c.id, c.category]) || []);
-      
-      educationProgress?.forEach(p => {
-        const category = contentMap.get(p.content_id);
-        if (category) {
-          educationByCategory[category] = (educationByCategory[category] || 0) + 1;
-        }
-      });
-
-      // Build quiz scores by category
-      const quizScoresByCategory: Record<string, { correct: number; total: number }> = {};
-      const questionMap = new Map(quizQuestions?.map(q => [q.id, q.category]) || []);
-
-      quizResponses?.forEach(r => {
-        const category = questionMap.get(r.question_id);
-        if (category) {
-          if (!quizScoresByCategory[category]) {
-            quizScoresByCategory[category] = { correct: 0, total: 0 };
-          }
-          quizScoresByCategory[category].total++;
-          if (r.is_correct) {
-            quizScoresByCategory[category].correct++;
-          }
-        }
-      });
-
-      return {
-        educationByCategory,
-        quizScoresByCategory,
-        totalEducationCompleted: educationProgress?.length || 0,
-        totalQuizResponses: quizResponses?.length || 0,
-        expenseCount: expenseCount || 0,
-        daysActive: uniqueDays,
-      };
+      return data as unknown as UnlockProgressData;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
