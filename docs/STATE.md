@@ -195,16 +195,32 @@ Ran `npm audit` fresh (7 findings, same set as before) and checked whether each 
 
 None of the 7 findings were silently ignored — each has a decision above. None are fixable without a breaking major-version bump this phase intentionally didn't take on.
 
-**Atualização (17/09/2026): a lista cresceu de 7 para 15 achados** (`npm audit`
-refeito ao planejar o fechamento de pendências). Os 4 novos são todos
-**transitivos, dev/build-only, e com fix sem breaking change**
-(`npm audit fix` sem `--force`): `fast-uri` (alto, 4 CVEs), `js-yaml` (alto),
-`postcss-selector-parser`, `fflate` (moderado). Nenhum é dependência direta
-do projeto — chegaram via bump de sub-dependência de alguma ferramenta de
-build/lint. Os 3 achados antigos (`xlsx`, `react-router-dom`,
-`vite`/`esbuild`/`vitest`) continuam exatamente como analisados acima, ainda
-dependentes de bump major. Plano ativo (17/09/2026) inclui rodar o
-`npm audit fix` seguro agora e revisitar os 3 majors em commits isolados.
+**Atualização (17/09/2026): a lista tinha crescido de 7 para 15 achados**
+(`npm audit` refeito ao planejar o fechamento de pendências), e os 3 majors
+adiados acima **foram fechados nesta sessão**, na branch
+`chore/fechar-pendencias-vps`:
+
+- Os 4 achados novos eram todos transitivos, dev/build-only, com fix sem
+  breaking change: `fast-uri`, `js-yaml`, `postcss-selector-parser`,
+  `fflate`. Fechados com `npm audit fix` (sem `--force`) — só o lock mudou.
+- **`react-router-dom` 6.30 → 7.18.** App usa só o modo declarativo
+  (`BrowserRouter`/`Routes`/`Route`/`Navigate`), sem data router nem paths
+  relativos (confirmado por grep) — exatamente o padrão que o v7 manteve
+  compatível. Zero mudança de código exigida.
+- **`vite` 5.4 → 7.3, `vitest` 4.0 → 4.1.10** (mantendo a major já declarada,
+  em vez de saltar para vitest 5.x/vite 8.x, lançados há pouco — escolha
+  deliberadamente conservadora). `vite-plugin-pwa` e
+  `@vitejs/plugin-react-swc` já suportavam vite 7 nas versões instaladas.
+- Restou só `xlsx` (sem fix upstream, mitigado por auditoria de uso — ver
+  decisão original acima, que continua válida).
+
+Verificado a cada bump: lint 0 erros, `tsc --noEmit` limpo, build de produção
+ok (mesmo tamanho de bundle), 142/142 testes unit, preview de produção
+respondendo 200. **Não verificado: E2E** — Docker indisponível no ambiente em
+que os bumps foram feitos, então `npx supabase start` não roda. Rodar
+`npm run test:e2e` completo antes de mergear esta branch, com atenção
+especial ao redirect `/add-expense` → `/import-transactions` e à navegação
+por Cmd+K (`GlobalSearch.tsx`), que dependem diretamente do router.
 
 ## Edge function auth audit (SEC-02)
 
@@ -328,7 +344,7 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   asserção que já existia. **Falta rodar `npx supabase functions deploy
   process-import-file`** — só foi commitado, não deployado (mesma lição do
   item do 500: aqui em cima).
-- `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
+- ~~`xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories~~ **`react-router-dom` e `vite`/`vitest` fechados em 17/09/2026** (branch `chore/fechar-pendencias-vps`, ver "Dependency security decisions" acima para o detalhe dos bumps e da verificação). Só `xlsx` permanece — sem fix upstream, mitigado por auditoria de uso; revisitar apenas se o app passar a fazer parse de planilha não confiável.
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
 - ~~Serviço de IA está no ar e responde HTTP 500.~~ **Resolvido — ver "Serviço de IA — causa do 500 encontrada (23-24/08/2026)" nos itens fechados abaixo.**
