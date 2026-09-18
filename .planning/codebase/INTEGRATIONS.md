@@ -1,167 +1,122 @@
 # External Integrations
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-09-17
 
 ## APIs & External Services
 
-**AI & Language Models:**
-- Camada própria provider-agnostic (`services/ai`), sem fornecedor no domínio
-  - Edge functions chamam via `supabase/functions/_shared/aiService.ts`
-  - Auth: JWT do usuário repassado adiante; endereço no secret `AI_SERVICE_URL`
-  - Adapter concreto escolhido em `services/ai/src/config.ts` (`AI_PROVIDER`)
-  - Used in edge functions:
-    - `process-receipt` (`/supabase/functions/process-receipt/index.ts:34`) - OCR & receipt extraction
-    - `chat-assistant` (`/supabase/functions/chat-assistant/index.ts:165`) - AI financial advisor
-    - `process-import-file` (`/supabase/functions/process-import-file/index.ts`) - File import with AI parsing
-    - `generate-insights` (`/supabase/functions/generate-insights/index.ts`) - AI spending insights
+**AI / LLM (provider-agnostic layer):**
+- Frontend and edge functions never call an LLM provider directly. Edge functions call the separate `services/ai` Node/Hono service via `supabase/functions/_shared/aiService.ts`, forwarding the end user's JWT.
+- `services/ai/src/config.ts` is the single place that selects the concrete provider adapter (env var `AI_PROVIDER`).
+- Current adapter: Gemini (`services/ai/src/providers/gemini.ts`), plus `services/ai/src/providers/fake.ts` for tests (domain runs with no network and no key).
+- Provider errors are normalized into `AIError`; only `publicMessage` may reach end users (never provider name, quota, or billing details).
+- Consumers of the AI service (via edge functions):
+  - `chat-assistant` - conversational financial advice, persists to `chat_messages`
+  - `generate-insights` - AI-powered spending analysis
+  - `process-import-file` - only falls back to AI when the deterministic bank-statement parser (`supabase/functions/_shared/statementParser.ts`) doesn't recognize the layout (PDF path); CSV/OFX is fully deterministic
 
-**Web Push Notifications:**
-- Standard Web Push API (via Supabase)
-  - Infrastructure: Push subscription endpoints stored in database
-  - Function: `send-push-notification` (`/supabase/functions/send-push-notification/index.ts`)
-  - VAPID Keys: Stored in Supabase `vapid_keys` table
-  - Public Key Retrieval: `get-vapid-public-key` edge function (no JWT required)
+**Web Push:**
+- Standard Web Push protocol via VAPID keys
+- `send-push-notification` edge function fetches VAPID keys from the `vapid_keys` table and delivers pushes
+- `get-vapid-public-key` edge function exposes the public key to the frontend
+- Frontend hook: `usePushNotifications()` manages subscription lifecycle; subscriptions stored in `push_subscriptions` table
 
 ## Data Storage
 
-**Databases:**
-- PostgreSQL (via Supabase)
-  - Connection env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
-  - Client library: `@supabase/supabase-js` v2.76.1 (`/package.json:49`)
-  - Location: `/src/integrations/supabase/client.ts`
-  - Features: Auth, real-time subscriptions, edge functions
-  - Project ID: configurável por ambiente (`VITE_SUPABASE_URL`); não fixado no código
-  - Tables: expenses, categories, accounts, profiles, chat_messages, chat_conversations, push_subscriptions, vapid_keys, audit_logs, recurring_expenses, financial_health_scores, monthly_goals, category_goals, saved_filters, educational_content, quizzes, scheduled_exports
+**Database:**
+- Supabase-managed Postgres 17 (`supabase/config.toml` pins local dev to major version 17 to match remote)
+- Accessed from frontend exclusively through `@supabase/supabase-js` (PostgREST), client configured in `src/integrations/supabase/client.ts`
+- Types generated into `src/integrations/supabase/types.ts` via `npx supabase gen types typescript`
+- RPC functions used for cross-cutting logic: `get_billing_period()`, `calculate_financial_health_score()`
 
 **File Storage:**
-- Supabase Storage (private bucket: `receipts`)
-  - Used for: Receipt images from OCR processing
-  - Access: Private/authenticated only
-  - Signed URLs: 60-second expiration
-  - Upload in: `process-receipt` edge function (`/supabase/functions/process-receipt/index.ts:148`)
+- Supabase Storage, private bucket `receipts` still exists and is still purged by `delete-account`, but nothing writes to it anymore (held over from the removed OCR/receipt-capture flow). `getSignedReceiptUrl()` was removed along with that feature; any new private-file exposure should generate a short-lived signed URL at point of use.
 
 **Caching:**
-- React Query (@tanstack/react-query v5.83.0)
-  - Default stale time: 5 minutes
-  - Config: `/src/App.tsx:45-52`
-  - No window focus refetch
-- Browser Cache API
-  - Via Workbox 7.3.0 (PWA offline support)
-  - Strategies: Cache-first for assets, network-first for data
+- None server-side. Client-side: React Query in-memory cache (5min stale time) and the PWA service worker (Workbox, `public/sw.js`, 5MB max cache size) for offline asset/API caching.
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Supabase Auth (built-in)
-  - Implementation: JWT-based authentication
-  - Session storage: localStorage via `@supabase/supabase-js`
-  - Config: `/src/integrations/supabase/client.ts:12-16`
-  - Features: Auto-refresh tokens, persistent sessions
-  - Signup/Login: `/src/pages/Auth.tsx`
-  - User context: Provided via Supabase auth helper
+- Supabase Auth (`@supabase/supabase-js`), auto-refresh tokens enabled, persistent sessions via localStorage
+- Row Level Security (RLS) enforced on all tables, policies check `auth.uid() = user_id`
 
-**Security:**
-- JWT verification on edge functions (most have `verify_jwt = true` in `/supabase/config.toml`)
-- Row Level Security (RLS) on all database tables
-- Authorization header validation in edge functions
+**Edge function auth pattern:**
+- User-facing functions validate `Authorization: Bearer <jwt>` and call `supabaseClient.auth.getUser(token)` before any paid/expensive work (notably before AI calls)
+- Cron-triggered functions (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`) use a different pattern instead: compare header `X-Cron-Secret` against `Deno.env.get('CRON_SECRET')` — no end user to authenticate
+- `services/ai` independently verifies the forwarded Supabase user JWT using `jose`, against `SUPABASE_JWT_SECRET`
+
+**verify_jwt per function** (`supabase/config.toml`): `true` for chat-assistant, check-category-variations, delete-account, export-data, export-pdf, generate-insights, process-import-file; `false` for the three cron-driven functions plus `get-vapid-public-key` and `send-push-notification` (these use the cron-secret or public-key pattern instead of a user JWT).
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None detected (no Sentry, Rollbar, etc.)
+- None detected (no Sentry/equivalent SDK in `package.json` or `services/ai/package.json`)
 
 **Logs:**
-- Console logging in edge functions (Deno runtime)
-  - `console.log()` and `console.error()` in `/supabase/functions/*/index.ts`
-- Supabase Edge Function logs accessible via Supabase dashboard
-
-**Performance Monitoring:**
-- Lighthouse CI integration (`.github/workflows/ci.yml:124-129`)
-  - Automated performance checks on each build
-- Bundle size analysis: `ANALYZE=true npm run build` generates `/dist/stats.html`
+- Structured `console.log`/`console.error` inside edge functions
+- Realtime debugging via `[Realtime]`-prefixed logs from `src/lib/realtimeLogger.ts` (or equivalent utility referenced in CLAUDE.md)
+- AI service healthcheck endpoint `/health` used by Docker `HEALTHCHECK`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Inference from tech stack: Likely Vercel or Supabase hosting
-- Build output: `/dist/` directory
-- Service Worker: `/dist/sw.js` (generated from `/public/sw.js`)
+- Frontend: Vercel, static SPA (`vercel.json`), SPA fallback rewrite to `/index.html`, `no-cache` header on `/sw.js` to force service-worker updates
+- AI service: Vercel, separate project, container-based runtime (`services/ai/vercel.json`, `"runtime": "container"`), built from `services/ai/Dockerfile` (Node 24 Alpine)
+- Backend: Supabase project (Postgres, Auth, Storage, Realtime, Edge Functions) — deployable self-hosted or managed; nothing in the codebase hardcodes a project ref
 
-**CI Pipeline (GitHub Actions):**
-- Workflow file: `/.github/workflows/ci.yml`
-- Triggers: Push to main/develop, pull requests
-- Jobs:
-  1. Lint & Type Check (ESLint + TypeScript)
-  2. Unit Tests (Vitest with coverage)
-  3. E2E Tests (Playwright, multi-browser)
-  4. Lighthouse CI (performance budgets)
-  5. Build verification (production build test)
-- Environment secrets configured:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-  - `LHCI_GITHUB_APP_TOKEN`
-- Node.js version: 20 LTS
-- Artifact retention: 30 days for reports, 7 days for screenshots
+**CI Pipeline:**
+- GitHub Actions present (recent commit history references a "Deno job" running with `--allow-read` against fixture files) — exact workflow files not enumerated in this pass; check `.github/workflows/` directly for current jobs
+
+**Edge Function Deployment:**
+- `npx supabase functions deploy <name>` per function; `verify_jwt` declared in `supabase/config.toml`
 
 ## Environment Configuration
 
-**Required env vars (from CI and code):**
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anonymous key
-- `AI_SERVICE_URL` - endereço do serviço de IA em `services/ai` (edge functions only)
-- `CRON_SECRET` - autentica as functions disparadas por cron
-- `SUPABASE_URL` - Used in edge functions (service role context)
-- `SUPABASE_SERVICE_ROLE_KEY` - Edge function service role key
-- `VITE_SUPABASE_PROJECT_ID` - Referenced in CLAUDE.md (optional)
+**Frontend required env vars (`.env`, `VITE_` prefix):**
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+**AI service required env vars (boot-time checked, fails fast if missing):**
+- `SUPABASE_JWT_SECRET`
+- `GEMINI_API_KEY`
+- `AI_PROVIDER` (selects adapter in `config.ts`)
+
+**Edge function secrets (`supabase secrets set`, not the frontend `.env`):**
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `CRON_SECRET`
+- `AI_SERVICE_URL` (points at the deployed `services/ai` instance)
 
 **Secrets location:**
-- `.env` file (present at repo root, not version controlled)
-- GitHub Actions secrets for CI/CD pipeline
-- Edge function environment variables managed via Supabase console
+- Frontend: `.env` (gitignored, values not read outside `import.meta.env` in `src/`)
+- Edge functions: Supabase project secrets (`supabase secrets set`)
+- AI service container: environment variables injected by the Vercel container runtime / Docker host
 
 ## Webhooks & Callbacks
 
-**Incoming Webhooks:**
-- None detected
+**Incoming:**
+- None detected (no inbound webhook endpoints in `supabase/functions/`)
 
-**Outgoing Webhooks/Callbacks:**
-- Web Push notification endpoints (browser push service endpoints)
-  - Handled in: `send-push-notification` (`/supabase/functions/send-push-notification/index.ts`)
-  - Target: Browser push service endpoints (e.g., Google Cloud Messaging, APNS, etc.)
+**Outgoing:**
+- Web Push delivery (`send-push-notification`) to browser push services (per-subscription endpoint, not a fixed webhook)
 
-**Edge Function Triggers:**
-- Scheduled via: Supabase database cron jobs (inferred)
-- Functions with cron execution:
-  - `process-recurring-expenses` - Auto-generate recurring transactions
-  - `process-scheduled-exports` - Execute data exports on schedule
-  - `notify-goal-threshold` - Budget alert notifications
+## Current Edge Functions (`supabase/functions/*/index.ts`)
 
-## Real-time Features
+- `chat-assistant` - AI financial advice chat, persists to `chat_messages`
+- `check-category-variations` - smart categorization suggestions
+- `delete-account` - full user data purge (including the `receipts` storage bucket)
+- `export-data` - Excel export generation
+- `export-pdf` - PDF report generation
+- `generate-insights` - AI-powered spending analysis
+- `get-vapid-public-key` - exposes VAPID public key for push subscriptions
+- `notify-goal-threshold` - budget alerts when spending exceeds category goals (cron)
+- `process-import-file` - bank statement import (CSV/OFX deterministic; PDF falls back to AI via `services/ai`)
+- `process-recurring-expenses` - auto-generates recurring transactions (cron)
+- `process-scheduled-exports` - executes scheduled data exports (cron)
+- `send-push-notification` - web push delivery
+- `_shared` - shared helpers, not a deployable function (`aiService.ts`, `statementParser.ts`, `statementLayouts.ts`, `csvMapping.ts`, `pdfText.ts`, plus test fixtures)
 
-**Real-time Subscriptions:**
-- Supabase Realtime (via `@supabase/supabase-js`)
-- Used in: `useExpensesRealtime()` hook and other components
-- Channels: Multi-channel real-time updates for expenses, categories, etc.
-- Cleanup: 100ms delay to prevent WebSocket errors on unmount
-
-## Rate Limiting & Quotas
-
-**Edge Function Limits:**
-- Chat Assistant: 10 messages per minute per user
-  - Rate check: `/supabase/functions/chat-assistant/index.ts:54-66`
-- Lovable AI: Credit-based usage (returns 402 when credits exhausted)
-
-## Data Export & Import
-
-**Export Formats:**
-- CSV: Via `export-data` edge function (`/supabase/functions/export-data/index.ts`)
-- PDF: Via `export-pdf` edge function (`/supabase/functions/export-pdf/index.ts`)
-- Excel: Via `xlsx` library (v0.18.5, `/package.json:88`)
-
-**Import Formats:**
-- Excel/CSV: Via `process-import-file` edge function
-- Receipt images: Via `process-receipt` edge function (JPG/PNG)
+Note: `process-receipt` no longer exists in this repo (deleted 2026-08-21, commit history: "chore: apaga process-receipt, que continuava no ar sem código no repo"). Do not reference it as an active function.
 
 ---
 
-*Integration audit: 2026-08-15*
+*Integration audit: 2026-09-17*

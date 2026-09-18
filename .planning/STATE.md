@@ -1,15 +1,24 @@
 ---
 gsd_state_version: '1.0'
-status: planning
+status: complete
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
+
+> Este arquivo é o rastreamento estruturado de fases/roadmap do `gsd-core`.
+> Para o estado vivo e detalhado do projeto (decisões, o que mudou, o que
+> falta operacionalmente) o documento de referência é **`docs/STATE.md`** —
+> os dois não foram fundidos de propósito (escopos diferentes: aqui é
+> progresso de fase do roadmap; lá é a narrativa completa), mas ficaram
+> dessincronizados por meses (este arquivo nunca foi atualizado após a
+> criação inicial em 15/08/2026, mesmo com as 4 fases concluídas). Corrigido
+> em 17/09/2026 — ver `docs/STATE.md` para o "porquê" de cada fase.
 
 ## Project Reference
 
@@ -17,18 +26,19 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Users can see and control where their money goes, aligned to their actual billing
 cycle (not calendar months).
-**Current focus:** Phase 1 — Code Quality & CI Health
+**Current focus:** Nenhum — as 4 fases planejadas deste milestone estão concluídas. Ver
+`docs/STATE.md` para o trabalho pós-roadmap em andamento (VPS/infra, dependências, cobertura E2E).
 
 ## Current Position
 
-Phase: 1 of 4 (Code Quality & CI Health)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-08-15 — Initial GSD roadmap created from brownfield ingest of `docs/PRD.md`;
-verified all 27 PRD user stories already shipped in v8.0.0, plus additional post-PRD work (bank
-import, gamification, security hardening) not covered by the ingested PRD.
+Phase: 4 of 4 complete (Code Quality & CI Health; Dependency & Security Hardening; Performance &
+Scale Hardening; Guided Onboarding Experience)
+Status: Milestone complete
+Last activity: 2026-09-17 — Reconciliado com `docs/STATE.md`, que já registrava as 4 fases como
+concluídas ("Phase 1/2/3/4 ... complete") desde 25/08/2026; este arquivo não tinha sido atualizado
+até agora.
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -65,9 +75,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- CI lint gate is currently red (97 ESLint errors, mostly `@typescript-eslint/no-explicit-any`) — blocks Phase 1
-- `xlsx` prod dependency has a high-severity vuln with no upstream fix — needs a mitigation decision in Phase 2, not just `npm audit fix`
-- `react-router-dom` fix requires a breaking major-version bump — needs a regression-testing plan in Phase 2
+Resolvidos durante a execução das 4 fases (ver `docs/STATE.md` para o detalhe de cada decisão):
+
+- ~~CI lint gate vermelho (97 erros)~~ — 97 → 0 erros (Phase 1).
+- ~~`xlsx` sem fix upstream~~ — mitigado por auditoria de uso (só o caminho de escrita é chamado; `XLSX.read`/`readFile`, o caminho vulnerável, nunca é exercitado no repo). Reavaliar apenas se o app passar a fazer parse de planilha não confiável.
+- ~~`react-router-dom` exige bump major~~ — auditado: o CVE de open-redirect não é explorável hoje (nenhum `navigate()`/`<Link to={}>` usa destino de input do usuário). Bump em si segue adiado; ver plano ativo de fechamento de pendências (2026-09-17) para retomada.
 
 ## Deferred Items
 

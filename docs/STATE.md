@@ -195,6 +195,33 @@ Ran `npm audit` fresh (7 findings, same set as before) and checked whether each 
 
 None of the 7 findings were silently ignored — each has a decision above. None are fixable without a breaking major-version bump this phase intentionally didn't take on.
 
+**Atualização (17/09/2026): a lista tinha crescido de 7 para 15 achados**
+(`npm audit` refeito ao planejar o fechamento de pendências), e os 3 majors
+adiados acima **foram fechados nesta sessão**, na branch
+`chore/fechar-pendencias-vps`:
+
+- Os 4 achados novos eram todos transitivos, dev/build-only, com fix sem
+  breaking change: `fast-uri`, `js-yaml`, `postcss-selector-parser`,
+  `fflate`. Fechados com `npm audit fix` (sem `--force`) — só o lock mudou.
+- **`react-router-dom` 6.30 → 7.18.** App usa só o modo declarativo
+  (`BrowserRouter`/`Routes`/`Route`/`Navigate`), sem data router nem paths
+  relativos (confirmado por grep) — exatamente o padrão que o v7 manteve
+  compatível. Zero mudança de código exigida.
+- **`vite` 5.4 → 7.3, `vitest` 4.0 → 4.1.10** (mantendo a major já declarada,
+  em vez de saltar para vitest 5.x/vite 8.x, lançados há pouco — escolha
+  deliberadamente conservadora). `vite-plugin-pwa` e
+  `@vitejs/plugin-react-swc` já suportavam vite 7 nas versões instaladas.
+- Restou só `xlsx` (sem fix upstream, mitigado por auditoria de uso — ver
+  decisão original acima, que continua válida).
+
+Verificado a cada bump: lint 0 erros, `tsc --noEmit` limpo, build de produção
+ok (mesmo tamanho de bundle), 142/142 testes unit, preview de produção
+respondendo 200. **Não verificado: E2E** — Docker indisponível no ambiente em
+que os bumps foram feitos, então `npx supabase start` não roda. Rodar
+`npm run test:e2e` completo antes de mergear esta branch, com atenção
+especial ao redirect `/add-expense` → `/import-transactions` e à navegação
+por Cmd+K (`GlobalSearch.tsx`), que dependem diretamente do router.
+
 ## Edge function auth audit (SEC-02)
 
 Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pass):
@@ -294,11 +321,21 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   `aws-0` o servidor responde `tenant/user not found`, e com 6543 (transaction
   mode) migration não roda. Registrado aqui porque custou três tentativas e
   vai custar de novo na próxima migration.
-- **A importação de PDF continua sem cobertura E2E** — mas agora é fácil de
-  resolver, e não estava. `import-transactions.spec.ts` cobre só CSV. Antes,
-  qualquer PDF caía na IA e o teste exigiria `AI_SERVICE_URL` no ar; desde
-  21/08/2026 os dois layouts Nubank são lidos por regra, então dá para montar
-  um caso de PDF sem rede nenhuma. Falta fazer.
+- ~~A importação de PDF continua sem cobertura E2E~~ **Feito e confirmado
+  pelo CI (17/09/2026, branch `chore/fechar-pendencias-vps`, PR #17).** Novo
+  teste em `import-transactions.spec.ts` cobre o extrato Nubank via PDF
+  gerado em memória (`e2e/fixtures/nubankPdf.ts`, não commitado como
+  binário — ver comentário no arquivo: hash de "já importado" exige conteúdo
+  variável por rodada). A primeira rodada no CI provou que a extração
+  funciona (banco Nubank detectado, 13 transações lidas — bate o checksum
+  4+9 do documento) mas pegou uma asserção errada do teste: 8 dos 9 débitos
+  do extrato são "Transferência enviada/recebida pelo Pix", que
+  `TransactionFilterTabs.tsx` classifica à parte de despesa (aba "Revisar",
+  `selected: false` por padrão) — só 1 débito é despesa de verdade
+  (R$ 199,00, "Pagamento de boleto"). Corrigido para refletir isso
+  (Despesas=1, Excluídos=4, Revisar=8, Duplicados=0). Achado do próprio
+  CI, não de execução manual — a suíte não tinha rodado localmente antes do
+  push (Docker indisponível no ambiente onde foi escrito).
 - ~~A edge function corrompe acento no arquivo importado.~~ **Corrigido
   (25/08/2026).** `process-import-file/index.ts:822` trocou `atob(fileContent)`
   por `new TextDecoder('utf-8').decode(Uint8Array.from(atob(fileContent), c =>
@@ -317,7 +354,7 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   asserção que já existia. **Falta rodar `npx supabase functions deploy
   process-import-file`** — só foi commitado, não deployado (mesma lição do
   item do 500: aqui em cima).
-- `xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories (see "Dependency security decisions" above) — each blocked on a major-version bump intentionally deferred, not forgotten. Revisit if: `xlsx` ever needs to parse untrusted input, a `react-router` v7 migration gets scheduled for other reasons, or a Vite major-version upgrade gets scheduled for other reasons (that would fix `vite`/`esbuild`/`vitest`/`@vitest/ui` together).
+- ~~`xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories~~ **`react-router-dom` e `vite`/`vitest` fechados em 17/09/2026** (branch `chore/fechar-pendencias-vps`, ver "Dependency security decisions" acima para o detalhe dos bumps e da verificação). Só `xlsx` permanece — sem fix upstream, mitigado por auditoria de uso; revisitar apenas se o app passar a fazer parse de planilha não confiável.
 - `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
 - ~~Serviço de IA está no ar e responde HTTP 500.~~ **Resolvido — ver "Serviço de IA — causa do 500 encontrada (23-24/08/2026)" nos itens fechados abaixo.**
@@ -335,7 +372,17 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   ferramenta disponível aqui: painel Supabase → Project Settings → API →
   regenerar a publishable key; depois atualizar a variável na plataforma de
   deploy do front e em qualquer `.env` local de desenvolvimento.
-- **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
+- ~~Provedor de IA ainda não decidido.~~ **Decidido (17/09/2026): mantém Gemini.**
+  O adapter atual é Gemini, e a justificativa original (paridade com o modelo
+  do gateway) caiu quando `gemini-2.5-flash` passou a responder 404 — mas isso
+  não é mais motivo para trocar de provedor, é só motivo para não usar
+  "paridade" como justificativa. Latência medida em 17/08/2026 contra o
+  projeto real (chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s) já é aceitável
+  e não indica problema a resolver trocando de fornecedor. Como a arquitetura
+  em `services/ai/` é provider-agnostic (`config.ts` é o único lugar que
+  escolhe o adapter), trocar de fornecedor mais tarde continua barato caso
+  surja motivo concreto (custo, cota, novo modelo relevante) — não há decisão
+  a revisitar até lá.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
 - **A regra determinística só foi validada contra o Nubank em documento real.** Extrato de conta e fatura de cartão do Nubank passaram a ser conferidos por checksum contra dois PDFs de verdade (21/08/2026). Os demais bancos (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) continuam validados só em PDF sintético, e a taxa de acerto real segue desconhecida — por isso o fallback continua conservador. O jeito de fechar isso é o mesmo que funcionou aqui: um PDF real por banco virando fixture, com os totais impressos no próprio documento como checksum.
 - **Os snapshots em `.planning/codebase/` descrevem `process-receipt` como
@@ -348,7 +395,14 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   `map-codebase` rodar de novo. O que incomoda agora é o `CONCERNS.md`: doc de
   segurança apontando para arquivo inexistente faz perder tempo em triagem.
 - **`major_version = 15`** em `supabase/config.toml` foi escolha minha e pode não bater com a versão do Postgres em produção — conferir antes de usar o self-host para valer.
-- `docs/STATE.md` (this file, hand-written) and `.planning/STATE.md`/`.planning/ROADMAP.md` (gsd-core-generated) now both exist and overlap in purpose — not yet consolidated into one source of truth for "what's left to do."
+- ~~`docs/STATE.md` and `.planning/STATE.md`/`ROADMAP.md` overlap, not consolidated.~~
+  **Resolvido (17/09/2026): não fundidos — divisão de papéis explícita em
+  vez disso.** `docs/STATE.md` (este arquivo) é a narrativa viva e detalhada
+  ("o quê" e "por quê" de cada decisão); `.planning/STATE.md`/`ROADMAP.md`
+  (gsd-core) é o rastreamento estruturado de progresso de fase do roadmap.
+  `.planning/STATE.md` estava congelado desde 15/08/2026 (`0% completo`)
+  mesmo com as 4 fases já concluídas aqui — corrigido para `100%`/`complete`,
+  com nota cruzada apontando de volta pra cá.
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
 ## Serviço de IA — causa do 500 encontrada (24/08/2026)

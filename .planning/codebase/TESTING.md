@@ -1,155 +1,108 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-09-17
 
 ## Test Framework
 
-**Runner:**
-- Vitest 4.0.1
-- Config: `vite.config.ts` (no separate `vitest.config.ts`)
-- Environment: jsdom (browser-like environment for unit tests)
-- Globals: `true` (test functions auto-imported)
-- Setup files: `./src/test/setup.ts` (provides baseline mocks)
+**Runner (Unit):**
+- Vitest, configured inline in `vite.config.ts` under the `test:` block (no separate `vitest.config.ts` file)
+- `setupFiles: ['./src/test/setup.ts']` — jsdom baseline mocks (see below)
+- Deno tests also exist for edge functions (`supabase/functions/*`) run via `deno test`, which does not use the jsdom setup — the two suites are separate and not interchangeable; a comment in `vite.config.ts` explicitly notes neither Vitest nor Deno's runner works with the other's setup.
+
+**Runner (E2E):**
+- Playwright, configured in `playwright.config.ts`
+- `testDir: './e2e'`, `baseURL: 'http://localhost:8080'` (must match `vite.config.ts` dev server port)
+- Reporters: HTML (`artifacts/e2e/report`), JSON (`artifacts/e2e/results.json`), list
 
 **Assertion Library:**
-- Vitest built-in expect (compatible with Jest)
-- `@testing-library/react` for component testing
-- `@testing-library/dom` for DOM queries
-- `@testing-library/user-event` for user interactions
+- Vitest's built-in `expect` (Jest-compatible API) for unit tests
+- Playwright's built-in `expect` for E2E
 
 **Run Commands:**
 ```bash
-npm test                # Run tests in watch mode
-npm run test -- --run   # Run tests once (CI mode)
-npm run test:ui         # Open Vitest UI
-```
+npm test                # Vitest watch mode
+npm run test -- --run   # Vitest run once (CI mode)
+npm run test:ui         # Vitest UI
 
-**E2E Test Runner:**
-- Playwright 1.57.0
-- Config: `/playwright.config.ts`
-- Run commands:
-  ```bash
-  npm run test:e2e         # Run all E2E tests (headless)
-  npm run test:e2e:headed  # Run with browser visible
-  npm run test:e2e:ui      # Open Playwright UI
-  npm run test:e2e:debug   # Debug mode
-  ```
+npm run test:e2e        # Playwright, headless
+npm run test:e2e:headed # Playwright, browser visible
+npm run test:e2e:ui     # Playwright UI
+npm run test:e2e:debug  # Playwright debug mode
+npx playwright test e2e/auth.spec.ts   # single file
+```
 
 ## Test File Organization
 
-**Location:**
-- **Unit tests:** Co-located with source files using `.test.ts` or `.test.tsx` suffix
-  - Example: `src/hooks/useMemoryLeak.test.ts` (tests `useMemoryLeak.ts`)
-  - Example: `src/providers/PWAInstallProvider.test.tsx` (tests `PWAInstallProvider.tsx`)
-  
-- **E2E tests:** Centralized in `/e2e/` directory with `.spec.ts` suffix
-  - Example: `e2e/auth.spec.ts`
-  - Example: `e2e/recurring-expenses.spec.ts`
-  - Setup file: `e2e/auth.setup.ts` (pre-authentication for all tests)
-  - Fixtures: `e2e/fixtures/test-data.ts` (shared test constants and helpers)
+**Unit tests — co-located with source, `.test.ts`/`.test.tsx` suffix.** Examples found in repo:
+- `src/main.test.tsx`
+- `src/providers/PWAInstallProvider.test.tsx`
+- `src/components/FirstVisitTip.test.tsx`
+- `src/components/InstallPWA.test.tsx`
+- `src/components/PushOnboarding.test.tsx`
+- `src/pages/Settings.pwa.test.tsx`
+- `src/hooks/useMemoryLeak.test.ts`
+- `src/hooks/useAutoTheme.test.ts`
+- `src/hooks/useImportTransactions.test.ts`
+- `src/hooks/usePushNotifications.test.ts`
+- `src/hooks/useBillingCycle.test.ts`
+- `src/hooks/useExpensesRealtime.test.ts`
+- `src/lib/pushUtils.test.ts`
+- `src/lib/amountUtils.test.ts`
+- `src/lib/bankPatterns.test.ts`
+- `src/lib/pwaUtils.test.ts`
+- `src/lib/currencyUtils.test.ts`
+- `src/lib/dateRange.test.ts`
 
-**Naming:**
-- Unit test files: `{ComponentName}.test.tsx` or `{hookName}.test.ts`
-- E2E test suites: `{feature}.spec.ts` (kebab-case feature name)
-- Test functions: `test('should...')` or `it('should...', ...)` (both work with Vitest)
+**Setup file:** `src/test/setup.ts` — provides jsdom polyfills for `navigator.serviceWorker`, `window.matchMedia`, and `window.PushManager` since jsdom doesn't implement PWA-related browser APIs. Individual test files may still override `navigator`/`matchMedia` for scenario-specific behavior (e.g. simulating iOS).
+
+**E2E — flat directory, `.spec.ts` suffix in `/e2e`:**
+```
+e2e/
+├── auth.setup.ts             # Playwright "setup" project — NOT a test suite
+├── auth.spec.ts
+├── expense-crud.spec.ts
+├── export-pdf.spec.ts
+├── import-transactions.spec.ts
+├── insights.spec.ts
+├── recurring-expenses.spec.ts
+├── reports-cycle.spec.ts
+├── scheduled-exports.spec.ts
+└── fixtures/
+    └── test-data.ts
+```
+
+## `auth.setup.ts` — not a spec, a dependency of every other spec
+
+`e2e/auth.setup.ts` is registered in `playwright.config.ts` as the Playwright **`setup` project** (`testMatch: /.*\.setup\.ts/`), not matched by the default `*.spec.ts` pattern. It:
+- Creates the test account
+- Writes authenticated `storageState` to `artifacts/e2e/.auth/user.json`
+- Is a declared dependency of the browser projects in `playwright.config.ts`, so every other spec project depends on it running first
+
+If `auth.setup.ts` fails or is skipped, all downstream specs fail with "state inexistente" (no session) rather than their own logic being wrong — check this file first when the whole E2E suite goes red at once.
+
+## Current E2E Suite (verified 2026-09-17)
+
+There is **no manual expense-creation E2E test**. That coverage was removed when manual expense entry was removed from the app (see CLAUDE.md: gastos only enter via statement/invoice import). Current specs:
+
+1. `auth.spec.ts` — authentication flow
+2. `expense-crud.spec.ts` — expense list & edit only (not creation — its own comment used to claim creation was "covered in import-transactions", which per `import-transactions.spec.ts`'s own header comment was inaccurate until that spec was written)
+3. `reports-cycle.spec.ts` — reports respecting billing cycle
+4. `export-pdf.spec.ts` — PDF/CSV/XLSX export
+5. `insights.spec.ts` — AI insights
+6. `scheduled-exports.spec.ts` — scheduled data exports
+7. `recurring-expenses.spec.ts` — recurring expenses
+8. `import-transactions.spec.ts` — **the only expense-entry-path E2E test**
+
+**`import-transactions.spec.ts` scope (verified by reading its header comment, 2026-09-17):** covers **CSV only** — the deterministic path (CSV/OFX parsed by rule in `process-import-file`, no AI call). It explicitly does **not** cover PDF import: PDF with an unrecognized layout falls through to the AI service, which would require `AI_SERVICE_URL` to be live in CI, so PDF stays untested by this spec on purpose (kept hermetic — runs against the local Supabase stack in CI with no `AI_SERVICE_URL` and no provider key at all). The comment block also notes the file's second scoped assertion: the flow correctly rejects unsupported file formats. When touching `components/import/*` or `supabase/functions/_shared/statementParser.ts`, remember the PDF path has zero E2E protection.
 
 ## Test Structure
 
-**Suite Organization:**
-
-Unit test example (from `PWAInstallProvider.test.tsx`):
+**Unit — describe/it/expect, Vitest hoisted mocks:**
 ```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { waitFor } from '@testing-library/dom';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { useExpensesRealtime } from './useExpensesRealtime';
 
-describe('PWAInstallProvider', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Mock setup for each test
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: vi.fn().mockImplementation(query => ({
-        matches: false,
-        media: query,
-        // ... mock implementation
-      })),
-    });
-  });
-
-  it('should provide initial state', () => {
-    const { result } = renderHook(() => usePWAInstall(), {
-      wrapper: PWAInstallProvider,
-    });
-
-    expect(result.current.canInstall).toBe(false);
-    expect(result.current.isIOS).toBe(false);
-  });
-
-  it('should detect iOS', () => {
-    // Override navigator for specific test scenario
-    Object.defineProperty(window, 'navigator', {
-      writable: true,
-      value: {
-        userAgent: 'iPhone',
-        // ... mock navigator
-      },
-    });
-
-    const { result } = renderHook(() => usePWAInstall(), {
-      wrapper: PWAInstallProvider,
-    });
-
-    expect(result.current.isIOS).toBe(true);
-  });
-
-  describe('Nested describe blocks', () => {
-    it('nested test case', () => {
-      // Organized by feature/behavior
-    });
-  });
-});
-```
-
-E2E test example (from `auth.spec.ts`):
-```typescript
-import { test, expect } from '@playwright/test';
-import { generateTestEmail, waitForPageLoad } from './fixtures/test-data';
-
-test.describe('Authentication Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/auth');
-    await waitForPageLoad(page);
-  });
-
-  test('should display auth page correctly', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /entenda seus gastos/i })).toBeVisible();
-    await expect(page.getByPlaceholder('seu@email.com')).toBeVisible();
-  });
-
-  test('should sign up new user successfully', async ({ page }) => {
-    const email = generateTestEmail();
-    const password = 'TestPassword123!';
-
-    await page.getByPlaceholder('seu@email.com').fill(email);
-    await page.getByPlaceholder('Sua senha').fill(password);
-    await page.getByRole('button', { name: /criar conta/i }).click();
-
-    // Assert with timeout for async operations
-    await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
-    await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible();
-  });
-});
-```
-
-## Mocking
-
-**Framework:** Vitest's `vi` (similar to Jest)
-
-**Patterns:**
-
-Module mocking example (from `useMemoryLeak.test.ts`):
-```typescript
 const { channelMock } = vi.hoisted(() => ({
   channelMock: {
     on: vi.fn().mockReturnThis(),
@@ -158,273 +111,78 @@ const { channelMock } = vi.hoisted(() => ({
   },
 }));
 
-// Mock entire module
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     channel: vi.fn(() => channelMock),
     removeChannel: vi.fn(),
   },
 }));
-```
 
-Browser API mocking example (from `PWAInstallProvider.test.tsx`):
-```typescript
-// Mock navigator.serviceWorker
-Object.defineProperty(window, 'navigator', {
-  writable: true,
-  value: {
-    userAgent: 'Chrome',
-    serviceWorker: {
-      ready: Promise.resolve({}),
-      getRegistration: vi.fn().mockResolvedValue(null),
-    },
-  },
-});
+describe('Memory Leak Prevention Tests', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+  afterEach(() => { vi.restoreAllMocks(); });
 
-// Mock matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  })),
+  describe('useExpensesRealtime - Cleanup', () => {
+    it('should cleanup realtime subscription on unmount', () => {
+      const { unmount } = renderHook(() =>
+        useExpensesRealtime({ channelName: 'test-channel', onUpdate: vi.fn() })
+      );
+      unmount();
+    });
+  });
 });
 ```
+Note: some existing assertions in `src/hooks/useMemoryLeak.test.ts` are placeholder-style (`expect(true).toBe(true)`) pending real cleanup verification — don't copy that pattern for new tests; assert on the actual spy/mock call instead.
 
-Spy and mock hybrid example:
+**Pure function tests — simple input/output tables:**
 ```typescript
-const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
-// ... run test ...
-expect(removeEventListenerSpy).toHaveBeenCalledWith('resize', handler);
+import { describe, it, expect } from 'vitest';
+import { sumAmounts, formatCurrency } from './amountUtils';
+
+describe('sumAmounts', () => {
+  it('should sum numeric values', () => {
+    expect(sumAmounts([10, 20, 30])).toBe(60);
+  });
+  it('should handle string amounts', () => {
+    expect(sumAmounts(["10.50", "5.25"])).toBe(15.75);
+  });
+  it('should ignore null/undefined', () => {
+    expect(sumAmounts([10, null, 5, undefined])).toBe(15);
+  });
+});
 ```
 
-Toast mock example (from `PWAInstallProvider.test.tsx`):
-```typescript
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    info: vi.fn(),
-  },
-}));
-```
+## Mocking
+
+**Framework:** Vitest's `vi.mock()` / `vi.fn()` / `vi.hoisted()`
+
+**What to mock:**
+- Supabase client (`@/integrations/supabase/client`) — always mocked in unit tests that touch data access or realtime channels
+- Browser/PWA APIs not implemented in jsdom (`navigator.serviceWorker`, `window.matchMedia`, `window.PushManager`) — baseline mocks live in `src/test/setup.ts`; override per-test for scenario-specific behavior (e.g., simulating iOS Safari)
+
+**What NOT to mock:**
+- Pure utility functions (`currencyUtils`, `amountUtils`, `dateRange`) — tested directly with real inputs/outputs, no mocking needed
+
+## AI Service Testing (`services/ai/`)
+
+- Domain logic is tested against `providers/fake.ts`, a fake `LLMProvider` implementation — the entire domain runs with no network access and no API key required. When adding a capability under `domain/`, write its test against the fake provider, not a real provider adapter.
 
 ## Coverage
 
-**Requirements:** None enforced
-- No coverage thresholds configured
-- Coverage collection not enabled by default
-- Coverage can be run manually if needed
+**Requirements:** No enforced coverage threshold detected (no `coverage.thresholds` config found).
 
 ## Test Types
 
-**Unit Tests:**
-- **Scope:** Individual hooks, utilities, components, and functions
-- **Approach:** 
-  - Hooks tested with `renderHook()` from `@testing-library/react`
-  - Components tested with `@testing-library/react` render functions
-  - Utilities tested by direct function calls
-  - Mocks provided for external dependencies (Supabase, toast, browser APIs)
-  - Browser APIs mocked in setup file at `src/test/setup.ts`
+**Unit Tests:** Hooks, utilities, and PWA-related components/providers — the large majority of `src/**/*.test.ts(x)` files target `src/hooks/` and `src/lib/`.
 
-- **File locations:**
-  - `src/hooks/*.test.ts` - Hook tests
-  - `src/components/*.test.tsx` - Component tests
-  - `src/lib/*.test.ts` - Utility tests (if any)
-  - `src/providers/*.test.tsx` - Provider tests
+**Integration Tests:** Not present as a distinct category — Supabase interactions are unit-tested with a mocked client rather than against a real local Supabase stack in Vitest.
 
-**E2E Tests:**
-- **Framework:** Playwright (browser automation)
-- **Scope:** User workflows, authentication, feature flows
-- **Approach:**
-  - Page Object Model pattern used indirectly (shared fixtures in `e2e/fixtures/test-data.ts`)
-  - Tests wait for navigation with `waitForPageLoad(page)`
-  - Accessibility-first selectors: `page.getByRole()`, `page.getByPlaceholder()`
-  - Retry logic: 2 retries on CI, 0 in local development
-  - Artifacts collected on failure: screenshots, videos, traces
+**E2E Tests:** Playwright, `/e2e/*.spec.ts`, described above. Uses Page Object–adjacent patterns via shared fixtures in `e2e/fixtures/test-data.ts`; always call `waitForPageLoad(page)` after navigation; prefer `page.getByRole()` for accessibility-first selectors; use 15s timeout for navigation assertions.
 
-- **Test suites (9 total):**
-  1. `auth.spec.ts` - Sign up, login, logout flows
-  2. `expenses.spec.ts` - Expense CRUD operations
-  3. `ocr-basic.spec.ts` - Receipt OCR processing
-  4. `reports-cycle.spec.ts` - Reports with billing cycles
-  5. `export-pdf.spec.ts` - PDF export functionality
-  6. `export-excel.spec.ts` - Excel export functionality
-  7. `insights.spec.ts` - AI insights feature
-  8. `scheduled-exports.spec.ts` - Scheduled exports
-  9. `recurring-expenses.spec.ts` - Recurring expense handling
+## Linting as a Test Gate
 
-## Common Patterns
-
-**Async Testing (Unit):**
-
-Hook testing with async data:
-```typescript
-// From PWAInstallProvider.test.tsx
-it('should capture beforeinstallprompt event', async () => {
-  const { result } = renderHook(() => usePWAInstall(), {
-    wrapper: PWAInstallProvider,
-  });
-
-  const mockPromptEvent = {
-    preventDefault: vi.fn(),
-    prompt: vi.fn().mockResolvedValue(undefined),
-    userChoice: Promise.resolve({ outcome: 'accepted' as const }),
-  };
-
-  act(() => {
-    window.dispatchEvent(
-      Object.assign(new Event('beforeinstallprompt'), mockPromptEvent)
-    );
-  });
-
-  // Wait for state update
-  await waitFor(() => {
-    expect(result.current.canInstall).toBe(true);
-  });
-});
-```
-
-**Async Testing (E2E):**
-
-Navigation and loading assertions:
-```typescript
-// From auth.spec.ts
-test('should sign up new user successfully', async ({ page }) => {
-  // ... fill form ...
-  await page.getByRole('button', { name: /criar conta/i }).click();
-
-  // Wait with explicit timeout for slow operations
-  await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
-  
-  // Assert element visibility after navigation
-  await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible();
-});
-```
-
-**Pre-authentication in E2E:**
-
-Setup file (from `auth.setup.ts`):
-```typescript
-setup('authenticate', async ({ page }) => {
-  console.log('🔐 Setting up authentication...');
-  
-  await page.goto('/auth');
-  await waitForPageLoad(page);
-
-  // Attempt signup/login
-  try {
-    await page.getByPlaceholder('seu@email.com').fill(TEST_USER.email);
-    // ... complete flow ...
-    await page.context().storageState({ path: authFile });
-  } catch (error) {
-    console.log('⚠️ Signup failed, trying login...');
-    // Fallback to login
-  }
-  
-  console.log('✅ Authentication setup complete');
-});
-```
-
-All E2E tests use this setup via Playwright's `authFile` configuration.
-
-**Test Fixtures (E2E):**
-
-Shared test data (from `e2e/fixtures/test-data.ts`):
-```typescript
-export const TEST_USER = {
-  email: `test-${Date.now()}@example.com`,
-  password: 'Test123456!',
-  name: 'Test User',
-  monthlyGoal: 5000,
-  billingCycleDay: 5,
-};
-
-export const TEST_EXPENSE = {
-  amount: '150.50',
-  merchant: 'Supermercado Teste',
-  date: new Date().toISOString().split('T')[0],
-  notes: 'Compras mensais de teste',
-  paymentMethod: 'Crédito',
-};
-
-// Helper functions
-export async function waitForPageLoad(page: any) {
-  await page.waitForLoadState('networkidle');
-  await page.waitForLoadState('domcontentloaded');
-}
-
-export function generateTestEmail(): string {
-  return `e2e-test-${Date.now()}-${Math.random().toString(36).substring(7)}@test.com`;
-}
-```
-
-**Setup File (Unit Tests):**
-
-From `src/test/setup.ts` - provides baseline mocks for jsdom environment:
-```typescript
-import { vi } from 'vitest';
-
-// Mock navigator.serviceWorker (PWA API)
-if (!('serviceWorker' in navigator)) {
-  Object.defineProperty(window.navigator, 'serviceWorker', {
-    writable: true,
-    configurable: true,
-    value: {
-      ready: Promise.resolve({}),
-      getRegistration: vi.fn().mockResolvedValue(null),
-    },
-  });
-}
-
-// Mock matchMedia (media queries)
-if (!('matchMedia' in window)) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  });
-}
-
-// Mock PushManager
-if (!('PushManager' in window)) {
-  Object.defineProperty(window, 'PushManager', {
-    writable: true,
-    configurable: true,
-    value: function PushManager() {},
-  });
-}
-```
-
-**Assertion Patterns:**
-
-Sync assertions:
-```typescript
-expect(result.current.canInstall).toBe(false);
-expect(result.current.isIOS).toBe(true);
-expect(addEventListenerSpy).toHaveBeenCalledWith('resize', handler);
-expect(cleanupFn).toHaveBeenCalled();
-```
-
-Async assertions with waitFor:
-```typescript
-await waitFor(() => {
-  expect(result.current.canInstall).toBe(true);
-});
-```
-
-Playwright assertions with timeout:
-```typescript
-await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
-await expect(page.getByRole('heading', { name: /defina sua meta/i })).toBeVisible();
-```
+`npm run lint` currently passes with **0 errors, 17 warnings** (verified 2026-09-17) — see `.planning/codebase/CONVENTIONS.md` for the full warning list. Lint is not currently a hard 0-warnings gate; a PR that adds a new warning in an unrelated file should still be flagged, but the 17 pre-existing warnings are known and accepted.
 
 ---
 
-*Testing analysis: 2026-08-15*
+*Testing analysis: 2026-09-17*
