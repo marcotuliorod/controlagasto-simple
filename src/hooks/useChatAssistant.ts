@@ -53,24 +53,48 @@ export const useMessages = (conversationId: string | null) => {
   });
 };
 
+/**
+ * Acima do teto de 130s que a edge function usa pra chamar o `ai-service`
+ * (`_shared/aiService.ts`) — evita abortar uma chamada que ainda ia terminar
+ * bem. Sem isso, `functions.invoke` não tem prazo próprio: se a resposta
+ * nunca chegar (conexão caiu em silêncio, instabilidade do provedor de IA
+ * além do que o retry do `ai-service` recupera), a mutation fica pendurada
+ * indefinidamente — a tela mostra "Pensando..." pra sempre, sem erro nem
+ * jeito de tentar de novo.
+ */
+const CHAT_TIMEOUT_MS = 150_000;
+
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
-      message, 
-      conversationId 
-    }: { 
-      message: string; 
+    mutationFn: async ({
+      message,
+      conversationId
+    }: {
+      message: string;
       conversationId?: string;
     }) => {
-      const { data, error } = await supabase.functions.invoke('chat-assistant', {
-        body: { message, conversationId }
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
 
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.functions.invoke('chat-assistant', {
+          body: { message, conversationId },
+          signal: controller.signal,
+        });
+
+        if (error) {
+          if (controller.signal.aborted) {
+            throw new Error('A resposta demorou demais. Tente novamente em instantes.');
+          }
+          throw error;
+        }
+        return data;
+      } finally {
+        clearTimeout(timer);
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
