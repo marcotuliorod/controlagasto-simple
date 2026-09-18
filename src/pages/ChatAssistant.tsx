@@ -9,32 +9,41 @@ import { useConversations, useMessages, useSendMessage } from "@/hooks/useChatAs
 
 export default function ChatAssistant() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: conversations } = useConversations();
   const { data: messages = [] } = useMessages(currentConversationId);
   const sendMessage = useSendMessage();
 
-  const hasMessages = messages.length > 0;
+  const hasMessages = messages.length > 0 || pendingUserMessage !== null;
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, pendingUserMessage]);
 
   const handleSendMessage = async (content: string) => {
+    // Mostra a mensagem na hora — sem isso, a tela ficava sem nenhum
+    // registro do que foi digitado até o ciclo inteiro (edge function + IA)
+    // terminar, o que parecia "travado" sempre que a IA demorava.
+    setPendingUserMessage(content);
     try {
       const result = await sendMessage.mutateAsync({
         message: content,
         conversationId: currentConversationId || undefined,
       });
-      
+
       if (!currentConversationId) {
         setCurrentConversationId(result.conversationId);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+    } finally {
+      // Ao terminar (sucesso ou erro), a lista real (via invalidação da
+      // query) já traz a mensagem persistida — a otimista sai de cena.
+      setPendingUserMessage(null);
     }
   };
 
@@ -97,6 +106,14 @@ export default function ChatAssistant() {
                       timestamp={msg.created_at}
                     />
                   ))}
+                {pendingUserMessage !== null && (
+                  <MessageBubble
+                    key="pending-user-message"
+                    role="user"
+                    content={pendingUserMessage}
+                    timestamp={new Date().toISOString()}
+                  />
+                )}
                 {sendMessage.isPending && (
                   <div className="flex gap-3">
                     <div className="p-2 bg-primary rounded-full h-8 w-8 flex items-center justify-center">
