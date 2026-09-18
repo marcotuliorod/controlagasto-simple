@@ -175,7 +175,31 @@ projetos do CI com `--workers=1`: **101 passed, 0 failed**.
 ## Performance hardening decisions (PERF-01/02/03)
 
 - **Reports.tsx (PERF-01)**: the expense query stays unbounded on purpose — the KPI totals, monthly-comparison chart, and category breakdown all need the full result set for the selected date range to be correct; paginating the query would make those numbers wrong. The actual "unresponsive with 1,000+ expenses" problem was the render: the expense list at the bottom mounted one full DOM node per row with zero windowing. Virtualized it with `@tanstack/react-virtual` (`useVirtualizer` + fixed-height scroll container + absolute-positioned rows), reusing the exact pattern already established in `src/pages/ExpensesVirtualized.tsx` rather than inventing a new one.
-- **useGamification.ts's `useUnlockProgress` (PERF-02)**: its 6 independent Supabase reads (education progress, educational content, quiz responses, quiz questions, expense count, expense dates) ran as sequential `await`s — one full round-trip waiting for the previous to finish. Wrapped them in `Promise.all` instead, so total latency is ~the slowest of the 6 rather than the sum of all 6. Did **not** write a new SQL RPC to consolidate them into one HTTP request (which is what "single batched query/RPC" in the roadmap literally asks for): that needs a migration authored and tested against the live schema, and this environment has no working Supabase DB access (CLI unauthenticated, MCP tool denied for this project — same constraint noted in Phase 2). `Promise.all` fixes the actual harm (a slow sequential waterfall) without shipping untested SQL.
+- **useGamification.ts's `useUnlockProgress` (PERF-02)**: its 6 independent Supabase reads (education progress, educational content, quiz responses, quiz questions, expense count, expense dates) ran as sequential `await`s — one full round-trip waiting for the previous to finish. Wrapped them in `Promise.all` instead, so total latency is ~the slowest of the 6 rather than the sum of all 6.
+  **Atualização (18/09/2026, branch `perf/consolida-unlock-progress-rpc`): a
+  consolidação real em uma única RPC foi feita.** O bloqueio original —
+  "precisa de migration testada contra schema real, e este ambiente não tem
+  acesso a banco Supabase" — deixou de existir: descobrimos que o endpoint
+  `POST /v1/projects/{ref}/database/query` do Management API do Supabase
+  roda SQL direto contra o banco usando só o `SUPABASE_ACCESS_TOKEN` (sem
+  precisar da senha do banco/connection string do pooler, que é o que trava
+  `supabase db push --linked` neste projeto — mesmo erro de permissão
+  documentado abaixo). Migration `20260918020000_get_unlock_progress_rpc.sql`
+  cria `public.get_unlock_progress()` (SECURITY DEFINER, usa `auth.uid()`
+  internamente em vez de receber `p_user_id` por parâmetro como as outras
+  RPCs do projeto — não há motivo pra confiar num id vindo do cliente quando
+  quem chama sempre lê o próprio progresso). Aplicada em produção via esse
+  endpoint (com confirmação explícita do usuário — o classificador de auto
+  mode do Claude Code bloqueou a primeira tentativa como "Production
+  Deploy"), testada contra usuário real com dado real (`expenseCount: 73`
+  batendo com contagem direta, `daysActive: 0` batendo com a despesa mais
+  recente sendo de mais de 30 dias atrás), e só depois teve os tipos do
+  TypeScript regenerados (`supabase gen types typescript --project-id`) e o
+  hook trocado para `supabase.rpc("get_unlock_progress")`. Efeito colateral
+  aceito: a regeneração de tipos também capturou drift que já existia (uma
+  function `invoke_edge_function` que não estava em `types.ts`, e a seção
+  `graphql_public`) — não criados por essa mudança, só nunca tinham sido
+  sincronizados.
 - **Console logging (PERF-03)**: `src/lib/realtimeLogger.ts` was already correctly gated behind `import.meta.env.DEV` (`error` always logs, everything else doesn't) — the roadmap's own example ("realtime updates") turned out to be a non-issue. The real untreated hot paths were `src/providers/PWAInstallProvider.tsx` (23 `console.log` + 3 `console.warn`, fires on every single app load for every user — it's a top-level provider) and `src/main.tsx` (8 `console.log`, fires on every boot). Added `src/lib/logger.ts` (`devLog`/`devWarn`, same convention as `realtimeLogger.ts`) and applied it there plus the smaller remaining call sites (`Settings.tsx`'s diagnostic button was already unreachable in production — it's inside its own `{import.meta.env.DEV && ...}` block, so left untouched; `Reports.tsx`, `InstallPWA.tsx`, `usePushNotifications.ts` updated for consistency). Left every `console.error` alone — already the correct, existing convention (errors stay visible in production to debug real user issues). Verified with a real production build (`npm run build && npm run preview`) driven by Playwright: 0 console messages on load in production vs. 26+ PWA-prefixed logs in dev mode — the gate works both directions.
 
 ## Guided onboarding decisions (ONBD-01/02/03)
@@ -314,13 +338,21 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 ## Known open items
 - **`supabase db push --linked` não funciona neste projeto.** O CLI 2.114 tenta
   criar um papel temporário `cli_login_postgres` e o banco recusa (`permission
-  denied to alter role` — a conta não tem CREATEROLE nem ADMIN sobre ele). O
-  contorno é `--db-url` com a connection string do pooler, que conecta como
-  `postgres` e não passa por esse mecanismo. O host é
-  `aws-1-us-east-1.pooler.supabase.com` na porta 5432 (session mode); com
-  `aws-0` o servidor responde `tenant/user not found`, e com 6543 (transaction
-  mode) migration não roda. Registrado aqui porque custou três tentativas e
-  vai custar de novo na próxima migration.
+  denied to alter role` — a conta não tem CREATEROLE nem ADMIN sobre ele).
+  Confirmado de novo em 18/09/2026 (`migration list --linked` bate no mesmo
+  erro). Dois contornos conhecidos agora:
+  1. `--db-url` com a connection string do pooler (`postgres`, senha do
+     banco) — host `aws-1-us-east-1.pooler.supabase.com` porta 5432 (session
+     mode); `aws-0` responde `tenant/user not found`, 6543 (transaction mode)
+     não roda migration.
+  2. **Novo (18/09/2026): `POST /v1/projects/{ref}/database/query` do
+     Management API** roda SQL direto contra o banco usando só o
+     `SUPABASE_ACCESS_TOKEN` — sem precisar da senha/connection string.
+     Testado de verdade aplicando `get_unlock_progress()` em produção (ver
+     PERF-02 acima). Mais simples que achar a connection string certa do
+     pooler, mas ainda é DDL/DML direto em produção — mesmo cuidado de
+     sempre, e o auto mode do Claude Code classifica como "Production
+     Deploy" e pede confirmação explícita antes de rodar.
 - ~~A importação de PDF continua sem cobertura E2E~~ **Feito e confirmado
   pelo CI (17/09/2026, branch `chore/fechar-pendencias-vps`, PR #17).** Novo
   teste em `import-transactions.spec.ts` cobre o extrato Nubank via PDF
@@ -355,7 +387,7 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   process-import-file`** — só foi commitado, não deployado (mesma lição do
   item do 500: aqui em cima).
 - ~~`xlsx`, `react-router-dom`, and `vite`/`vitest` all have documented-but-unfixed advisories~~ **`react-router-dom` e `vite`/`vitest` fechados em 17/09/2026** (branch `chore/fechar-pendencias-vps`, ver "Dependency security decisions" acima para o detalhe dos bumps e da verificação). Só `xlsx` permanece — sem fix upstream, mitigado por auditoria de uso; revisitar apenas se o app passar a fazer parse de planilha não confiável.
-- `useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1 — a real single-RPC consolidation is still on the table if Supabase DB access (CLI login or MCP permission) ever becomes available in this environment to test a new migration against.
+- ~~`useUnlockProgress`'s 6 reads are parallelized but still 6 separate HTTP round-trips, not 1~~ **Consolidado numa RPC em 18/09/2026** — ver "Performance hardening decisions (PERF-01/02/03)" acima para o detalhe (`get_unlock_progress()`, migration `20260918020000`, branch `perf/consolida-unlock-progress-rpc`).
 - 17 ESLint warnings remain (`react-hooks/exhaustive-deps`, `react-refresh/only-export-components`) — don't block `npm run lint`, left as-is.
 - ~~Serviço de IA está no ar e responde HTTP 500.~~ **Resolvido — ver "Serviço de IA — causa do 500 encontrada (23-24/08/2026)" nos itens fechados abaixo.**
 - **Credenciais do `.env` que estava versionado seguem válidas** até serem rotacionadas no painel. O arquivo saiu do índice, mas continua no histórico do git.
