@@ -8,22 +8,14 @@ services:
       - .env
     expose:
       - "8787"
-    # Sem "ports:" de propósito — só a rede interna do compose fala com o
-    # container. O Caddy é o único ponto exposto ao mundo (ver Caddyfile).
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - ai
-
-volumes:
-  caddy_data:
-  caddy_config:
+    # Sem "ports:" de propósito — quem fala com o mundo é o Traefik já
+    # provisionado pela Hostinger (/docker/traefik, network_mode: host,
+    # ocupa 80/443). Ele descobre este serviço pelas labels abaixo, do
+    # mesmo jeito que os apps do "Docker Compose Catalog" da Hostinger
+    # (ex. o container "openclaw" já rodando na VPS antes deste deploy).
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.entenda-ai.entrypoints=websecure
+      - traefik.http.routers.entenda-ai.rule=Host(`${AI_DOMAIN}`)
+      - traefik.http.routers.entenda-ai.tls.certresolver=letsencrypt
+      - traefik.http.services.entenda-ai.loadbalancer.server.port=8787
