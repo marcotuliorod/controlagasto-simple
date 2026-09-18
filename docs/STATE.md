@@ -254,6 +254,46 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
 - `send-push-notification` correctly accepts either mode (cron secret or user JWT).
 - **Found and fixed a real gap: `process-receipt`.** It only checked that the `Authorization` header was non-empty (`if (!authHeader) throw`) — any string satisfied that — and called the paid Lovable AI OCR endpoint *before* any real validation. A `getUser(token)` call existed further down but never checked `error`/`!user`, so an invalid token just silently skipped the receipt-image storage upload while still returning the AI-extracted data. Fixed: JWT is now verified (`error`/`!user` both checked) before the OCR call, matching the pattern every other function already used. Also fixed `CLAUDE.md`'s own documented "Auth Pattern in Edge Functions" snippet, which omitted the `error`/`!user` check — likely why this one function drifted.
 
+## Fase B da VPS: `services/ai` migrado da Vercel (18/09/2026)
+
+Runbook em `deploy/ai-service/README.md` executado contra a VPS Hostinger
+real (Fase A já concluída antes — usuário `deploy`, SSH endurecido, `ufw`,
+`fail2ban`, Docker). Resultado: `services/ai` saiu da Vercel e passou a
+rodar num container na VPS, atrás do Traefik que a própria Hostinger já
+provisiona (`network_mode: host`, TLS automático via Let's Encrypt) — sem
+Caddy próprio, ver PR #19.
+
+- DNS: `ai.mtrm.tech` → IP da VPS.
+- `.env` na VPS com `AI_DOMAIN`, `GEMINI_API_KEY`, `SUPABASE_URL`,
+  `SUPABASE_JWT_SECRET`.
+- **Achado no caminho**: o Traefik pré-existente da Hostinger ficou com o
+  provider Docker quebrado (`Cannot connect to the Docker daemon`) desde o
+  momento em que instalamos o Docker na Fase A — efeito colateral da
+  instalação sobre um serviço que já rodava. Resolvido com `docker restart
+  traefik-traefik-1` (fora do nosso compose, mas necessário).
+- Corte: `npx supabase secrets set AI_SERVICE_URL=https://ai.mtrm.tech`.
+  `curl https://ai.mtrm.tech/health` → 200 com certificado TLS de verdade.
+- Vercel do `services/ai` mantido no ar como rollback (não desprovisionado).
+
+**Bug real encontrado e corrigido durante a validação (não causado pela
+VPS)**: a tela de chat (`ChatAssistant.tsx`) não tinha renderização otimista
+— a mensagem do usuário só aparecia depois que edge function + `ai-service`
++ Gemini + grava no banco terminava com sucesso — nem timeout no cliente
+(`supabase.functions.invoke` sem prazo próprio, mutation podia ficar
+pendurada pra sempre se a resposta nunca chegasse). Corrigido no PR #21:
+mensagem aparece na hora, `AbortController` com timeout de 150s em
+`useSendMessage`.
+
+**Pendência nova, encontrada durante os testes de validação**: a chave do
+Gemini em uso está no **tier gratuito** (`generate_content_free_tier_requests`,
+limite de 20 requisições/minuto para `gemini-3.5-flash`). Os testes de hoje
+(múltiplas chamadas de insights + chat com retries) estouraram essa cota
+várias vezes, gerando erros 429 reais no app. Isso afetaria qualquer
+usuário real sob uso normal, não só teste — **20 req/min é baixo demais para
+produção**. Decisão de upgrade de plano/billing é do usuário (Google AI
+Studio / Google Cloud Console), fora do alcance de qualquer ferramenta
+disponível aqui. Ver "Known open items" abaixo.
+
 ## Recently shipped
 - **Extrato e fatura do Nubank passaram a ser lidos por regra, sem IA.** Um
   registro de layouts (`_shared/statementLayouts.ts`) casa por assinatura do
@@ -435,6 +475,12 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   mesmo com as 4 fases já concluídas aqui — corrigido para `100%`/`complete`,
   com nota cruzada apontando de volta pra cá.
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
+- **A chave de produção do Gemini está no tier gratuito** (20 req/min para
+  `gemini-3.5-flash`, achado em 18/09/2026 durante a validação da Fase B da
+  VPS — ver seção acima). Baixo demais para uso real, não só para os testes
+  que estouraram a cota hoje. Ação manual necessária: upgrade do plano/
+  billing no Google AI Studio ou Google Cloud Console — fora do alcance de
+  qualquer ferramenta disponível aqui.
 
 ## Serviço de IA — causa do 500 encontrada (24/08/2026)
 
