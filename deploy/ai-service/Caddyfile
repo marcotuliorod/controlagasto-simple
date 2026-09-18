@@ -1,0 +1,3 @@
+ai.SEU-DOMINIO.com {
+	reverse_proxy ai:8787
+}

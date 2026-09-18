@@ -1,252 +1,141 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-09-17
 
 ## Tech Debt
 
-### TypeScript Type Safety Gaps
-- Issue: 81 instances of `as any` type assertions scattered across codebase, bypassing type safety
-- Files: `src/hooks/useGamification.ts`, `src/pages/Reports.tsx`, `src/pages/Accounts.tsx`, `src/components/AccountForm.tsx`, `src/components/CategoryGoalsManager.tsx`, `src/providers/PWAInstallProvider.tsx`
-- Impact: Errors in database queries, React component prop handling, and API responses won't be caught at compile time; refactoring becomes risky
-- Fix approach: Gradually replace with proper TypeScript types; leverage `src/integrations/supabase/types.ts` for database queries; use Zod for runtime validation on API responses
-- Priority: High (affects reliability)
+**Inconsistent form-handling stack:**
+- Issue: `CLAUDE.md`-documented stack is React Hook Form + Zod, but only `src/pages/AccountProfile.tsx` actually uses it (`src/schemas/profileSchema.ts`). `src/pages/RecurringExpenses.tsx` and `src/pages/EditExpense.tsx` use `useState` + native HTML `required` instead.
+- Files: `src/pages/RecurringExpenses.tsx`, `src/pages/EditExpense.tsx`, `src/pages/AccountProfile.tsx`
+- Impact: No compile-time or Zod-level validation on two forms that write financial data; validation logic is duplicated ad hoc per field.
+- Fix approach: Extract shared Zod schemas for expense-edit and recurring-expense forms, port both to `react-hook-form` + `zodResolver`, matching the `AccountProfile.tsx` pattern.
 
-### 114 ESLint Problems (97 errors, 17 warnings)
-- Issue: Mostly `@typescript-eslint/no-explicit-any` (~80 errors) and `prefer-const`/`no-useless-escape` (a handful); documented as "Rotina-tier backlog" in `docs/STATE.md`
-- Files: Distributed across `src/` and `supabase/functions/`
-- Note: `eslint.config.js` did not exclude `.claude/`/`.agents/`/`.planning/` — right after installing gsd-core and the caveman skill, `npm run lint` briefly reported 537 problems because it was also linting gsd-core's own vendored `.cjs` files (which reference an `n/no-process-exit` rule this project doesn't have configured). Fixed by adding those paths to `eslint.config.js`'s `ignores`; the number above is the real, current count against project code only.
-- Impact: Code quality debt; makes refactoring and audits harder; inconsistent with stated project standards
-- Fix approach: Run `npm run lint -- --fix` for auto-fixable violations; manually address `any` types in phases
-- Priority: Medium (cosmetic, but affects maintainability)
+**`/add-expense` kept alive only as a redirect shim:**
+- Issue: Manual expense entry was fully removed (19/08/2026), but the route survives as `<Navigate to="/import-transactions" replace>` purely because the installed PWA shell and old bookmarks/links still point at it.
+- Files: `src/App.tsx` (route definition)
+- Impact: Minor — dead-code-adjacent route that must be remembered and not "cleaned up" by someone unaware of the PWA-shell reason.
+- Fix approach: No action needed unless install-base evidence (analytics on hits to `/add-expense`) shows it's safe to retire; keep as documented in `CLAUDE.md`.
 
-### Large Monolithic Files
-- Issue: Several files exceed 400+ lines, combining business logic, state management, and UI rendering in single components
-- Files: 
-  - `src/hooks/useGamification.ts` (549 lines) - Complex gamification state and calculations
-  - `src/pages/Reports.tsx` (520 lines) - Report generation, filtering, and export logic
-  - `src/pages/Dashboard.tsx` (485 lines) - Multiple widgets and real-time updates
-  - `src/pages/AccountProfile.tsx` (447 lines) - Account details, transfers, settings
-  - `src/pages/AddExpense.tsx` (444 lines) - Form, validation, categorization, receipt OCR
-  - `src/hooks/useImportTransactions.ts` (308 lines) - CSV parsing, bank detection, duplicate detection
-- Impact: Difficult to test in isolation; high cognitive load for developers; increased bug surface area; difficult to debug
-- Fix approach: Extract hooks, utility functions, and sub-components; move business logic to utility modules; consider separating concerns (UI vs. data)
-- Priority: Medium (refactoring work)
+**`useUnlockProgress` still makes 6 separate round-trips:**
+- Issue: `Promise.all` parallelized 6 independent Supabase reads (education progress, educational content, quiz responses, quiz questions, expense count, expense dates) instead of consolidating into one RPC, because the environment had no live Supabase DB access to test a new migration.
+- Files: `src/hooks/useGamification.ts` (`useUnlockProgress`, ~603 lines total in file)
+- Impact: Latency floor is one HTTP round-trip (down from the sum of 6), but still 6x the request count of a single RPC call; larger blast radius if any one query's RLS/schema changes.
+- Fix approach: Author a single Postgres RPC that returns all 6 datasets in one call, test against a real Supabase instance, then swap the hook to call it.
 
-### 246 Console Logging Statements
-- Issue: Excessive `console.log()`, `console.warn()`, `console.error()` calls (126 errors alone) throughout codebase
-- Files: Distributed across `src/` and `supabase/functions/`
-- Impact: Console spam in production (if not stripped); possible performance impact on logging-heavy operations; security concern if sensitive data logged
-- Fix approach: Replace with structured logging service; add log levels; strip/disable in production builds
-- Priority: Medium (quality of life)
+**Large, monolithic page/hook files:**
+- Issue: Several files mix data-fetching, business logic, and rendering in a single large module.
+- Files: `src/hooks/useGamification.ts` (603 lines), `src/pages/Reports.tsx` (594 lines), `src/pages/Dashboard.tsx` (491 lines), `src/components/import/TransactionFilterTabs.tsx` (451 lines), `src/pages/AccountProfile.tsx` (447 lines), `src/pages/RecurringExpenses.tsx` (392 lines), `src/pages/ExpensesVirtualized.tsx` (370 lines), `src/hooks/useImportTransactions.ts` (364 lines)
+- Impact: Harder to review changes safely, higher chance of regressions when touching unrelated logic in the same file, slower onboarding for new contributors.
+- Fix approach: No action required today; if any of these files needs a substantial change, consider extracting sub-hooks/components first as a preparatory refactor.
 
----
+**`expenses.receipt_url` / `expenses.source` / `receipts` storage bucket are vestigial:**
+- Issue: The OCR-of-receipt feature was fully removed (19/08/2026, alongside manual expense entry), but its schema and storage footprint were deliberately left in place to preserve historical data for users who used it previously.
+- Files: `supabase/migrations/*` (original OCR-era migrations), `delete-account` edge function (still purges the `receipts` bucket)
+- Impact: None functionally — nothing writes to the bucket or those columns anymore — but it's schema debt that could confuse a future reader into thinking OCR is still live.
+- Fix approach: Deliberately deferred; only revisit as an explicit, separate destructive-cleanup decision (per `docs/STATE.md`).
+
+**Stale generated codebase snapshots (this file's own history):**
+- Issue: Prior to this refresh, `.planning/codebase/STRUCTURE.md`, `ARCHITECTURE.md`, and `INTEGRATIONS.md` still described `supabase/functions/process-receipt/` as an existing edge function (14 functions, tree entry, listed as an integration) — it was deleted from the repo on 19/08/2026 and undeployed from production on 21/08/2026.
+- Files: `.planning/codebase/STRUCTURE.md`, `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/INTEGRATIONS.md`
+- Impact: A reader trusting those docs would look for a security risk in a file that no longer exists (this happened to this very CONCERNS.md before this refresh — it cited `process-receipt/index.ts:34`, which is stale and now removed from this document).
+- Fix approach: Regenerate all `.planning/codebase/*` docs together (`/gsd-map-codebase`) rather than hand-patching individual stale facts.
 
 ## Known Bugs
 
-### Billing Cycle Edge Cases
-- Status: **RECENTLY FIXED** (per `docs/STATE.md`)
-- What was fixed: `getDateBillingCycle`/`formatDateRange` in `src/lib/dateRange.ts` no longer parse `YYYY-MM-DD` strings through UTC timezone, which was misclassifying dates landing exactly on the cycle day into the previous cycle in negative-UTC-offset zones
-- Files: `src/lib/dateRange.ts` (fixed), `src/hooks/useBillingCycle.ts`
-- Remaining risk: Test with different timezones and cycle days (1-28) to verify edge cases remain resolved
-- Workaround: N/A (fixed)
-
-### PDF Export Character Encoding
-- Status: **RECENTLY FIXED** (per `docs/STATE.md`)
-- What was fixed: `supabase/functions/export-pdf/index.ts` `escapeText()` was stripping accented Portuguese characters (á/ç/ã/é) by removing `\x7F-\xFF` range; now only strips true control characters
-- Files: `supabase/functions/export-pdf/index.ts` (line 32)
-- Remaining risk: Test with full Portuguese character set; verify WinAnsiEncoding coverage
-- Workaround: N/A (fixed)
-
----
+**None currently open.** The two most recent product-affecting bugs — the UTF-8/accent corruption in imported files, and the Nubank statement/invoice layout not being recognized by the deterministic parser — were both fixed and merged. See "Deployment gap" below for the one bug whose *fix* still needs a production deploy step.
 
 ## Security Considerations
 
-### Dependency Vulnerabilities (7 Critical/High/Moderate)
+**Historically versioned `.env` credentials not yet rotated:**
+- Risk: A `.env` file was committed in the past (commit `26f29d3`, removed in `bc5bee4`) and its values remain in git history forever unless rotated.
+- Files: git history only (no live file); `src/integrations/supabase/client.ts` reads the equivalent values from environment at runtime
+- Current mitigation: Content was audited (`git show <commit>:.env`) and confirmed to contain only `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL` — no service-role key, JWT secret, or AI provider key. The publishable key is designed by Supabase to ship in the client bundle; real protection is RLS, not key secrecy.
+- Recommendations: Still worth rotating for hygiene (Supabase dashboard → Project Settings → API → regenerate publishable key, then update the deploy platform's env var and any local `.env`). Not an active exploitable leak — deprioritize relative to other work.
 
-**xlsx (High Severity)**
-- Risk: Prototype Pollution and Regular Expression Denial of Service (ReDoS)
-- CVEs: GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9
-- Files: `package.json` (line 88)
-- Current impact: Risk applies if untrusted spreadsheet input processed broadly
-- Mitigation: Currently none; no upstream fix available
-- Recommendation: Monitor for patched release; validate/sanitize file uploads; consider sandboxing file parsing
+**Dependency vulnerabilities, each with a documented deferral, not fixed:**
+- Risk: `npm audit` (run 2026-09-17) currently reports 9 advisories against production-relevant packages when scoped to `--omit=dev` (`postcss-selector-parser` DoS via AST recursion, `react-router`/`react-router-dom` open-redirect + SSR deserialization issues, `xlsx` prototype pollution + ReDoS with no upstream fix) plus additional dev-only findings (`js-yaml`, `vite`/`esbuild`/`vitest` chain) in the full unscoped audit (15 total, up from the 7 recorded in `docs/STATE.md`'s SEC-01 pass — the set has grown since that audit).
+- Files: `package.json`, `package-lock.json`
+- Current mitigation, per usage audit already done (`docs/STATE.md` "Dependency security decisions"): `xlsx` — only the write path (`json_to_sheet`/`writeFile`) is used in `src/lib/exportUtils.ts`; the vulnerable parse path (`XLSX.read`/`readFile`) is never called anywhere in the repo. `react-router-dom` — the open-redirect CVE requires attacker-controlled navigation targets; every `navigate()`/`<Link to={}>` call site was audited and none take destinations from user input. `vite`/`vitest`/`esbuild` — dev-server-only exposure, doesn't affect the production bundle.
+- Recommendations: Re-run `npm audit` periodically (the set has grown from 7 → 9 production-relevant since the last documented pass) and re-verify the `xlsx`/`react-router` usage-based mitigations still hold before shipping any new code that reads untrusted spreadsheet input or takes navigation targets from user-controlled data. A `react-router` v7 and Vite major-version bump are the actual fixes; both are deliberately deferred, not forgotten.
 
-**react-router-dom (Moderate Severity)**
-- Risk: Open redirect and SSR hydration vulnerabilities
-- Files: `package.json` (line 73: `^6.30.1`)
-- Current version: 6.30.1 is outdated; vulnerabilities fixed in major bump (breaking changes)
-- Mitigation: None currently applied; documented in `docs/STATE.md` as deferred
-- Recommendation: Plan major version upgrade path; validate all `<Link>` and redirect destinations don't trust user input
+**Edge function auth: audited clean as of the last full pass, verify on any new function:**
+- Risk: An edge function that skips or weakens JWT verification before doing paid/sensitive work (the historical failure mode, see `process-receipt`, below).
+- Files: all `supabase/functions/*/index.ts` (13 functions currently in `supabase/functions/`: `chat-assistant`, `check-category-variations`, `delete-account`, `export-data`, `export-pdf`, `generate-insights`, `get-vapid-public-key`, `notify-goal-threshold`, `process-import-file`, `process-recurring-expenses`, `process-scheduled-exports`, `send-push-notification`, plus `_shared/`)
+- Current mitigation: Per `docs/STATE.md` SEC-02, all 13 were read end-to-end and confirmed correct: 9 user-facing functions properly check both `error` and `!user` from `supabase.auth.getUser(token)` before sensitive work; 3 cron-triggered functions (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`) correctly use `X-Cron-Secret` instead of a JWT (no end user to authenticate); `send-push-notification` correctly accepts either mode.
+- Historical gap (now resolved, not a live risk): `process-receipt` used to accept any non-empty `Authorization` header and call a paid OCR API before validating the token. That function's code was deleted from the repo 19/08/2026 and the deployed instance was explicitly deleted from Supabase on 21/08/2026 (confirmed via `supabase functions delete`, after verifying zero invocations in the preceding 24h and zero references in `src/`, `e2e/`, `services/`). It does not exist in the codebase or in production anymore — do not treat it as a live finding.
+- Recommendations: Re-verify auth checks on any newly added edge function before merge (the pattern that failed once: checking header non-emptiness instead of calling `getUser()` and checking its result). `CLAUDE.md`'s documented auth-pattern snippet was also corrected at the same time this was fixed, reducing the chance of the same drift recurring.
 
-**vitest / @vitest/ui (Critical Severity - Dev Only)**
-- Risk: Arbitrary file read/execute when Vitest UI server listening
-- Files: `package.json` (line 56: `@vitest/ui` v4.0.1)
-- Current impact: Dev-only (UI server not exposed in production); affects local development security
-- Mitigation: Use `npm audit fix` to patch (updates were available per `docs/STATE.md`)
-- Recommendation: Run `npm audit` regularly; don't expose Vitest UI port to untrusted networks during development
-
-### Authentication & Authorization
-
-**VAPID Key Exposure Risk**
-- Risk: VAPID keys stored in `vapid_keys` table; if compromised, could allow spoofed push notifications
-- Files: `supabase/functions/get-vapid-public-key/index.ts`, push notification implementation
-- Current mitigation: Keys are in Supabase (RLS policies should protect); edge function requires auth header verification
-- Recommendation: Rotate VAPID keys periodically; verify auth header validation in all edge functions; consider key versioning
-
-**Edge Function Auth Verification**
-- Risk: Some edge functions check auth headers manually (e.g., `supabase/functions/process-receipt/index.ts` line 21-24)
-- Files: All `supabase/functions/*/index.ts` files
-- Current implementation: Pattern is `const authHeader = req.headers.get("Authorization")` then validate token
-- Recommendation: Audit all edge functions for consistent auth token validation; consider using Supabase auth helpers
-
-### Sensitive Data Logging
-
-**Console Output in Edge Functions**
-- Risk: `supabase/functions/` contain `console.log()` statements that may expose user data or API keys in production logs
-- Files: `supabase/functions/process-receipt/index.ts`, `supabase/functions/export-pdf/index.ts`, `supabase/functions/process-import-file/index.ts`
-- Current impact: Logs go to Supabase function logs (not exposed to client); but internal visibility only
-- Recommendation: Remove or redact sensitive logs before production; use structured logging with PII filtering
-
----
+**AI provider isolation is enforced by convention, not by a lint rule:**
+- Risk: `services/ai/src/domain/` is meant to only import from `providers/types.ts`, never from a concrete provider adapter — this boundary is documented (`CLAUDE.md`, `services/ai/README.md`) but not mechanically enforced (no ESLint import-boundary rule).
+- Files: `services/ai/src/domain/*`, `services/ai/src/providers/*`
+- Current mitigation: Small, single-maintainer codebase; convention has held so far.
+- Recommendations: If the AI service gains more contributors or providers, consider an ESLint `no-restricted-imports` rule scoping `domain/` to only import `providers/types.ts`.
 
 ## Performance Bottlenecks
 
-### Large Query Results Without Pagination
-
-**Reports Page Data Loading**
-- Problem: `src/pages/Reports.tsx` loads all expenses in a date range without pagination/virtualization (line 77-83)
-- Files: `src/pages/Reports.tsx`
-- Cause: `.select()` with no `.range()` limit; potential OOM for users with years of transaction history
-- Improvement: Add `.range(0, 1000)` pagination or `.select(..., { count: 'estimated' })` with lazy-load pattern
-- Impact: Slow rendering, memory bloat, poor UX on mobile
-
-**Gamification Hook Calculations**
-- Problem: `src/hooks/useGamification.ts` `useUnlockProgress()` makes 6+ separate database queries sequentially (lines 148-180)
-- Files: `src/hooks/useGamification.ts` (lines 140-220)
-- Cause: No batching; N+1 query pattern (fetch content, then fetch categories, then fetch responses, etc.)
-- Improvement: Combine into single `.select()` with joins; or use RPC function to batch server-side
-- Impact: Slow unlock progression calculations; blocks UI while fetching
-
-**Console Logging Volume**
-- Problem: 246 console.log statements executed even in production; debug logging in hot paths (e.g., real-time updates)
-- Files: `src/` and `supabase/functions/`
-- Cause: No log level filtering; all logs execute regardless of environment
-- Improvement: Replace with structured logger that respects `LOG_LEVEL` env var
-- Impact: Reduced performance; bloated dev tools; security risk if PII logged
-
----
+**None currently outstanding as unaddressed.** `Reports.tsx`'s expense list was virtualized (`@tanstack/react-virtual`), `useUnlockProgress`'s 6 sequential reads became parallel (see Tech Debt above — still 6 round-trips, just no longer serial), and console logging was gated behind `import.meta.env.DEV` in the hot-path providers (`PWAInstallProvider.tsx`, `main.tsx`). The unbounded expense query in `Reports.tsx` is intentional (KPI totals and category breakdown need the full billing-cycle result set), not a bug.
 
 ## Fragile Areas
 
-### Real-time Subscription Cleanup
-- **Files:** `src/hooks/useExpensesRealtime.ts` (lines 84-96)
-- **Why fragile:** Relies on 100ms `setTimeout` delay to avoid "WebSocket is closed" errors; timing-dependent workaround rather than architectural fix
-- **Documented issue:** Already noted in CLAUDE.md as a known pattern; if cleanup timing changes or network latency varies, could resurface
-- **Safe modification:** Don't reduce the 100ms delay without testing unmount sequences; ensure all cleanup paths call this hook's cleanup
-- **Test coverage:** `src/hooks/useExpensesRealtime.test.ts` and `src/hooks/useMemoryLeak.test.ts` cover this, but rely on mock behavior
+**PDF import layout parsing (`_shared/statementLayouts.ts` + `_shared/statementParser.ts`):**
+- Files: `supabase/functions/_shared/statementLayouts.ts`, `supabase/functions/_shared/statementParser.ts`, `supabase/functions/_shared/bankPatterns.ts` (equivalent logic also lives client-side in `src/lib/bankPatterns.ts`)
+- Why fragile: Only Nubank's two layouts (account statement and card invoice) are validated against real user documents (via checksum against the totals printed on the documents themselves, added 21/08/2026). Every other supported bank (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) is validated only against synthetic/fabricated PDF fixtures — the real-world hit rate for those banks is unverified. An unrecognized layout falls through to the AI provider, which is itself untested end-to-end in CI (no `AI_SERVICE_URL` in the test environment).
+- Safe modification: Any change to the generic regex matching (`LOOKS_LIKE_TRANSACTION` or similar) must be re-verified against the Nubank fixtures in `_shared/fixtures/nubank-*.txt` (checksummed against real totals) to avoid silently breaking the one bank with real-world proof. Adding a new bank-specific layout should follow the same checksum-fixture pattern used for Nubank, not just a synthetic PDF.
+- Test coverage: PDF import path has zero E2E coverage (`e2e/import-transactions.spec.ts` covers CSV only) — noted as an open, easy-to-close item in `docs/STATE.md` since 21/08/2026 (deterministic parsing removed the prior blocker of needing `AI_SERVICE_URL` live for the test).
 
-### Gamification System (Recently Added)
-- **Files:** `src/hooks/useGamification.ts` (549 lines), database tables (`unlock_requirements`, `user_unlocks`, `achievements`, etc.)
-- **Why fragile:** New feature with multiple linked database tables; unlock conditions are JSON stored as `Record<string, unknown>` (no schema validation); complex business logic for progression
-- **Risk:** Schema mismatches, invalid condition objects causing silent failures; missing categories/content causing cascading unlocks
-- **Safe modification:** Add Zod schema for unlock conditions; validate education/quiz categories exist before saving; add comprehensive tests for edge cases (missing content, category changes)
-- **Test coverage:** No unit tests found; E2E tests may exist but not isolated
+**Duplicate-detection heuristic (`checkDuplicates()`):**
+- Files: `src/hooks/useImportTransactions.ts` (or equivalent import hook — matches merchant by first 10 characters + date ±1 day + equal amount)
+- Why fragile: A 10-character merchant-name prefix match is a heuristic, not an exact key; it already produced one documented false-positive during E2E test authoring (a uniqueness token embedded in a test merchant name caused every re-import to register as duplicate). It also silently absorbs the effect of the accent/encoding bug below — since `file_hash` alone can no longer be trusted for previously-imported accented files, this heuristic is the *only* remaining duplicate-catch for that edge case.
+- Safe modification: Any change to merchant-name extraction (`extractMerchant()`) or the prefix length must be checked against both real bank fixtures and the E2E import spec, since the two are coupled (the merchant-extraction logic strips digit sequences 5+, and test tokens must avoid triggering that stripping).
+- Test coverage: Covered by `e2e/import-transactions.spec.ts` and unit tests, but only for the CSV path.
 
-### Bank Pattern Detection (1044-line edge function)
-- **Files:** `supabase/functions/process-import-file/index.ts` (1044 lines)
-- **Why fragile:** Giant regex pattern lists for bank/transaction classification (lines 20-96); hardcoded magic strings; no structured validation
-- **Risk:** Missing bank patterns cause incorrect categorization; typos in regex silently don't match; classification changes break imports
-- **Safe modification:** Extract patterns to configuration table; add test suite covering all banks; add logging/alerting for unclassified transactions
-- **Test coverage:** No isolated tests; E2E test exists (`e2e/expense-crud.spec.ts` may import) but limited coverage
+## Scaling Limits
 
-### Category Goals & Threshold Notifications
-- **Files:** `src/hooks/useCategoryGoals.ts`, `supabase/functions/notify-goal-threshold/index.ts`
-- **Why fragile:** Notification sent when `expense total >= goal`; no transaction atomicity; could send multiple notifications for same threshold
-- **Risk:** Duplicate push notifications; incorrect calculations if timezone conversion fails
-- **Safe modification:** Add idempotency key; store notification sent state; use database-level aggregate checks
-- **Test coverage:** Basic tests present but edge cases (parallel requests, timezone boundaries) not covered
-
----
-
-## Test Coverage Gaps
-
-### Unit Test Coverage is Minimal
-- **What's not tested:** Most business logic lives in hooks and pages with no unit tests
-  - No tests for `useImportTransactions.ts` (308 lines)
-  - No tests for `useBillingCycle.ts` (despite being critical per CLAUDE.md)
-  - No tests for currency parsing/formatting utilities (despite noted Brazilian Real quirks)
-  - Minimal tests for state management in large pages
-- **Files:** Most `src/hooks/*.ts` and `src/pages/*.tsx`
-- **Risk:** Refactoring breaks silently; edge cases in date calculations, currency handling not caught
-- **Priority:** High (affects stability)
-
-### E2E Test Coverage Gaps
-- **What's covered:** Auth, expense CRUD, OCR, reports, PDF/Excel/XLSX export, insights, scheduled exports, recurring expenses, tags/notes (9 suites)
-- **What's missing:**
-  - No tests for multi-account workflows
-  - No tests for transfer detection and exclusion from reports
-  - No tests for billing cycle edge cases (cycle day transitions, timezone changes)
-  - No tests for concurrent expense updates / real-time sync
-  - Limited tests for error handling (network failures, quota exceeded)
-- **Files:** `e2e/*.spec.ts`
-- **Risk:** Complex workflows break without notice; billing cycle bugs go undetected
-- **Priority:** High (production impact)
-
-### Import/Classification Test Gaps
-- **What's not tested:** Bank pattern detection; transaction classification (expense/income/transfer/investment/government); duplicate detection logic
-- **Files:** `supabase/functions/process-import-file/index.ts` (1044 lines with complex regex and logic)
-- **Risk:** Users import wrong bank's format → silent incorrect categorization
-- **Priority:** High (data integrity)
-
----
+Not assessed in this pass — no reported production-scale data (user count, expense volume) was available to evaluate against. `Reports.tsx`'s list virtualization was explicitly built to handle 1,000+ expenses per user; no data suggests larger scale needs.
 
 ## Dependencies at Risk
 
-### Package Version Drift
-- **Risk:** Several dependencies on `^` (caret) version constraints that allow minor/patch updates; could introduce breaking changes
-- **Examples:**
-  - `@supabase/supabase-js@^2.76.1` (supabase minor bumps can change API)
-  - `react-router-dom@^6.30.1` (known vulnerabilities require major bump)
-  - `recharts@^2.15.4` (chart component updates could break layouts)
-- **Impact:** Unexpected behavior after `npm install` in CI/CD
-- **Mitigation:** Use `package-lock.json` (committed) to pin transitive dependencies; lock critical packages with `~` instead of `^`
-- **Recommendation:** Review top-level dependencies; consider lock file strategy
+**`xlsx` (SheetJS) — no upstream fix available:**
+- Risk: High-severity prototype pollution and ReDoS advisories with no patched release from the maintainer.
+- Impact: None currently exercised — only the write path is used (see Security Considerations above). Would become a real risk only if a future feature calls `XLSX.read`/`readFile` on user-uploaded or otherwise untrusted spreadsheet data.
+- Migration plan: Re-audit before ever adding an `XLSX.read`/`readFile` call; if that becomes necessary, evaluate replacing `xlsx` with a maintained alternative (e.g. `exceljs`) rather than accepting the parse-path risk.
 
-### Lovable AI API Dependency
-- **Risk:** ~~dependência do gateway de IA da Lovable~~ — RESOLVIDO em 16/08/2026: as edge functions chamam `services/ai`, camada provider-agnostic. Ver `docs/STATE.md`.
-- **Files:** `supabase/functions/process-receipt/index.ts` (line 34)
-- **Impact:** Rate limits (429), credit exhaustion (402), outages silently fail
-- **Current mitigation:** Error responses handled (lines 81-95); but user experience degrades
-- **Recommendation:** Implement fallback OCR; add circuit breaker; cache results to reduce API calls; add monitoring for Lovable API health
+**`react-router-dom` v6 — fix only in v7 (major, breaking):**
+- Risk: Open-redirect and SSR-hydration-deserialization CVEs; SSR one is inapplicable (client-only SPA, no SSR). Open-redirect requires attacker-controlled navigation targets, which the codebase's current call sites don't have.
+- Impact: Low today; would need re-verification any time new `navigate()`/`<Link to={}>` call sites are added that take a destination from user input.
+- Migration plan: Deferred major-version bump; revisit if a v7 migration gets scheduled for other reasons (v7 also brings API changes worth planning for separately).
 
----
+**Vite / Vitest / esbuild toolchain — fix requires Vite 6+:**
+- Risk: Dev-server-only DoS/moderate advisories (`esbuild`), `vitest@4.1.x`'s patched line requires `vite: ^6.0.0 || ^7.0.0 || ^8.0.0` as a peer, and the project is pinned to `vite@5.4.19`.
+- Impact: Dev-server-only exposure (a malicious site can reach the local dev server while `npm run dev` is running); does not affect the production bundle.
+- Migration plan: Deferred — a Vite major bump is a real migration project (config changes, plugin compatibility across the PWA plugin, path aliases, etc.), not a quick patch. Bump `vite`, `vitest`, `@vitest/ui`, and re-verify `esbuild`'s transitive resolution together in one pass.
 
-## Architecture Concerns
+## Missing Critical Features
 
-### State Management Complexity
-- **Issue:** Multiple sources of truth for derived state (billing cycles, category goals, unlock progress) calculated on-demand in hooks rather than centralized
-- **Files:** `src/hooks/use*.ts` (30+ custom hooks with their own caching, invalidation logic)
-- **Impact:** Hard to trace data flow; cache invalidation bugs; inconsistent behavior
-- **Recommendation:** Consider React Context + useReducer or Zustand for critical shared state; document invalidation patterns
+**No manual "sign out of all devices" action:**
+- Problem: Sign-out now correctly uses `scope: 'local'` (fixed to stop desktop logout from also logging out mobile), but there is consequently no way for a user to deliberately kill all sessions at once (e.g. leaked password, lost device) — the prior `scope: 'global'` behavior covered this by accident.
+- Blocks: A legitimate "sign out everywhere" security action a user might need.
 
-### Type Generation Mismatch
-- **Issue:** `src/integrations/supabase/types.ts` (1203 lines) is auto-generated; if database schema changes without regeneration, types become stale
-- **Files:** `src/integrations/supabase/types.ts`, database migrations
-- **Impact:** `as any` casts become necessary when schema drifts; silent type errors
-- **Recommendation:** Add pre-commit hook to verify types match schema; document regeneration process; CI should fail if types stale
+## Test Coverage Gaps
 
----
+**PDF bank-statement import path has zero E2E coverage:**
+- What's not tested: The entire PDF upload → parse → preview → confirm flow, for both the deterministic Nubank layouts and the AI-fallback path for unrecognized layouts.
+- Files: `e2e/import-transactions.spec.ts` (CSV-only today), `supabase/functions/process-import-file/index.ts`, `supabase/functions/_shared/statementParser.ts`
+- Risk: A regression in PDF parsing (deterministic or AI-fallback) would not be caught by CI; this is exactly the class of bug that already caused a full-product outage once (Nubank layout not recognized, 21/08/2026 incident) because import is the app's only entry point for expense data.
+- Priority: High — flagged as newly-actionable (no longer blocked on `AI_SERVICE_URL` availability for the deterministic-layout case) but not yet done, per `docs/STATE.md`.
 
-## Recommendations Summary (Priority Order)
+**Non-Nubank bank layouts validated only against synthetic fixtures:**
+- What's not tested: BB, Itaú, Bradesco, Santander, Caixa, Inter, C6 statement/invoice parsing against real user documents.
+- Files: `supabase/functions/_shared/bankPatterns.ts`, `supabase/functions/_shared/statementLayouts.ts`, `src/lib/bankPatterns.ts`
+- Risk: Real-world PDFs from these banks may not match the synthetic fixtures' formatting closely enough, silently falling through to the (also-untested-in-CI) AI path or producing incorrect deterministic parses.
+- Priority: Medium — no reported incidents yet for non-Nubank banks, but the Nubank incident shows this exact failure mode is real for this codebase.
 
-1. **Security:** Apply `npm audit fix`; upgrade `vitest` (critical dev-only); plan `react-router` major bump
-2. **Reliability:** Add unit tests for `useImportTransactions`, `useBillingCycle`, currency utilities
-3. **Type Safety:** Systematically replace 81 `as any` instances with proper types (phased approach)
-4. **Performance:** Add pagination/virtualization to Reports; batch gamification queries; implement log levels
-5. **Maintainability:** Split large files (Reports, Dashboard, AddExpense); extract business logic to utilities
-6. **Fragile Areas:** Add validation schemas for gamification unlocks; document real-time cleanup assumptions; extract bank patterns to config
+**Interactive onboarding/theme flows verified only up to build/smoke-test level:**
+- What's not tested: The 3-step onboarding wizard and auto-theme override, as an actual logged-in user click-through (blocked in the authoring environment by no live Supabase auth access).
+- Files: `src/pages/Onboarding.tsx`, `src/hooks/useAutoTheme.ts`, `src/components/ThemeToggle.tsx`
+- Risk: Low-to-medium — lint, typecheck, unit tests, and production build all pass, and 7 new unit tests were added, but no one has clicked through the full wizard as a real authenticated user since it shipped.
+- Priority: Medium — worth a manual pass whenever credentials/DB access are available, per `docs/STATE.md`.
 
 ---
 
-*Concerns audit: 2026-08-15*
-*Data sources: npm lint (97 errors, 17 warnings — see note above), npm audit (7 vulnerabilities), file analysis, docs/STATE.md*
+*Concerns audit: 2026-09-17*

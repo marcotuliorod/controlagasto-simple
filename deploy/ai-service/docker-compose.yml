@@ -1,0 +1,29 @@
+services:
+  ai:
+    build:
+      context: ./repo/services/ai
+    image: entenda-ai:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - "8787"
+    # Sem "ports:" de propósito — só a rede interna do compose fala com o
+    # container. O Caddy é o único ponto exposto ao mundo (ver Caddyfile).
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - ai
+
+volumes:
+  caddy_data:
+  caddy_config:

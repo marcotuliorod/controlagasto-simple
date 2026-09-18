@@ -1,398 +1,199 @@
-<!-- refreshed: 2026-08-15 -->
 # Codebase Structure
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-09-17
 
 ## Directory Layout
 
 ```
 controlagasto-simple/
-├── .claude/                     # Claude Code settings & hooks
-│   ├── settings.json           # Project configuration
-│   ├── settings.local.json      # User overrides
-│   └── hooks/                  # Custom action hooks
-├── .github/                    # GitHub workflows & templates
-├── .planning/                  # GSD planning documents (generated)
-│   └── codebase/              # Codebase mapping (ARCHITECTURE.md, STRUCTURE.md)
-├── .agents/                    # Multi-agent orchestration
-├── src/                        # Application source code (React, TypeScript)
-│   ├── main.tsx               # Entry point (PWA registration)
-│   ├── App.tsx                # Root component (providers, routing)
-│   ├── index.css              # Global styles
-│   ├── vite-env.d.ts          # Vite type definitions
-│   ├── pages/                 # Route pages (25+ lazy-loaded pages)
-│   │   ├── Index.tsx          # Landing page
-│   │   ├── Auth.tsx           # Authentication
-│   │   ├── Onboarding.tsx     # First-time setup
-│   │   ├── Dashboard.tsx      # Main dashboard
-│   │   ├── AddExpense.tsx     # Expense creation
-│   │   ├── EditExpense.tsx    # Expense editing
-│   │   ├── ExpensesVirtualized.tsx  # Virtual list (1000+ items)
-│   │   ├── Reports.tsx        # Reporting & analytics
-│   │   ├── Settings.tsx       # User settings
-│   │   ├── AccountProfile.tsx # User profile
-│   │   ├── Accounts.tsx       # Multiple accounts
-│   │   ├── Education.tsx      # Financial education
-│   │   ├── Quiz.tsx           # Interactive quiz
-│   │   ├── FinancialHealth.tsx # Health metrics
-│   │   ├── Simulator.tsx      # Budget simulator
-│   │   ├── ChatAssistant.tsx  # AI advisor
-│   │   ├── RecurringExpenses.tsx  # Recurring transactions
-│   │   ├── ScheduledExports.tsx   # Export scheduling
-│   │   ├── ImportTransactions.tsx # CSV import
-│   │   ├── NotificationSettings.tsx # Notification prefs
-│   │   ├── AuditLogs.tsx      # Change history
-│   │   ├── DeleteAccount.tsx  # Account deletion
-│   │   ├── Privacy.tsx        # Privacy policy
-│   │   ├── Terms.tsx          # Terms of service
-│   │   ├── NotFound.tsx       # 404 page
-│   │   └── AccountDashboard.tsx    # Per-account dashboard
-│   ├── components/            # Reusable components
-│   │   ├── AppLayout.tsx      # Main layout wrapper
-│   │   ├── AppSidebar.tsx     # Desktop navigation
-│   │   ├── BottomNav.tsx      # Mobile navigation
-│   │   ├── GlobalSearch.tsx   # Cmd+K palette
-│   │   ├── CategoryGoalsManager.tsx # Budget limits UI
-│   │   ├── FinancialHealthScore.tsx # Health display
-│   │   ├── InsightsCard.tsx   # Data insights
-│   │   ├── ContextualInsight.tsx    # Contextual tips
-│   │   ├── AccountCard.tsx    # Account display
-│   │   ├── AccountForm.tsx    # Account creation form
-│   │   ├── AdvancedFilters.tsx      # Filter UI
-│   │   ├── AuditLogViewer.tsx # Audit display
-│   │   ├── QuickAddExpense.tsx # Quick entry
-│   │   ├── TagInput.tsx       # Tag selection
-│   │   ├── NotificationsCard.tsx    # Notification display
-│   │   ├── InstallPWA.tsx     # PWA install prompt
-│   │   ├── PushOnboarding.tsx # Push notification setup
-│   │   ├── ErrorRecovery.tsx  # Error handling UI
-│   │   ├── EmptyState.tsx     # Empty state UI
-│   │   ├── DashboardSkeleton.tsx    # Loading skeleton
-│   │   ├── ThemeToggle.tsx    # Dark mode toggle
-│   │   ├── PageTransition.tsx # Page animations
-│   │   ├── ScreenReaderAnnouncer.tsx # A11y
-│   │   ├── AnimatedProgress.tsx     # Progress animation
-│   │   ├── AppFooter.tsx      # Footer
-│   │   ├── CategoryQuickPicker.tsx  # Category selection
-│   │   ├── chat/              # Chat components
-│   │   │   └── ChatMessage.tsx, ChatInput.tsx
-│   │   ├── feedback/          # Feedback components
-│   │   │   └── FeedbackForm.tsx, etc.
-│   │   ├── gamification/      # Gamification UI
-│   │   │   ├── GamificationBadge.tsx
-│   │   │   ├── StreakDisplay.tsx
-│   │   │   └── LevelProgress.tsx
-│   │   ├── import/            # Import components
-│   │   │   ├── CSVParser.tsx
-│   │   │   ├── ImportPreview.tsx
-│   │   │   └── BankMatcher.tsx
-│   │   ├── simulators/        # Simulator components
-│   │   │   ├── SavingsSimulator.tsx
-│   │   │   └── BudgetSimulator.tsx
-│   │   ├── skeletons/         # Loading skeletons
-│   │   │   └── ExpenseSkeleton.tsx, etc.
-│   │   └── ui/                # shadcn/ui components (50+ files)
-│   │       ├── button.tsx
-│   │       ├── card.tsx
-│   │       ├── dialog.tsx
-│   │       ├── form.tsx
-│   │       ├── input.tsx
-│   │       ├── select.tsx
-│   │       ├── toast.tsx
-│   │       ├── tooltip.tsx
-│   │       └── ... (many more)
-│   ├── hooks/                 # Custom React hooks (28+ hooks)
-│   │   ├── use-mobile.tsx     # Mobile detection
-│   │   ├── use-toast.ts       # Toast notifications
-│   │   ├── useProfile.ts      # User profile queries
-│   │   ├── useAccounts.ts     # Account management
-│   │   ├── useExpensesRealtime.ts  # Real-time expenses
-│   │   ├── useBillingCycle.ts # Billing cycle logic
-│   │   ├── useCategoryGoals.ts     # Category budgets
-│   │   ├── useCategorySuggestion.ts    # Smart categories
-│   │   ├── useGoals.ts        # Monthly goals
-│   │   ├── useChatAssistant.ts     # AI chat
-│   │   ├── useContextualInsight.ts  # Insights
-│   │   ├── useFinancialHealthScore.ts   # Health metrics
-│   │   ├── useGamification.ts  # Achievements
-│   │   ├── useAuditLogs.ts    # Change history
-│   │   ├── useEducationalContent.ts    # Learning content
-│   │   ├── useImportTransactions.ts    # CSV import
-│   │   ├── useInsights.ts     # Analytics
-│   │   ├── useNotifications.ts      # Notification queries
-│   │   ├── usePushNotifications.ts  # Push subscriptions
-│   │   ├── useQuiz.ts         # Quiz state
-│   │   ├── useRecurringExpenses.ts  # Recurring logic
-│   │   ├── useReducedMotion.ts    # A11y preference
-│   │   ├── useSavedFilters.ts # Filter persistence
-│   │   ├── useScheduledExports.ts  # Export scheduling
-│   │   └── (3 test files)
-│   ├── lib/                   # Utility functions
-│   │   ├── currencyUtils.ts   # R$ formatting
-│   │   ├── amountUtils.ts     # Amount parsing
-│   │   ├── dateRange.ts       # Billing cycle dates
-│   │   ├── financialCalculations.ts  # Formulas
-│   │   ├── bankPatterns.ts    # Bank detection regex
-│   │   ├── exportUtils.ts     # Export helpers
-│   │   ├── pushUtils.ts       # Push notification logic
-│   │   ├── pwaUtils.ts        # PWA helpers
-│   │   ├── storage.ts         # localStorage wrappers
-│   │   ├── realtimeLogger.ts  # WebSocket logging
-│   │   ├── greeting.ts        # Contextual greetings
-│   │   ├── microcopy.ts       # UI copy
-│   │   ├── animations.ts      # Animation configs
-│   │   ├── utils.ts           # Misc utilities
-│   │   └── (10+ test files)
-│   ├── integrations/          # Third-party integrations
-│   │   └── supabase/
-│   │       ├── client.ts      # Supabase client singleton
-│   │       └── types.ts       # Auto-generated DB types (34KB)
-│   ├── providers/             # Context providers
-│   │   ├── PWAInstallProvider.tsx   # PWA install context
-│   │   └── PWAInstallProvider.test.tsx
-│   ├── routes/                # Route guards & middleware
-│   │   └── RequireOnboarding.tsx    # Onboarding guard
-│   ├── schemas/               # Zod validation schemas
-│   │   └── profileSchema.ts   # User profile validation
-│   ├── test/                  # Test configuration
-│   │   └── setup.ts           # Vitest setup
-│   └── main.test.tsx          # Entry point test
-├── supabase/                  # Supabase backend
-│   ├── config.toml            # Supabase local config
-│   ├── migrations/            # Database migrations (30+ SQL files)
-│   │   ├── *_create_tables.sql
-│   │   ├── *_add_audit_logs.sql
-│   │   ├── *_add_rls_policies.sql
-│   │   └── ... (dated YYYYMMDDHHMMSS format)
-│   └── functions/             # Edge functions (14 serverless functions)
-│       ├── chat-assistant/            # OpenAI integration
-│       │   └── index.ts
-│       ├── process-receipt/           # OCR receipt processing
-│       │   └── index.ts
-│       ├── export-pdf/                # PDF export
-│       │   ├── index.ts
-│       │   └── index.ts (test: 2026-08-15)
-│       ├── export-data/               # Excel export
-│       │   └── index.ts
-│       ├── delete-account/            # User deletion
-│       │   └── index.ts
-│       ├── send-push-notification/    # Web push
-│       │   └── index.ts
-│       ├── get-vapid-public-key/      # Push credentials
-│       │   └── index.ts
-│       ├── notify-goal-threshold/     # Budget alerts
-│       │   └── index.ts
-│       ├── process-recurring-expenses/# Auto-recurring
-│       │   └── index.ts
-│       ├── process-scheduled-exports/ # Scheduled exports
-│       │   └── index.ts
-│       ├── generate-insights/         # AI insights
-│       │   └── index.ts
-│       ├── check-category-variations/ # Smart categories
-│       │   └── index.ts
-│       └── process-import-file/       # CSV import
-│           └── index.ts
-├── e2e/                       # End-to-end tests (Playwright)
-│   ├── auth.setup.ts          # Auth test setup
-│   ├── auth.spec.ts           # Authentication tests
-│   ├── expense-crud.spec.ts   # Expense CRUD tests
-│   ├── ocr-basic.spec.ts      # OCR receipt tests
-│   ├── reports-cycle.spec.ts  # Report billing cycle tests
-│   ├── export-pdf.spec.ts     # PDF export tests
-│   ├── export-excel.spec.ts   # Excel export tests
-│   ├── insights.spec.ts       # AI insights tests
-│   ├── scheduled-exports.spec.ts # Export scheduling tests
-│   ├── recurring-expenses.spec.ts # Recurring expense tests
-│   ├── tags-notes.spec.ts     # Tag & note tests
+├── src/                      # React/Vite frontend (PWA)
+│   ├── pages/                # Route-level screens
+│   ├── components/           # Reusable UI + feature components
+│   │   ├── ui/                # shadcn-based primitives
+│   │   ├── import/             # Statement/invoice import flow UI
+│   │   ├── chat/                # AI chat assistant UI
+│   │   ├── gamification/         # Streaks/badges UI
+│   │   ├── simulators/           # What-if financial simulators
+│   │   └── skeletons/            # Loading skeletons
+│   ├── hooks/                # React Query hooks / domain logic
+│   ├── lib/                  # Pure utility functions
+│   ├── schemas/              # Zod validation schemas
+│   ├── integrations/supabase/  # Supabase client + generated types
+│   ├── providers/            # React context providers (PWA install)
+│   ├── routes/               # Route guard components
+│   ├── test/                 # Vitest global setup
+│   ├── App.tsx                # Provider hierarchy + route table
+│   └── main.tsx                # Entry point, service worker registration
+├── supabase/
+│   ├── functions/            # Edge functions (Deno), one dir per function
+│   │   └── _shared/            # Shared helpers (aiService.ts, statementParser.ts, CORS)
+│   ├── migrations/           # SQL migrations (schema, RLS, RPCs, triggers)
+│   └── config.toml           # Function config (verify_jwt, etc.)
+├── services/ai/              # Separate provider-agnostic AI microservice (Node/TS)
+│   └── src/
+│       ├── domain/            # AI capabilities (assistant, insights, classification, normalize)
+│       ├── providers/         # Vendor adapters (gemini.ts, fake.ts) + shared types.ts
+│       ├── prompts/           # Versioned prompt templates
+│       ├── shared/            # Errors, redaction, resilience/retry
+│       ├── http/              # HTTP transport layer (app, server, auth)
+│       └── config.ts           # Chooses active provider adapter (AI_PROVIDER)
+├── e2e/                      # Playwright E2E specs + fixtures
 │   └── fixtures/
-│       └── test-data.ts       # Shared test utilities
-├── public/                    # Static assets & PWA
-│   ├── sw.js                  # Service Worker (Workbox)
-│   ├── icon-192.png           # PWA icon (192×192)
-│   ├── icon-512.png           # PWA icon (512×512)
-│   ├── splash-640x1136.png    # Splash screen
-│   └── ... (other assets)
-├── docs/                      # Documentation (30+ MD files)
-│   ├── billing-cycle.md       # Billing cycle feature
-│   ├── testing.md             # Testing guide
-│   ├── pwa-setup.md           # PWA configuration
-│   ├── push-notifications.md  # Push setup
-│   ├── architecture.md        # Architecture overview
-│   ├── sprint-7-features.md   # Latest features
-│   └── ... (feature docs)
-├── scripts/                   # Build & utility scripts
-├── dist/                      # Production build (generated)
-├── .env                       # Environment variables (NOT committed)
-├── index.html                 # HTML entry point
-├── package.json               # Dependencies & scripts
-├── package-lock.json          # Lock file
-├── tsconfig.json              # TypeScript config
-├── tsconfig.app.json          # App-specific TS config
-├── tsconfig.node.json         # Node-specific TS config
-├── vite.config.ts             # Vite build config
-├── playwright.config.ts       # E2E test config
-├── playwright-fixture.ts      # Playwright fixtures
-├── tailwind.config.ts         # Tailwind CSS config
-├── postcss.config.js          # PostCSS config
-├── components.json            # shadcn/ui config
-├── eslint.config.js           # ESLint configuration
-├── lighthouserc.js            # Lighthouse CI config
-├── CLAUDE.md                  # Claude Code guidance
-├── README.md                  # Project overview
-├── CHANGELOG.md               # Version history
-├── FINALIZATION-STATUS.md     # Sprint status
-├── bun.lockb                  # Bun lock file (alternative PM)
-├── .gitignore                 # Git ignore rules
-└── .git/                      # Git repository
+├── docs/                     # Project documentation (architecture, testing, workflow, etc.)
+├── public/                   # Static assets, service worker (sw.js)
+└── .planning/                # GSD planning artifacts (this doc lives here)
 ```
 
 ## Directory Purposes
 
-**src/:** Heart of the application — React components, hooks, utilities, and integrations.
+**`src/pages/`:**
+- Purpose: One file per route; composes hooks + components into a screen
+- Contains: `Dashboard.tsx`, `ImportTransactions.tsx`, `Reports.tsx`, `ExpensesVirtualized.tsx`, `EditExpense.tsx`, `RecurringExpenses.tsx`, `Accounts.tsx`, `AccountDashboard.tsx`, `AccountProfile.tsx`, `Settings.tsx`, `ScheduledExports.tsx`, `NotificationSettings.tsx`, `ChatAssistant.tsx`, `FinancialHealth.tsx`, `Simulator.tsx`, `AuditLogs.tsx`, `DeleteAccount.tsx`, `Onboarding.tsx`, `Auth.tsx`, `Index.tsx`, `NotFound.tsx`, `Privacy.tsx`, `Terms.tsx`, `Education.tsx`, `Quiz.tsx`
+- Key files: There is no `AddExpense.tsx` — that route (`/add-expense`) is a `<Navigate>` redirect defined inline in `src/App.tsx`, not a page component
 
-**src/pages/:** 25+ full-screen components, one per route. All lazy-loaded for code splitting. Mix of public routes (Auth, Index) and authenticated routes (all others wrapped in AppLayout).
+**`src/components/`:**
+- Purpose: Shared and feature-specific UI building blocks
+- Contains: Layout shell (`AppLayout.tsx`, `AppSidebar.tsx`, `BottomNav.tsx`, `AppFooter.tsx`), cross-cutting widgets (`GlobalSearch.tsx`, `InstallPWA.tsx`, `ErrorRecovery.tsx`, `EmptyState.tsx`), feature subdirectories (`import/`, `chat/`, `gamification/`, `simulators/`, `skeletons/`), and `ui/` (shadcn primitives)
+- Key files: `AppLayout.tsx` wraps every authenticated route
 
-**src/components/:** Reusable UI components, organized by feature (chat, gamification, import) and type (ui for shadcn). AppLayout, AppSidebar, BottomNav form the main shell. Feature components handle domain logic (CategoryGoalsManager, etc.).
+**`src/hooks/`:**
+- Purpose: All Supabase data access and domain business logic, wrapped in React Query
+- Contains: `useBillingCycle.ts` (billing-cycle period math), `useImportTransactions.ts`, `useAccounts.ts`, `useGoals.ts`, `useCategoryGoals.ts`, `useRecurringExpenses.ts`, `useExpensesRealtime.ts`, `useFinancialHealthScore.ts`, `useChatAssistant.ts`, `useInsights.ts`, `usePushNotifications.ts`, `useScheduledExports.ts`, `useProfile.ts`, `useAuditLogs.ts`, `useGamification.ts`, `useContextualInsight.ts`, `useEducationalContent.ts`, `useQuiz.ts`, `useSavedFilters.ts`, `useUndoableAction.ts`, `useAutoTheme.ts`, `useReducedMotion.ts`, `use-mobile.tsx`, `use-toast.ts`
+- Key files: `.test.ts` files are co-located next to their hook (e.g. `useBillingCycle.test.ts`)
 
-**src/hooks/:** 28+ custom React hooks encapsulating data fetching and state management. All use React Query for caching and sync. Examples: useBillingCycle (configurable cycles), useExpensesRealtime (WebSocket), usePushNotifications (subscription lifecycle).
+**`src/lib/`:**
+- Purpose: Pure, framework-agnostic utility functions
+- Contains: `currencyUtils.ts` (BRL parse/format), `amountUtils.ts`, `bankPatterns.ts` (statement layout detection), `dateRange.ts`, `exportUtils.ts`, `financialCalculations.ts`, `errorUtils.ts`, `logger.ts`, `realtimeLogger.ts`, `pushUtils.ts`, `pwaUtils.ts`, `greeting.ts`, `microcopy.ts`, `animations.ts`, `utils.ts`
+- Key files: Most have a co-located `.test.ts`
 
-**src/lib/:** Utility modules for currency formatting, date calculations, validation, financial formulas. No component or async logic — purely pure functions or simple wrappers.
+**`src/schemas/`:**
+- Purpose: Zod validation schemas
+- Contains: `profileSchema.ts` (currently the only schema; used by `AccountProfile.tsx`)
+- Note: Not every form uses Zod — `RecurringExpenses.tsx` and `EditExpense.tsx` use `useState` + native `required` instead; check the file before assuming a schema exists
 
-**src/integrations/supabase/:** Supabase client singleton and auto-generated TypeScript types (Database interface). Client configured with localStorage persistence and auto token refresh.
+**`src/integrations/supabase/`:**
+- Purpose: Supabase client configuration and generated DB types
+- Contains: `client.ts` (auto-refresh, persisted session), `types.ts` (generated via `supabase gen types`)
 
-**src/providers/:** Context providers for app-wide state. Currently only PWAInstallProvider, but can extend for theme, auth, etc.
+**`src/providers/` and `src/routes/`:**
+- Purpose: Cross-cutting React context and route guards
+- Contains: `PWAInstallProvider.tsx` (install-prompt state); `RequireOnboarding.tsx` (gates `/onboarding`-dependent routes)
 
-**src/routes/:** Route guards and middleware. RequireOnboarding checks if user needs setup before accessing /onboarding.
+**`supabase/functions/`:**
+- Purpose: Deno edge functions, one directory per function, each with its own `index.ts`
+- Contains: 12 function directories (`chat-assistant`, `check-category-variations`, `delete-account`, `export-data`, `export-pdf`, `generate-insights`, `get-vapid-public-key`, `notify-goal-threshold`, `process-import-file`, `process-recurring-expenses`, `process-scheduled-exports`, `send-push-notification`) plus `_shared/` for cross-function helpers (`aiService.ts`, `statementParser.ts`, CORS headers)
+- Note: `process-receipt` does not exist in this directory — it was deleted from the repo; do not add references to it
 
-**src/schemas/:** Zod validation schemas for forms. Single profileSchema.ts for user profile validation. Can be extended per feature.
+**`supabase/migrations/`:**
+- Purpose: Timestamped SQL migrations — schema, RLS policies, RPCs, triggers
+- Contains: One file per migration, named `YYYYMMDDHHMMSS_description.sql`; includes `get_billing_period()` and `calculate_financial_health_score()` RPC definitions
 
-**supabase/:** Backend configuration and serverless functions. Migrations define schema and RLS policies. Edge functions handle AI, file processing, and async operations.
+**`services/ai/src/`:**
+- Purpose: Standalone provider-agnostic AI microservice, isolated from the main app
+- Contains:
+  - `domain/` — capability logic (`FinancialAssistant.ts`, `FinancialInsights.ts`, `TransactionClassification.ts`, `normalize.ts`); each has a co-located `.test.ts`
+  - `providers/` — vendor adapters (`gemini.ts`), a network-free `fake.ts` for tests, and `types.ts` defining the `LLMProvider` interface domain code depends on
+  - `prompts/` — versioned prompt text (`assistant.ts`, `insights.ts`, `statement.ts`)
+  - `shared/` — `errors.ts` (AIError/publicMessage), `redaction.ts` (PII scrubbing), `resilience.ts` (timeout/retry)
+  - `http/` — `app.ts`, `server.ts`, `auth.ts` (transport layer that edge functions call into)
+  - `config.ts` — sole place selecting the active provider via `AI_PROVIDER`
 
-**supabase/migrations/:** 30+ timestamped SQL files defining tables, indexes, RLS policies, audit triggers, custom functions. Applied in order by Supabase CLI.
+**`e2e/`:**
+- Purpose: Playwright end-to-end specs
+- Contains: `auth.setup.ts` (not a suite — the `setup` project that creates the account and writes `storageState` every other spec depends on), `auth.spec.ts`, `expense-crud.spec.ts` (list/edit only, no creation), `reports-cycle.spec.ts`, `export-pdf.spec.ts`, `insights.spec.ts`, `scheduled-exports.spec.ts`, `recurring-expenses.spec.ts`, `import-transactions.spec.ts` (the only expense-entry-covering spec; covers CSV path only, PDF/AI fallback has no E2E coverage), `fixtures/test-data.ts`
 
-**supabase/functions/:** 14 Edge functions (TypeScript, Deno runtime). Called from frontend via supabase.functions.invoke(). Examples: process-receipt (OCR), chat-assistant (OpenAI), export-pdf (PDF generation).
-
-**e2e/:** Playwright test suite (11 test files). Tests complete user flows including auth, CRUD, OCR, exports, AI features, recurring expenses. Uses Page Object Model pattern and shared test data.
-
-**public/:** Static assets and PWA resources. sw.js is the service worker (Workbox-generated). Icons and splash screens for installable app.
-
-**docs/:** 30+ markdown files documenting features, architecture, testing, setup. Linked from CLAUDE.md for developer reference.
+**`docs/`:**
+- Purpose: Narrative documentation referenced from `CLAUDE.md`
+- Contains: `billing-cycle.md`, `testing.md`, `pwa-setup.md`, `push-notifications.md`, `architecture.md`, `sprint-7-features.md`, `WORKFLOW.md`, `STATE.md`, `CONTEXT.md`, `LGPD-IA.md`
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/main.tsx`: PWA service worker registration, React app mount
-- `src/App.tsx`: Provider hierarchy, all route definitions, suspense boundaries
-- `index.html`: HTML shell, loads main.tsx
+- `src/main.tsx`: Mounts React app, registers service worker
+- `src/App.tsx`: Route table and provider hierarchy
+- `services/ai/src/http/server.ts`: AI service HTTP entry point
 
 **Configuration:**
-- `vite.config.ts`: Build settings, PWA plugin, bundle analyzer
-- `tsconfig.json`: TypeScript strict settings (noImplicitAny: false for flexibility)
-- `tailwind.config.ts`: CSS framework configuration
-- `playwright.config.ts`: E2E test runner configuration
+- `vite.config.ts`, `tsconfig.json`: Build/type config, `@/` path alias
+- `supabase/config.toml`: Edge function `verify_jwt` declarations
+- `.env` (not committed): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 **Core Logic:**
-- `src/integrations/supabase/client.ts`: Supabase connection singleton
-- `src/hooks/useBillingCycle.ts`: Central hook for billing cycle logic
-- `src/lib/dateRange.ts`: Billing cycle date calculations
-- `src/lib/currencyUtils.ts`: Brazilian Real formatting (R$ 1.234,56)
+- `src/hooks/useBillingCycle.ts`: Billing-cycle period computation (client side)
+- `supabase/migrations/20251023213047_*.sql`: `get_billing_period()` RPC (server side)
+- `supabase/functions/_shared/statementParser.ts`: Deterministic bank-statement parsing
+- `supabase/functions/_shared/aiService.ts`: Bridge from edge functions to `services/ai`
+- `services/ai/src/config.ts`: AI provider selection
 
 **Testing:**
-- `src/test/setup.ts`: Vitest configuration (jsdom, mocks)
-- `e2e/auth.setup.ts`: Shared authentication for E2E tests
-- `e2e/fixtures/test-data.ts`: Reusable test data and utilities
-
-**Database:**
-- `supabase/migrations/`: SQL schema definitions
-- `supabase/functions/`: Serverless backend logic
+- `src/**/*.test.ts(x)`: Co-located Vitest unit tests
+- `src/test/setup.ts`: Vitest global setup
+- `e2e/*.spec.ts`: Playwright E2E specs
+- `services/ai/src/**/*.test.ts`: AI service unit tests (run against `providers/fake.ts`, no network)
 
 ## Naming Conventions
 
 **Files:**
-- Pages: `PascalCase.tsx` (e.g., `Dashboard.tsx`)
-- Components: `PascalCase.tsx` (e.g., `AccountCard.tsx`)
-- Hooks: `camelCase.ts` starting with `use` (e.g., `useBillingCycle.ts`)
-- Utilities: `camelCase.ts` (e.g., `currencyUtils.ts`)
-- Tests: `filename.test.ts` or `filename.spec.ts` (colocated)
-- Schemas: `featureName + Schema.ts` (e.g., `profileSchema.ts`)
+- React components: PascalCase (`AppLayout.tsx`, `ImportTransactions.tsx`)
+- Hooks: camelCase prefixed with `use` (`useBillingCycle.ts`)
+- Utilities: camelCase (`currencyUtils.ts`, `dateRange.ts`)
+- Tests: co-located, same base name + `.test.ts`/`.test.tsx`; E2E specs use `.spec.ts` in `e2e/`
 
 **Directories:**
-- Feature collections: `camelCase/` (e.g., `components/chat/`, `components/gamification/`)
-- Supabase migrations: `YYYYMMDDHHMMSS_description.sql`
-- Supabase functions: `kebab-case/` (e.g., `process-receipt/`, `chat-assistant/`)
-
-**Imports:**
-- Path alias `@/` resolves to `src/` (configured in vite.config.ts and tsconfig.json)
-- Example: `import { Button } from "@/components/ui/button"`
+- Feature groupings under `src/components/` are lowercase (`import/`, `chat/`, `gamification/`, `simulators/`, `skeletons/`, `ui/`)
+- Edge functions: kebab-case directory per function (`process-import-file/`), matching the string passed to `supabase.functions.invoke(...)`
+- Migrations: `YYYYMMDDHHMMSS_snake_case_description.sql`
 
 ## Where to Add New Code
 
-**New Feature (Full Page):**
-- Primary code: `src/pages/FeatureName.tsx`
-- Tests: `e2e/feature-name.spec.ts` (E2E), `src/pages/FeatureName.test.tsx` (unit, if needed)
-- Hooks: `src/hooks/useFeatureName.ts` (if complex state)
-- Components: `src/components/feature-name-subcomponent.tsx` (if reusable)
-- Schema: `src/schemas/featureNameSchema.ts` (if forms)
-- Route: Add to App.tsx routes array
+**New expense-related feature:**
+- Do not add a manual-entry form, FAB, or drawer — expenses only enter via `/import-transactions`
+- Import UI: `src/components/import/`
+- Import server logic: `supabase/functions/process-import-file/index.ts`, `supabase/functions/_shared/statementParser.ts`
 
-**New Component (Reusable):**
-- Implementation: `src/components/FeatureName.tsx` or `src/components/feature-category/FeatureName.tsx`
-- Tests: `src/components/FeatureName.test.tsx`
-- Export: Re-export from category index if grouped
+**New Page:**
+- Add `src/pages/NewPage.tsx`
+- Register route in `src/App.tsx` (inside `<AppLayout>` if authenticated)
+- Add nav link in `src/components/AppSidebar.tsx` and `src/components/BottomNav.tsx`
+- Add `e2e/new-page.spec.ts`
 
-**New Hook (State/Data):**
-- Implementation: `src/hooks/useFeatureName.ts`
-- Tests: `src/hooks/useFeatureName.test.ts`
-- Pattern: Use React Query (useQuery/useMutation) for async
-- Export: No index.ts — import directly from file
-
-**New Utility Function:**
-- Implementation: `src/lib/featureNameUtils.ts` or existing related file
-- Tests: `src/lib/featureNameUtils.test.ts` (colocated)
-- Pattern: Pure functions, no side effects
-- Export: Named exports, no default
+**New Database Table:**
+- New file in `supabase/migrations/`, with RLS policies included
+- Regenerate `src/integrations/supabase/types.ts`
+- New hook in `src/hooks/useTableName.ts`
 
 **New Edge Function:**
-- Directory: `supabase/functions/function-name/`
-- File: `index.ts` with CORS + auth verification
-- Pattern: Handle Authorization header, call supabase-js client
-- Call: `supabase.functions.invoke("function-name", { body: {...} })`
+- New directory `supabase/functions/function-name/index.ts`
+- Auth check pattern for user-facing functions; `X-Cron-Secret` pattern for cron-triggered ones
+- Declare in `supabase/config.toml`
+- If it calls AI, go through `supabase/functions/_shared/aiService.ts`, never a vendor SDK directly
 
-**Database Table:**
-- Migration: `supabase/migrations/YYYYMMDDHHMMSS_add_table_name.sql`
-- Policies: Include RLS in migration
-- Types: Auto-generate via `npx supabase gen types typescript`
-- Hook: Create `src/hooks/useTableName.ts` for CRUD
+**New AI capability:**
+- Domain logic: `services/ai/src/domain/NewCapability.ts` (depends only on `providers/types.ts`)
+- Prompt: `services/ai/src/prompts/newCapability.ts`
+- Do not touch `domain/` when only adding a new vendor — add `services/ai/src/providers/newVendor.ts` and a case in `services/ai/src/config.ts`
+
+**Utilities:**
+- Shared pure helpers: `src/lib/`
+- Form validation: `src/schemas/*.ts` (Zod) — only if the target form is being migrated to Zod; confirm existing pattern first
 
 ## Special Directories
 
-**node_modules/:** Contains 500+ npm packages. Never edit, regenerate via `npm install`.
-- Generated: Yes
-- Committed: No
+**`public/`:**
+- Purpose: Static assets, PWA service worker (`sw.js`), manifest
+- Generated: `sw.js` build output partially generated by Workbox tooling
+- Committed: Yes
 
-**.git/:** Version control repository. Branches: main (production), feature branches.
+**`.planning/`:**
+- Purpose: GSD workflow artifacts (roadmap, phase plans, codebase docs)
+- Generated: Yes (by GSD commands)
+- Committed: Yes
+
+**`supabase/functions/_shared/`:**
+- Purpose: Cross-function helpers (CORS headers, `aiService.ts`, `statementParser.ts`)
 - Generated: No
 - Committed: Yes
 
-**dist/:** Production build output (HTML, JS, CSS, assets). Regenerated each build.
-- Generated: Yes (from vite build)
-- Committed: No
-
-**.env:** Environment variables (Supabase URL, API key). Never commit.
-- Generated: No
-- Committed: No (in .gitignore)
-
-**supabase/migrations/:** Database schema version control. Each migration is immutable.
-- Generated: No (manually written SQL)
-- Committed: Yes (version control)
-
-**.claude/:** Claude Code project configuration, custom hooks, and GSD state.
-- Generated: Partially (GSD state)
-- Committed: Partially (settings, not sensitive state)
-
-**.planning/codebase/:** Architecture and structure documentation (this file).
-- Generated: Yes (by analysis agent)
-- Committed: Optional
-
 ---
-*Structure analysis: 2026-08-15*
+
+*Structure analysis: 2026-09-17*

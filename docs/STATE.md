@@ -195,6 +195,17 @@ Ran `npm audit` fresh (7 findings, same set as before) and checked whether each 
 
 None of the 7 findings were silently ignored — each has a decision above. None are fixable without a breaking major-version bump this phase intentionally didn't take on.
 
+**Atualização (17/09/2026): a lista cresceu de 7 para 15 achados** (`npm audit`
+refeito ao planejar o fechamento de pendências). Os 4 novos são todos
+**transitivos, dev/build-only, e com fix sem breaking change**
+(`npm audit fix` sem `--force`): `fast-uri` (alto, 4 CVEs), `js-yaml` (alto),
+`postcss-selector-parser`, `fflate` (moderado). Nenhum é dependência direta
+do projeto — chegaram via bump de sub-dependência de alguma ferramenta de
+build/lint. Os 3 achados antigos (`xlsx`, `react-router-dom`,
+`vite`/`esbuild`/`vitest`) continuam exatamente como analisados acima, ainda
+dependentes de bump major. Plano ativo (17/09/2026) inclui rodar o
+`npm audit fix` seguro agora e revisitar os 3 majors em commits isolados.
+
 ## Edge function auth audit (SEC-02)
 
 Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pass):
@@ -335,7 +346,17 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   ferramenta disponível aqui: painel Supabase → Project Settings → API →
   regenerar a publishable key; depois atualizar a variável na plataforma de
   deploy do front e em qualquer `.env` local de desenvolvimento.
-- **Provedor de IA ainda não decidido.** O adapter atual é Gemini, e a justificativa original (paridade com o modelo do gateway) caiu quando `gemini-2.5-flash` passou a responder 404. **Correção:** este item afirmava latência de ~19s e a usava como argumento contra o Gemini. Aquela medição foi uma única chamada, provavelmente em cold start, e não se sustentou. Medido em 17/08/2026 contra o projeto real: chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s. A latência **não** é motivo para trocar de provedor; poucas amostras ainda, vale remedir com uso real.
+- ~~Provedor de IA ainda não decidido.~~ **Decidido (17/09/2026): mantém Gemini.**
+  O adapter atual é Gemini, e a justificativa original (paridade com o modelo
+  do gateway) caiu quando `gemini-2.5-flash` passou a responder 404 — mas isso
+  não é mais motivo para trocar de provedor, é só motivo para não usar
+  "paridade" como justificativa. Latência medida em 17/08/2026 contra o
+  projeto real (chat 2,9-3,1s, OCR de cupom 4s, insights 7,6s) já é aceitável
+  e não indica problema a resolver trocando de fornecedor. Como a arquitetura
+  em `services/ai/` é provider-agnostic (`config.ts` é o único lugar que
+  escolhe o adapter), trocar de fornecedor mais tarde continua barato caso
+  surja motivo concreto (custo, cota, novo modelo relevante) — não há decisão
+  a revisitar até lá.
 - **`.env.example` não pôde ser criado** — regra de permissão da sessão bloqueia escrita em `.env*`. As variáveis estão documentadas no README e no `services/ai/README.md`.
 - **A regra determinística só foi validada contra o Nubank em documento real.** Extrato de conta e fatura de cartão do Nubank passaram a ser conferidos por checksum contra dois PDFs de verdade (21/08/2026). Os demais bancos (BB, Itaú, Bradesco, Santander, Caixa, Inter, C6) continuam validados só em PDF sintético, e a taxa de acerto real segue desconhecida — por isso o fallback continua conservador. O jeito de fechar isso é o mesmo que funcionou aqui: um PDF real por banco virando fixture, com os totais impressos no próprio documento como checksum.
 - **Os snapshots em `.planning/codebase/` descrevem `process-receipt` como
@@ -348,7 +369,14 @@ Read all 13 `supabase/functions/*/index.ts` end to end (not a grep-and-assume pa
   `map-codebase` rodar de novo. O que incomoda agora é o `CONCERNS.md`: doc de
   segurança apontando para arquivo inexistente faz perder tempo em triagem.
 - **`major_version = 15`** em `supabase/config.toml` foi escolha minha e pode não bater com a versão do Postgres em produção — conferir antes de usar o self-host para valer.
-- `docs/STATE.md` (this file, hand-written) and `.planning/STATE.md`/`.planning/ROADMAP.md` (gsd-core-generated) now both exist and overlap in purpose — not yet consolidated into one source of truth for "what's left to do."
+- ~~`docs/STATE.md` and `.planning/STATE.md`/`ROADMAP.md` overlap, not consolidated.~~
+  **Resolvido (17/09/2026): não fundidos — divisão de papéis explícita em
+  vez disso.** `docs/STATE.md` (este arquivo) é a narrativa viva e detalhada
+  ("o quê" e "por quê" de cada decisão); `.planning/STATE.md`/`ROADMAP.md`
+  (gsd-core) é o rastreamento estruturado de progresso de fase do roadmap.
+  `.planning/STATE.md` estava congelado desde 15/08/2026 (`0% completo`)
+  mesmo com as 4 fases já concluídas aqui — corrigido para `100%`/`complete`,
+  com nota cruzada apontando de volta pra cá.
 - The Phase 4 wizard/tooltip/theme flows were verified via lint/typecheck/tests/build and a no-login boot smoke test only — never click-tested end-to-end as a logged-in user (blocked on the same no-live-Supabase-auth constraint as the DB items above). Worth a manual pass once real credentials/DB access exist.
 
 ## Serviço de IA — causa do 500 encontrada (24/08/2026)

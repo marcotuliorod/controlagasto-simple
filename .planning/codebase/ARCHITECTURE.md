@@ -1,387 +1,218 @@
-<!-- refreshed: 2026-08-15 -->
+<!-- refreshed: 2026-09-17 -->
 # Architecture
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-09-17
 
 ## System Overview
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Browser / PWA Client (React 18 + TypeScript)           │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  Entry Point: src/main.tsx                       │  │
-│  │  ├─ Service Worker Registration (PWA support)   │  │
-│  │  └─ React App Mount & Provider Stack            │  │
-│  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Provider Layer (src/App.tsx)                           │
-│  ┌────────────────────────────────────────────────┐    │
-│  │ QueryClientProvider (React Query - 5min TTL)  │    │
-│  │ └─ ThemeProvider (next-themes)                │    │
-│  │    └─ TooltipProvider (Radix UI)              │    │
-│  │       └─ PWAInstallProvider (Custom)          │    │
-│  │          └─ BrowserRouter (React Router v6)  │    │
-│  │             └─ Routes & Suspense              │    │
-│  └────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│  Page/Component Layer                                   │
-│  ├─ Layout: src/components/AppLayout.tsx               │
-│  │  ├─ AppSidebar (Desktop nav)                        │
-│  │  ├─ BottomNav (Mobile nav)                          │
-│  │  ├─ FABAddExpense (Floating action button)          │
-│  │  └─ GlobalSearch (Cmd+K palette)                    │
-│  │                                                      │
-│  ├─ Pages: src/pages/*.tsx (25+ pages)                 │
-│  │  ├─ Public: Index, Auth, Privacy, Terms             │
-│  │  ├─ Onboarding: Onboarding, Quiz                    │
-│  │  ├─ Features: Dashboard, Reports, Settings, etc.    │
-│  │  └─ (All lazy loaded via React.lazy())              │
-│  │                                                      │
-│  └─ Components: src/components/**/*.tsx                │
-│     ├─ Feature: CategoryGoalsManager, etc.             │
-│     ├─ UI: Shadcn/ui components                        │
-│     ├─ Feature dirs: chat/, gamification/, import/     │
-│     └─ Special: InstallPWA, PushOnboarding, etc.       │
-└─────────────────────────────────────────────────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
-│  Hooks Layer     │ │  Library Layer   │ │  Integration     │
-│  (React Query)   │ │  (Utils)         │ │  Layer           │
-│                  │ │                  │ │                  │
-│ ├─ useProfile   │ │ ├─ currencyUtils │ │ ├─ Supabase      │
-│ ├─ useExpenses  │ │ ├─ dateRange     │ │ │ Client         │
-│ ├─ useBilling   │ │ ├─ animations    │ │ │                │
-│ │  Cycle        │ │ ├─ financialCalc │ │ └─ Database      │
-│ ├─ useGoals     │ │ └─ storage       │ │    (RLS enabled) │
-│ ├─ useAccounts  │ │                  │ │                  │
-│ ├─ useExpenses  │ │ ├─ Validation    │ │ ├─ Auth          │
-│ │  Realtime     │ │ │ Schemas (Zod)  │ │ │ (Supabase Auth)│
-│ └─ ... (28+)    │ │ └─ (1 schema)    │ │ │                │
-│                  │ │                  │ │ └─ Storage       │
-│ React Query      │ │ Form Processing │ │    (Private      │
-│ manages state    │ │ & Formatting    │ │     buckets)     │
-│ lifecycle        │ │                  │ │                  │
-└──────────────────┘ └──────────────────┘ └──────────────────┘
-                           │
-                           ▼
-                    ┌──────────────────┐
-                    │ Edge Functions   │
-                    │ (Supabase)       │
-                    │                  │
-                    ├─ chat-assistant  │
-                    ├─ process-receipt │
-                    ├─ export-pdf      │
-                    ├─ export-data     │
-                    ├─ delete-account  │
-                    ├─ send-push-notif │
-                    └─ ... (10+ more)  │
-                    └──────────────────┘
-                           │
-                           ▼
-                    ┌──────────────────┐
-                    │ PostgreSQL DB    │
-                    │ (Supabase)       │
-                    │                  │
-                    ├─ expenses        │
-                    ├─ accounts        │
-                    ├─ categories      │
-                    ├─ category_goals  │
-                    ├─ budgets         │
-                    ├─ audit_logs      │
-                    └─ ... (20+ tables)│
-                    └──────────────────┘
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                      React SPA (PWA)                          │
+├──────────────────┬──────────────────┬───────────────────────┤
+│   Pages/Routes    │   Components     │   Hooks (React Query) │
+│  `src/pages/*`    │  `src/components`│  `src/hooks/*`        │
+└────────┬─────────┴────────┬─────────┴──────────┬────────────┘
+         │                  │                     │
+         ▼                  ▼                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│               Supabase JS Client (browser)                   │
+│         `src/integrations/supabase/client.ts`                 │
+└────────┬───────────────────────────────────────┬─────────────┘
+         │ REST/RPC/Realtime                      │ functions.invoke()
+         ▼                                         ▼
+┌────────────────────────────┐        ┌───────────────────────────┐
+│  Supabase Postgres + RLS    │        │  Supabase Edge Functions   │
+│  `supabase/migrations/*`    │        │  `supabase/functions/*`    │
+│  RPCs (get_billing_period,  │        │  Deno runtime, per-function│
+│  calculate_financial_health)│        │  auth check + CORS         │
+└────────────────────────────┘        └──────────────┬─────────────┘
+                                                       │ HTTP (JWT forwarded)
+                                                       ▼
+                                       ┌───────────────────────────┐
+                                       │  services/ai (Node/TS)     │
+                                       │  Provider-agnostic AI      │
+                                       │  domain/providers/prompts  │
+                                       └──────────────┬─────────────┘
+                                                       ▼
+                                       ┌───────────────────────────┐
+                                       │  External LLM provider     │
+                                       │  (Gemini today; adapter-   │
+                                       │  swappable via config.ts)  │
+                                       └───────────────────────────┘
 ```
 
 ## Component Responsibilities
 
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| App | Root component, provider hierarchy | `src/App.tsx` |
-| AppLayout | Main authenticated layout wrapper | `src/components/AppLayout.tsx` |
-| AppSidebar | Desktop navigation menu | `src/components/AppSidebar.tsx` |
-| BottomNav | Mobile navigation menu | `src/components/BottomNav.tsx` |
-| GlobalSearch | Command palette (Cmd+K) | `src/components/GlobalSearch.tsx` |
-| PWAInstallProvider | PWA install prompt context | `src/providers/PWAInstallProvider.tsx` |
-| Dashboard | Main dashboard page with overview | `src/pages/Dashboard.tsx` |
-| Reports | Reports with billing cycle support | `src/pages/Reports.tsx` |
-| AddExpense | Expense creation form | `src/pages/AddExpense.tsx` |
-| EditExpense | Expense editing page | `src/pages/EditExpense.tsx` |
-| ExpensesVirtualized | Large list with virtualization | `src/pages/ExpensesVirtualized.tsx` |
-| Settings | User settings page | `src/pages/Settings.tsx` |
-| AccountProfile | User profile management | `src/pages/AccountProfile.tsx` |
-| Accounts | Multiple account management | `src/pages/Accounts.tsx` |
-| Education | Financial education content | `src/pages/Education.tsx` |
-| Quiz | Interactive quiz | `src/pages/Quiz.tsx` |
-| FinancialHealth | Financial health metrics | `src/pages/FinancialHealth.tsx` |
-| Simulator | Budget/savings simulator | `src/pages/Simulator.tsx` |
-| ChatAssistant | AI financial advisor | `src/pages/ChatAssistant.tsx` |
-| RecurringExpenses | Recurring expense management | `src/pages/RecurringExpenses.tsx` |
-| CategoryGoalsManager | Budget limits per category | `src/components/CategoryGoalsManager.tsx` |
-| FinancialHealthScore | Health score display | `src/components/FinancialHealthScore.tsx` |
+| Router/Layout | Route guards (public/onboarding/authenticated), shell composition | `src/App.tsx` |
+| AppLayout | Sidebar + bottom nav + global search wrapper for authenticated pages | `src/components/AppLayout.tsx` |
+| Pages | Screen-level composition, data fetching orchestration | `src/pages/*.tsx` |
+| Hooks | React Query data access, business rules (billing cycle, goals, recurring) | `src/hooks/*.ts` |
+| Supabase client | Configured browser client, session persistence | `src/integrations/supabase/client.ts` |
+| Import pipeline UI | Statement/invoice upload, preview, confirm | `src/components/import/*`, `src/pages/ImportTransactions.tsx` |
+| Edge Functions | Server-side logic requiring service-role access or secrets | `supabase/functions/*/index.ts` |
+| AI Service | Provider-agnostic LLM orchestration used by edge functions | `services/ai/src/*` |
+| Migrations | Schema, RLS policies, RPC functions | `supabase/migrations/*.sql` |
 
 ## Pattern Overview
 
-**Overall:** Layered React SPA with React Router, React Query for state management, Supabase for backend, and PWA capabilities.
+**Overall:** Client-heavy SPA (Vite + React) backed by Supabase (Postgres + Auth + Realtime + Storage) for data, with a separate Node AI microservice fronted by edge functions for anything requiring an LLM call.
 
 **Key Characteristics:**
-- **Type-safe:** TypeScript + auto-generated Supabase types
-- **Lazy-loaded:** All pages code-split via React.lazy()
-- **Query-centric:** React Query (TanStack) manages all async state
-- **Real-time capable:** WebSocket subscriptions for live updates
-- **Progressive enhancement:** PWA with offline fallback
-- **Accessible:** Radix UI components + screen reader announcements
-- **Validation:** Client-side Zod schemas, server-side RLS + constraints
-- **Multi-account:** Support for multiple accounts per user
-- **Billing cycles:** Configurable 1-28 day cycles (not calendar months)
+- No custom backend server for CRUD — Supabase Postgres + RLS is the API layer; the browser talks to it directly via the JS client.
+- Edge functions are thin, task-specific Deno handlers (import processing, exports, notifications, AI features), not a general API gateway.
+- AI is fully decoupled behind `services/ai`; no app code or edge function talks to an LLM SDK directly.
+- Billing-cycle (not calendar-month) periods are a first-class domain concept threaded through hooks and a Postgres RPC.
+- Expense entry has a single path: import of bank statements/invoices. There is no manual expense-creation UI; `/add-expense` is a redirect-only route.
 
 ## Layers
 
-**Presentation Layer (Pages + Components):**
-- Purpose: Render UI and handle user interaction
+**Presentation (Pages/Components):**
+- Purpose: Render UI, collect input, trigger mutations/queries
 - Location: `src/pages/`, `src/components/`
-- Contains: React components (TSX files)
-- Depends on: Hooks, UI library (shadcn/ui), routing
-- Used by: React Router
+- Contains: Route-level pages, layout shell (`AppLayout.tsx`, `AppSidebar.tsx`, `BottomNav.tsx`), feature components (`components/import/*`, `components/chat/*`, `components/gamification/*`, `components/simulators/*`), shared UI primitives (`components/ui/*`, shadcn-based)
+- Depends on: Hooks layer for data, `src/lib/*` for formatting utilities
+- Used by: Router (`src/App.tsx`)
 
-**Hooks Layer (State & Data Management):**
-- Purpose: Manage data fetching, caching, mutations, and business logic
-- Location: `src/hooks/`
-- Contains: Custom React hooks using React Query (28+ hooks)
-- Key hooks: `useBillingCycle()`, `useProfile()`, `useCategoryGoals()`, `useExpensesRealtime()`, `usePushNotifications()`
-- Depends on: Supabase client, React Query
-- Used by: Pages and components
+**Data Access (Hooks):**
+- Purpose: Encapsulate Supabase queries/mutations via React Query, expose domain-shaped data to components
+- Location: `src/hooks/*.ts`
+- Contains: `useBillingCycle`, `useAccounts`, `useGoals`, `useCategoryGoals`, `useImportTransactions`, `useRecurringExpenses`, `useExpensesRealtime`, `useFinancialHealthScore`, `useChatAssistant`, `useInsights`, `usePushNotifications`, `useScheduledExports`, `useProfile`, etc.
+- Depends on: `src/integrations/supabase/client.ts`, `@tanstack/react-query`
+- Used by: Pages and feature components
 
-**Library/Utility Layer:**
-- Purpose: Reusable functions for formatting, calculations, validation
-- Location: `src/lib/`
-- Contains: Utility modules (currencyUtils, dateRange, financialCalculations, etc.)
-- Depends on: date-fns, zod
-- Used by: Hooks and components
-
-**Integration Layer:**
-- Purpose: Communicate with external services (Supabase, auth)
-- Location: `src/integrations/supabase/`
-- Contains: Supabase client initialization, auto-generated type definitions
-- Depends on: @supabase/supabase-js
+**Integration (Supabase client):**
+- Purpose: Single configured entry point to Postgres/Auth/Realtime/Storage/Functions
+- Location: `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts` (generated)
+- Depends on: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
 - Used by: All hooks
 
-**Edge Functions (Serverless):**
-- Purpose: Server-side logic, AI calls, file processing
-- Location: `supabase/functions/`
-- Contains: 14+ edge functions (TypeScript)
-- Depends on: OpenAI, external APIs
-- Called by: Frontend via `supabase.functions.invoke()`
+**Server Logic (Edge Functions):**
+- Purpose: Operations needing service-role privileges, secrets, cron triggers, or AI orchestration
+- Location: `supabase/functions/*/index.ts`, shared helpers in `supabase/functions/_shared/`
+- Depends on: `supabase/functions/_shared/aiService.ts` (for AI-backed functions), Supabase service-role client, `CRON_SECRET` (for cron-triggered ones)
+- Used by: Frontend via `supabase.functions.invoke(...)`, or Supabase cron schedules
 
-**Database Layer:**
-- Purpose: Persistent data storage with RLS enforcement
-- Location: Supabase PostgreSQL
-- Contains: 20+ tables with audit logging
-- Features: Row-level security, triggers, custom functions
+**AI Service (`services/ai`):**
+- Purpose: Provider-agnostic LLM capability layer, isolated from transport and app concerns
+- Location: `services/ai/src/`
+- Depends on: `services/ai/src/providers/types.ts` (interface only) from domain code; concrete providers implement it
+- Used by: Edge functions (`chat-assistant`, `generate-insights`, `process-import-file` for PDF fallback) via HTTP, through `_shared/aiService.ts`
+
+**Database (Postgres/RLS):**
+- Purpose: Source of truth, authorization boundary, cross-cutting business rules as RPCs/triggers
+- Location: `supabase/migrations/*.sql`
+- Contains: Tables (`expenses`, `accounts`, `recurring_expenses`, `category_goals`, `financial_health_scores`, `audit_logs`, `push_subscriptions`, `vapid_keys`, `chat_messages`, etc.), RLS policies, RPCs (`get_billing_period`, `calculate_financial_health_score`), audit triggers
 
 ## Data Flow
 
-### Primary Request Path (Add Expense Example)
+### Primary Request Path (expense import)
 
-1. **User Interaction** (`src/pages/AddExpense.tsx`)
-   - User fills form and submits
-   - Form validation via Zod schema
+1. User uploads a bank statement/invoice on `/import-transactions` (`src/pages/ImportTransactions.tsx`, `src/components/import/*`)
+2. Frontend calls `supabase.functions.invoke("process-import-file", ...)` (`src/hooks/useImportTransactions.ts`)
+3. Edge function validates the Bearer JWT, then parses deterministically via `supabase/functions/_shared/statementParser.ts` (CSV/OFX rule-based; PDF layered, falling back to AI only when the layout is unrecognized)
+4. Unrecognized PDF layout triggers `_shared/aiService.ts` → `services/ai` HTTP layer → provider adapter (Gemini) for extraction
+5. Parsed transactions are returned as a preview; user confirms; rows are inserted into `expenses` via the client or a follow-up function call
+6. React Query invalidates `expenses` queries; `/expenses` (`ExpensesVirtualized.tsx`) reflects the new rows
 
-2. **Mutation Call** (via hook `useAddExpense()` from `src/hooks/`)
-   - useMutation from React Query
-   - Calls Supabase client
+### Billing-Cycle Read Path
 
-3. **Backend Processing** (`src/integrations/supabase/client.ts`)
-   - Sends authenticated request to Supabase
-   - Includes auth token from localStorage
-
-4. **Database** (PostgreSQL via Supabase)
-   - RLS policy checks `auth.uid() = user_id`
-   - Triggers auto-create audit logs
-   - Edge functions may be invoked (e.g., notify-goal-threshold)
-
-5. **Response & Cache Update**
-   - React Query invalidates related queries
-   - Real-time subscribers notified via WebSocket
-   - Toast notification shown
-
-6. **UI Update**
-   - Dashboard refreshes via real-time or query invalidation
-   - Page navigates back or shows success message
+1. `useBillingCycle()` (`src/hooks/useBillingCycle.ts`) computes/resolves the user's `billing_cycle_day` and exposes `getCurrentCycle()`, `getDateCycle(date)`, `getCycleRange(months)`
+2. Reports/Dashboard/Goals pages call these instead of calendar-month boundaries
+3. Server-side aggregations (RPCs, edge functions needing period boundaries) call the Postgres function `get_billing_period(user_id, reference_date)` (`supabase/migrations/20251023213047_*.sql`) to stay consistent with the client
 
 **State Management:**
-- Client state: React Query (server sync)
-- UI state: Local component state (loading, form data)
-- User session: Supabase Auth (localStorage)
-- Real-time state: WebSocket subscriptions (useExpensesRealtime)
-
-### Billing Cycle Data Flow
-
-1. User profile has `billing_cycle_day` (1-28)
-2. `useBillingCycle()` hook uses `useProfile()` to get cycle day
-3. Hook calls `getCurrentBillingCycle()` utility (calculates date range)
-4. Pages/reports query expenses using cycle dates (not calendar months)
-5. Backend RPC `get_billing_period()` used for server calculations
-6. Reports always display cycle-aligned data
-
-### Real-Time Update Flow
-
-1. Component mounts → calls `useExpensesRealtime({ onUpdate: () => refetch() })`
-2. Hook creates Supabase channel subscription
-3. Database change → WebSocket message → React Query refetch
-4. Component unmounts → hook cleans up subscription (with 100ms delay)
-5. UI automatically reflects latest data
+- Server state lives in React Query (`QueryClientProvider` in `src/App.tsx`, 5-minute stale time, no refetch-on-focus)
+- Local/UI state uses component-level `useState`/`useReducer`; no global client state store (no Redux/Zustand)
+- Auth/session state comes from the Supabase client's persisted session (localStorage)
 
 ## Key Abstractions
 
 **Billing Cycle:**
-- Purpose: Support 1-28 day billing cycles instead of calendar months
-- Examples: `src/hooks/useBillingCycle.ts`, `src/lib/dateRange.ts`
-- Pattern: Configurable per user, used in all queries and reports
+- Purpose: Represents a user-configurable 1–28 day financial period instead of a calendar month
+- Examples: `src/hooks/useBillingCycle.ts`, `src/hooks/useBillingCycle.test.ts`, RPC `get_billing_period` in migrations
+- Pattern: Hook computes cycle boundaries client-side for UI; RPC recomputes identically server-side for aggregation/report queries — both must be used instead of calendar-month math
 
-**React Query Integration:**
-- Purpose: Centralized async state management with caching
-- Examples: All hooks (useProfile, useCategoryGoals, etc.)
-- Pattern: Custom hooks wrapping useQuery/useMutation
+**AI Capability (domain/provider split):**
+- Purpose: Decouple "what the AI does" (assistant chat, insights, transaction classification) from "which vendor answers it"
+- Examples: `services/ai/src/domain/FinancialAssistant.ts`, `FinancialInsights.ts`, `TransactionClassification.ts`; `services/ai/src/providers/gemini.ts`, `providers/fake.ts`
+- Pattern: Domain modules depend only on `providers/types.ts` (the `LLMProvider` interface); `services/ai/src/config.ts` is the single place selecting the concrete adapter via `AI_PROVIDER`
 
-**Real-time Subscriptions:**
-- Purpose: Live-update component state via WebSocket
-- Examples: `src/hooks/useExpensesRealtime.ts`
-- Pattern: Mounted ref to prevent unmount errors, 100ms cleanup delay
-
-**Supabase Edge Functions:**
-- Purpose: Serverless computation, external API calls
-- Examples: `supabase/functions/process-receipt/`, `chat-assistant/`
-- Pattern: Invoked via `supabase.functions.invoke()`, auth via Bearer token
-
-**Multi-Account:**
-- Purpose: Users can manage multiple accounts (wallets, cards, etc.)
-- Examples: `src/pages/Accounts.tsx`, `src/hooks/useAccounts.ts`
-- Pattern: Every expense links to account_id, account dashboard available
-
-**Form Validation:**
-- Purpose: Type-safe form handling with unified error messages
-- Examples: `src/schemas/profileSchema.ts`
-- Pattern: Zod schema → react-hook-form → UI display
-
-**Transfer Detection:**
-- Purpose: Mark internal transfers between accounts
-- Pattern: Expense with `is_transfer=true` and `transfer_pair_id`
-- Behavior: Not counted in spending analysis, budget calculations
+**Import/Parse Pipeline:**
+- Purpose: Deterministic-first extraction of transactions from bank files, AI only as fallback
+- Examples: `supabase/functions/_shared/statementParser.ts`, `supabase/functions/process-import-file/index.ts`
+- Pattern: Rule-based parsers per known layout; unknown layout escalates to `services/ai` via `_shared/aiService.ts`
 
 ## Entry Points
 
-**Application Entry:**
+**Frontend bootstrap:**
 - Location: `src/main.tsx`
-- Triggers: Browser load
-- Responsibilities: Service worker registration, React app mount
+- Triggers: App load; registers PWA service worker
+- Responsibilities: Mounts `<App />`, wires update prompts
 
-**App Component:**
+**App shell/router:**
 - Location: `src/App.tsx`
-- Triggers: After React mounts
-- Responsibilities: Provider hierarchy, route configuration, suspense boundaries
+- Triggers: Navigation
+- Responsibilities: Provider hierarchy (QueryClient → Theme → Tooltip → PWAInstall → BrowserRouter), route guards, lazy-loaded page routes
 
-**Auth Entry:**
-- Location: `src/pages/Auth.tsx` (route `/auth`)
-- Triggers: Unauthenticated users or manual navigation
-- Responsibilities: Login/signup with Supabase Auth
+**Edge Functions (current set — 13 directories under `supabase/functions/`, plus `_shared`):**
+- `chat-assistant` — AI financial-advice conversation, persists to `chat_messages`
+- `check-category-variations` — smart categorization suggestions
+- `delete-account` — full user-data purge
+- `export-data` — Excel export generation
+- `export-pdf` — PDF report generation
+- `generate-insights` — AI-powered spending analysis
+- `get-vapid-public-key` — VAPID key for push subscriptions
+- `notify-goal-threshold` — cron-triggered budget alerts (uses `X-Cron-Secret`, not user JWT)
+- `process-import-file` — bank statement/invoice import (CSV/OFX deterministic; PDF layered with AI fallback) — the sole expense-entry path
+- `process-recurring-expenses` — cron-triggered auto-generation of recurring transactions
+- `process-scheduled-exports` — cron-triggered execution of scheduled exports
+- `send-push-notification` — web push delivery
 
-**Onboarding:**
-- Location: `src/pages/Onboarding.tsx` (route `/onboarding`)
-- Guard: `src/routes/RequireOnboarding.tsx`
-- Triggers: First-time users without monthly goals
-- Responsibilities: Initial setup, theme preference, etc.
+Note: `process-receipt` (OCR-based manual receipt entry) was deleted from the repository; it no longer exists as a function or route. Do not reintroduce references to it.
 
-**Dashboard:**
-- Location: `src/pages/Dashboard.tsx` (route `/dashboard`)
-- Guard: Must be authenticated
-- Triggers: Authenticated users accessing home
-- Responsibilities: Overview, recent expenses, goals summary
+**services/ai HTTP entry:**
+- Location: `services/ai/src/http/server.ts`, `services/ai/src/http/app.ts`
+- Triggers: HTTP calls from edge functions via `_shared/aiService.ts`
+- Responsibilities: Route requests to domain capabilities, enforce auth (`http/auth.ts`), return typed responses/errors
 
 ## Architectural Constraints
 
-- **Threading:** Single-threaded JavaScript (Web Workers for SW only)
-- **Global state:** Minimal — Supabase Auth session in localStorage, React Query cache
-- **Circular imports:** None detected (layered architecture prevents this)
-- **PWA Limitations:** Offline support limited to cached content only (no offline database)
-- **Real-time Limitations:** WebSocket closes on unmount; subscriptions use 100ms cleanup delay
+- **Threading:** Single-threaded per request; edge functions run on Deno's isolate model (no shared in-process state across invocations); `services/ai` is a standard Node HTTP server (no worker threads observed)
+- **Global state:** None significant in the frontend beyond the React Query client instance and the Supabase client singleton (`src/integrations/supabase/client.ts`); avoid introducing module-level mutable state outside these
+- **Circular imports:** None identified; `services/ai` enforces a one-way dependency (`domain/` → `providers/types.ts` only) by convention, not by tooling — respect it manually when adding code
+- **No manual expense entry:** There is no form, FAB, quick-add drawer, or OCR path for creating expenses directly; all new expense-creation UI work should route to `/import-transactions`, not add a parallel entry point
 
 ## Anti-Patterns
 
-### Direct Database Access Without Error Handling
-**What happens:** Component directly calls supabase queries without try/catch
-**Why it's wrong:** Unhandled errors crash component, poor UX
-**Do this instead:** Use hooks (e.g., `useProfile()`) which handle errors via React Query
+### Skipping billing-cycle-aware queries
 
-### Stale Data from Calendar Months
-**What happens:** Code queries expenses by `startOfMonth()` instead of billing cycle
-**Why it's wrong:** Breaks for users with custom cycle days (reports show wrong data)
-**Do this instead:** Always use `useBillingCycle()` and `get_billing_period()` RPC
+**What happens:** New reporting/query code uses `startOfMonth`/`endOfMonth` (calendar month) to filter `expenses.date`
+**Why it's wrong:** Users configure a custom `billing_cycle_day` (1–28); calendar-month filtering silently shows wrong data for any user who isn't on a day-1 cycle
+**Do this instead:** Use `useBillingCycle().getCurrentCycle()` / `getDateCycle()` client-side, or the `get_billing_period()` RPC server-side
 
-### Missing Unmount Cleanup in Real-time Subscriptions
-**What happens:** Component unmounts with active WebSocket → "WebSocket is closed" errors
-**Why it's wrong:** Memory leaks, console spam, potential crash
-**Do this instead:** Use mounted ref pattern (see `useExpensesRealtime.ts`)
+### Direct LLM SDK calls from app or edge function code
 
-### Forms Without Zod Validation
-**What happens:** Manual validation in handlers, inconsistent error display
-**Why it's wrong:** Type-unsafe, duplicated validation logic
-**Do this instead:** Define Zod schema, use `react-hook-form` + `@hookform/resolvers/zod`
-
-### Query Invalidation Without Specific Keys
-**What happens:** `queryClient.invalidateQueries()` with broad key patterns
-**Why it's wrong:** Unnecessarily refetches unrelated queries
-**Do this instead:** Invalidate specific keys: `{ queryKey: ["expenses", userId] }`
+**What happens:** An edge function or frontend module imports a vendor SDK (e.g., a Gemini/OpenAI client) directly and calls it inline
+**Why it's wrong:** Breaks the provider-agnostic boundary, duplicates auth/redaction/retry logic, and risks leaking vendor-specific error text (billing, quota) to end users
+**Do this instead:** Call `supabase/functions/_shared/aiService.ts`, which forwards to `services/ai`; add new providers only inside `services/ai/src/providers/` plus a `config.ts` case
 
 ## Error Handling
 
-**Strategy:** Layered with client-side validation, React Query error states, and Supabase/Edge function responses.
+**Strategy:** Fail fast with typed/structured errors; surface user-safe messages only.
 
 **Patterns:**
-- **Form validation:** Zod schema validation before submission
-- **Query errors:** React Query catches, surfaces via `error` state
-- **Mutation errors:** Caught in `onError` callbacks, toast notification shown
-- **Auth errors:** Redirect to `/auth` on 401
-- **RLS violations:** Handled as 403 errors (data never reaches client)
-- **Edge function errors:** Returned as `{ error: string }`, handled in try/catch
-- **Network errors:** React Query retries with exponential backoff
+- Edge functions: explicit auth check before expensive work (`authHeader` presence + `supabaseClient.auth.getUser(token)` validity) returning 401 JSON on failure
+- `services/ai`: vendor/provider errors are normalized into `AIError` (`services/ai/src/shared/errors.ts`); only `publicMessage` is safe to show a user — never provider name, quota, or billing details
+- Frontend: React Query mutation `onError`/`onSuccess` pairs with toast notifications (`use-toast.ts`)
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- Console logs for PWA lifecycle (`[PWA]` prefix)
-- Realtime logger for WebSocket events (see `src/lib/realtimeLogger.ts`)
-- Supabase query logs (via Supabase dashboard)
-- Error tracking via browser console
-
-**Validation:**
-- Client: Zod schemas (`src/schemas/profileSchema.ts`)
-- Server: PostgreSQL constraints, RLS policies, trigger functions
-- Edge functions: Input validation before external API calls
-
-**Authentication:**
-- Mechanism: Supabase Auth (JWT tokens)
-- Storage: localStorage (auto-managed by Supabase client)
-- Refresh: Auto-refresh enabled in client config
-- Guard routes: React Router outlet wrappers (e.g., RequireOnboarding)
-- RLS: All tables check `auth.uid() = user_id`
-
-**Authorization:**
-- Policy: Row-level security on all tables
-- Enforcement: PostgreSQL policies, not application logic
-- User isolation: Each user sees only their own data
-
-**Caching:**
-- React Query: 5-minute stale time (configurable per query)
-- Service Worker: Workbox strategies for static assets
-- Browser: Cache-Control headers on edge functions
+**Logging:** Ad hoc `console.*` in frontend, with a dedicated `[Realtime]` prefix convention from `realtimeLogger.ts` for subscription lifecycle debugging; edge functions log to Supabase function logs
+**Validation:** Zod schemas (`src/schemas/*.ts`) where present (notably `AccountProfile.tsx`); several forms (`RecurringExpenses.tsx`, `EditExpense.tsx`) instead use `useState` + native HTML `required` — check the specific file before assuming Zod is used; server-side Postgres constraints/triggers as a second layer
+**Authentication:** Supabase Auth (JWT) for user-facing edge functions; `X-Cron-Secret` header compared to `CRON_SECRET` for cron-triggered functions (`notify-goal-threshold`, `process-recurring-expenses`, `process-scheduled-exports`)
 
 ---
-*Architecture analysis: 2026-08-15*
+
+*Architecture analysis: 2026-09-17*
