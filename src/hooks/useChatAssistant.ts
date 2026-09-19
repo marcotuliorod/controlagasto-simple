@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { messageFromInvokeError } from "@/lib/functionErrors";
 
 export interface ChatConversation {
   id: string;
@@ -89,7 +90,15 @@ export const useSendMessage = () => {
           if (controller.signal.aborted) {
             throw new Error('A resposta demorou demais. Tente novamente em instantes.');
           }
-          throw error;
+          // `error` é o FunctionsHttpError do SDK, cuja mensagem é sempre
+          // "Edge Function returned a non-2xx status code". O motivo real (ex.:
+          // IA sobrecarregada) está no corpo da resposta.
+          throw new Error(
+            await messageFromInvokeError(error, {
+              source: 'chat-assistant',
+              fallback: 'Não foi possível enviar a mensagem. Tente novamente em instantes.',
+            }),
+          );
         }
         return data;
       } finally {
