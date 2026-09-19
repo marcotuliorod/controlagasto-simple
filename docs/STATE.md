@@ -279,8 +279,8 @@ Caddy próprio, ver PR #19.
   todo push, até de PR só de frontend, passou a deixar um check vermelho. Com a
   IA já validada na VPS, os builds foram desativados na Vercel (ignore command
   `exit 0` + previews desligados), e `vercel.json`/`Dockerfile.vercel` saíram
-  do repo. O deploy antigo continua no ar até o projeto ser apagado no painel
-  (ação manual).
+  do repo. O projeto `controlagasto-ai` foi então **apagado** na Vercel
+  (19/09/2026), levando o deploy antigo e as imagens.
 - **Risco novo:** a VPS é agora o único host da IA e não há rollback
   pré-pronto. Se cair, as 4 funcionalidades de IA respondem 503 com mensagem
   explícita e o resto do app segue normal. Mitigação: o runbook
