@@ -358,6 +358,15 @@ All colors MUST be HSL.
 [data-visual="vidro"] .glass-strong { background-color: var(--glass-strong); }
 [data-visual="vidro"] .glass-soft { background-color: var(--glass-soft); }
 
+/* Bolha do assistente no chat: tinta, borda e realce do vidro, mas SEM
+   backdrop-filter — são dezenas de bolhas numa conversa e o fundo atrás é chapado,
+   então o desfoque só custaria rolagem. Borda por box-shadow inset para não mudar
+   o tamanho da bolha. */
+[data-visual="vidro"] .chat-bubble-assistant {
+  background-color: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-edge);
+}
+
 /* Fallback opaco: sem suporte a backdrop-filter, ou quando a pessoa pede menos
    transparência/mais contraste no sistema. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -373,7 +382,8 @@ All colors MUST be HSL.
     backdrop-filter: none;
   }
   [data-visual="vidro"] .glass,
-  [data-visual="vidro"] .glass-strong { background-color: hsl(var(--card)); }
+  [data-visual="vidro"] .glass-strong,
+  [data-visual="vidro"] .chat-bubble-assistant { background-color: hsl(var(--card)); }
   [data-visual="vidro"] .glass-soft { background-color: hsl(var(--accent)); }
 }
 
@@ -400,6 +410,15 @@ All colors MUST be HSL.
    (64px de barra + 14px de margem + área segura do aparelho). */
 @media (max-width: 767px) {
   [data-visual="vidro"] .app-main { padding-bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
+}
+
+/* Chat: a altura fixa (100vh - 4rem) ignora o cabeçalho do mobile e deixava o
+   campo de mensagem sob a barra inferior. Com a barra flutuante (main com
+   6.25rem de respiro) a conta passa a descontar cabeçalho + respiro. */
+@media (max-width: 767px) {
+  [data-visual="vidro"] .chat-page {
+    height: calc(100dvh - 3.6rem - 6.25rem - env(safe-area-inset-bottom));
+  }
 }
 
 /* O <Command> traz bg-popover opaco: dentro de um diálogo/popover de vidro ele

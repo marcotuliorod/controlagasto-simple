@@ -42,7 +42,7 @@ export default function MessageBubble({ role, content, timestamp }: MessageBubbl
         <div
           className={`rounded-2xl px-4 py-2 ${
             isAssistant
-              ? 'bg-muted text-foreground'
+              ? 'chat-bubble-assistant bg-muted text-foreground'
               : 'bg-primary text-primary-foreground'
           }`}
         >
