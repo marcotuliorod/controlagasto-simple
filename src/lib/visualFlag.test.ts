@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /*
- * A chave do visual "vidro" vive num <script> inline do index.html (precisa
+ * O visual "vidro" é o padrão; a chave (?visual=off) é a saída de emergência.
+ * Ela vive num <script> inline do index.html (precisa
  * rodar antes do React para não piscar). Este teste extrai esse script e o
  * executa no jsdom, então cobre o código que realmente vai para o navegador.
  */
@@ -25,52 +26,55 @@ describe("chave do visual vidro (index.html)", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("fica desligada por padrão", () => {
-    run();
-    expect(flag()).toBeNull();
-  });
-
-  it("?visual=vidro liga e persiste para as próximas visitas", () => {
-    window.history.pushState({}, "", "/?visual=vidro");
-    run();
-    expect(flag()).toBe("vidro");
-
-    document.documentElement.removeAttribute("data-visual");
-    window.history.pushState({}, "", "/dashboard");
+  it("fica ligada por padrão", () => {
     run();
     expect(flag()).toBe("vidro");
   });
 
-  it("?visual=off desliga mesmo depois de ligada", () => {
-    localStorage.setItem("visual", "vidro");
+  it("?visual=off desliga e persiste para as próximas visitas", () => {
     window.history.pushState({}, "", "/?visual=off");
     run();
+    expect(flag()).toBeNull();
 
+    window.history.pushState({}, "", "/dashboard");
+    run();
     expect(flag()).toBeNull();
     expect(localStorage.getItem("visual")).toBe("off");
   });
 
-  it("ignora valor desconhecido na URL", () => {
-    window.history.pushState({}, "", "/?visual=qualquer");
+  it("?visual=vidro religa mesmo depois de desligada", () => {
+    localStorage.setItem("visual", "off");
+    window.history.pushState({}, "", "/?visual=vidro");
     run();
 
-    expect(flag()).toBeNull();
-    expect(localStorage.getItem("visual")).toBeNull();
+    expect(flag()).toBe("vidro");
+    expect(localStorage.getItem("visual")).toBe("vidro");
   });
 
-  it("o default do build liga quando é 'vidro', mas a escolha da pessoa vence", () => {
-    run("vidro");
+  it("ignora valor desconhecido na URL e no armazenamento", () => {
+    window.history.pushState({}, "", "/?visual=qualquer");
+    run();
     expect(flag()).toBe("vidro");
+    expect(localStorage.getItem("visual")).toBeNull();
 
     document.documentElement.removeAttribute("data-visual");
-    localStorage.setItem("visual", "off");
-    run("vidro");
-    expect(flag()).toBeNull();
+    localStorage.setItem("visual", "lixo");
+    run();
+    expect(flag()).toBe("vidro");
   });
 
-  it("um default de build inesperado cai em desligado", () => {
-    run("qualquer-coisa");
+  it("o default do build 'off' desliga para todos, mas a escolha da pessoa vence", () => {
+    run("off");
     expect(flag()).toBeNull();
+
+    localStorage.setItem("visual", "vidro");
+    run("off");
+    expect(flag()).toBe("vidro");
+  });
+
+  it("um default de build inesperado cai no padrão (ligado)", () => {
+    run("qualquer-coisa");
+    expect(flag()).toBe("vidro");
   });
 
   it("não quebra quando localStorage está indisponível", () => {
@@ -83,6 +87,13 @@ describe("chave do visual vidro (index.html)", () => {
     });
     try {
       expect(() => run()).not.toThrow();
+      // sem armazenamento vale o padrão, e ?visual=off ainda funciona na sessão
+      expect(flag()).toBe("vidro");
+
+      document.documentElement.removeAttribute("data-visual");
+      window.history.pushState({}, "", "/?visual=off");
+      run();
+      expect(flag()).toBeNull();
     } finally {
       if (original) Object.defineProperty(window, "localStorage", original);
     }

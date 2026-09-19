@@ -46,7 +46,7 @@ VitePWA({
     name: 'Rinesk - Gestão Financeira',
     short_name: 'Rinesk',
     description: 'Aplicativo de gestão financeira pessoal',
-    theme_color: '#10b981',
+    theme_color: '#FFFFFF', // visual "vidro": branco puro (claro) e preto (escuro, via <meta theme-color media>)
     background_color: '#ffffff',
     display: 'standalone',
     orientation: 'portrait',
