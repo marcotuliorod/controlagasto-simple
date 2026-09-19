@@ -263,7 +263,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        <header className="bg-card p-6 rounded-md border border-border/50">
+        <header className="card-surface glass bg-card p-6 rounded-md border border-border/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Wallet className="w-8 h-8 text-primary" />

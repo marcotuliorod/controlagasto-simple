@@ -33,7 +33,7 @@ interface ExpenseData {
   };
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `hsl(var(--chart-${n}))`);
 
 /**
  * Envolve o botão de ciclo num tooltip — e some do caminho quando `enabled` é
@@ -480,7 +480,7 @@ export default function Reports() {
                     <Tooltip
                       formatter={(value: number) => `R$ ${value.toFixed(2)}`}
                     />
-                    <Bar dataKey="total" fill="#10b981" />
+                    <Bar dataKey="total" fill="hsl(var(--chart-1))" />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -498,7 +498,7 @@ export default function Reports() {
                         `${name}: ${(percent * 100).toFixed(0)}%`
                       }
                       outerRadius={80}
-                      fill="#8884d8"
+                      fill="hsl(var(--chart-1))"
                       dataKey="value"
                       onClick={(data) => {
                         const cat = filteredExpenses.find(

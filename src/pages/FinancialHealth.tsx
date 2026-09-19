@@ -193,28 +193,28 @@ const FinancialHealth = () => {
                   <Line 
                     type="monotone" 
                     dataKey="budget" 
-                    stroke="#3b82f6" 
+                    stroke="hsl(var(--chart-2))" 
                     strokeWidth={2}
                     name="Orçamento (40pts)"
                   />
                   <Line 
                     type="monotone" 
                     dataKey="quiz" 
-                    stroke="#a855f7" 
+                    stroke="hsl(var(--chart-3))" 
                     strokeWidth={2}
                     name="Quiz (20pts)"
                   />
                   <Line 
                     type="monotone" 
                     dataKey="consistency" 
-                    stroke="#10b981" 
+                    stroke="hsl(var(--chart-1))" 
                     strokeWidth={2}
                     name="Consistência (20pts)"
                   />
                   <Line 
                     type="monotone" 
                     dataKey="savings" 
-                    stroke="#f59e0b" 
+                    stroke="hsl(var(--chart-4))" 
                     strokeWidth={2}
                     name="Economia (20pts)"
                   />

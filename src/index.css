@@ -38,6 +38,14 @@ All colors MUST be HSL.
     --success: 100 18% 56%;
     --warning: 38 70% 55%;
     --info: 202 35% 62%;
+    /* Séries de gráfico do visual atual (hexes que Reports/FinancialHealth
+       tinham fixos). Sob [data-visual="vidro"] vêm da paleta A2-P, mais abaixo. */
+    --chart-1: 160 84% 39%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 258 90% 66%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+    --chart-6: 330 81% 60%;
 
     --border: 0 0% 92%;
     --input: 0 0% 94%;
@@ -397,3 +405,83 @@ All colors MUST be HSL.
 /* O <Command> traz bg-popover opaco: dentro de um diálogo/popover de vidro ele
    taparia o vidro do pai. */
 [data-visual="vidro"] .command-root { background-color: transparent; }
+
+/* Fundo do app é chapado no visual "vidro": os degradês de página
+   (from-background to-secondary/20) e o tom do cabeçalho do Score de Saúde
+   Financeira saem. Mesma dívida do bloco abaixo: na PR 8 as classes são
+   removidas dos componentes e esta regra sai. */
+[data-visual="vidro"] .bg-gradient-to-br { background-image: none; }
+
+/* Cores de status escritas como classe de paleta (text-green-500, bg-red-500/10…)
+   em ~26 arquivos. Sob a chave elas passam a seguir os tokens de status, que já
+   têm contraste ajustado para o fundo branco/preto. Sem a chave nada muda.
+   Dívida com prazo: na PR 8 (virada) as classes viram tokens nos componentes e
+   este bloco sai. src/lib/visualHooks.test.ts falha se surgir classe de paleta
+   sem regra aqui. Gerado a partir do que existe em src/ (família → token:
+   green→success, red→destructive, yellow/amber/orange→warning, blue→info). */
+[data-visual="vidro"] .bg-amber-500\/10 { background-color: hsl(var(--warning) / 0.1); }
+[data-visual="vidro"] .bg-blue-50 { background-color: hsl(var(--info) / 0.1); }
+[data-visual="vidro"] .bg-blue-500 { background-color: hsl(var(--info)); }
+[data-visual="vidro"] .bg-blue-500\/10 { background-color: hsl(var(--info) / 0.1); }
+[data-visual="vidro"] .bg-green-100 { background-color: hsl(var(--success) / 0.1); }
+[data-visual="vidro"] .bg-green-50 { background-color: hsl(var(--success) / 0.1); }
+[data-visual="vidro"] .bg-green-500 { background-color: hsl(var(--success)); }
+[data-visual="vidro"] .bg-green-500\/10 { background-color: hsl(var(--success) / 0.1); }
+[data-visual="vidro"] .bg-green-600 { background-color: hsl(var(--success)); }
+[data-visual="vidro"] .bg-green-700 { background-color: hsl(var(--success)); }
+[data-visual="vidro"] .bg-orange-500 { background-color: hsl(var(--warning)); }
+[data-visual="vidro"] .bg-purple-500 { background-color: hsl(var(--chart-4)); }
+[data-visual="vidro"] .bg-purple-500\/10 { background-color: hsl(var(--chart-4) / 0.1); }
+[data-visual="vidro"] .bg-red-50 { background-color: hsl(var(--destructive) / 0.1); }
+[data-visual="vidro"] .bg-red-50\/50 { background-color: hsl(var(--destructive) / 0.5); }
+[data-visual="vidro"] .bg-red-500\/10 { background-color: hsl(var(--destructive) / 0.1); }
+[data-visual="vidro"] .bg-yellow-100 { background-color: hsl(var(--warning) / 0.1); }
+[data-visual="vidro"] .bg-yellow-50 { background-color: hsl(var(--warning) / 0.1); }
+[data-visual="vidro"] .bg-yellow-50\/50 { background-color: hsl(var(--warning) / 0.5); }
+[data-visual="vidro"] .bg-yellow-500 { background-color: hsl(var(--warning)); }
+[data-visual="vidro"] .bg-yellow-500\/10 { background-color: hsl(var(--warning) / 0.1); }
+[data-visual="vidro"] .border-amber-500\/30 { border-color: hsl(var(--warning) / 0.3); }
+[data-visual="vidro"] .border-blue-200 { border-color: hsl(var(--info) / 0.3); }
+[data-visual="vidro"] .border-blue-500\/20 { border-color: hsl(var(--info) / 0.2); }
+[data-visual="vidro"] .border-blue-500\/30 { border-color: hsl(var(--info) / 0.3); }
+[data-visual="vidro"] .border-green-200 { border-color: hsl(var(--success) / 0.3); }
+[data-visual="vidro"] .border-green-500 { border-color: hsl(var(--success)); }
+[data-visual="vidro"] .border-green-500\/20 { border-color: hsl(var(--success) / 0.2); }
+[data-visual="vidro"] .border-purple-500\/30 { border-color: hsl(var(--chart-4) / 0.3); }
+[data-visual="vidro"] .border-red-200 { border-color: hsl(var(--destructive) / 0.3); }
+[data-visual="vidro"] .border-red-500 { border-color: hsl(var(--destructive)); }
+[data-visual="vidro"] .border-red-500\/20 { border-color: hsl(var(--destructive) / 0.2); }
+[data-visual="vidro"] .border-yellow-200 { border-color: hsl(var(--warning) / 0.3); }
+[data-visual="vidro"] .border-yellow-500\/20 { border-color: hsl(var(--warning) / 0.2); }
+[data-visual="vidro"] .dark\:bg-blue-950 { background-color: hsl(var(--info) / 0.14); }
+[data-visual="vidro"] .dark\:bg-green-950\/30 { background-color: hsl(var(--success) / 0.14); }
+[data-visual="vidro"] .dark\:bg-red-950\/20 { background-color: hsl(var(--destructive) / 0.14); }
+[data-visual="vidro"] .dark\:bg-red-950\/30 { background-color: hsl(var(--destructive) / 0.14); }
+[data-visual="vidro"] .dark\:bg-yellow-950\/20 { background-color: hsl(var(--warning) / 0.14); }
+[data-visual="vidro"] .dark\:bg-yellow-950\/30 { background-color: hsl(var(--warning) / 0.14); }
+[data-visual="vidro"] .dark\:border-blue-800 { border-color: hsl(var(--info) / 0.3); }
+[data-visual="vidro"] .dark\:border-green-800 { border-color: hsl(var(--success) / 0.3); }
+[data-visual="vidro"] .dark\:border-red-800 { border-color: hsl(var(--destructive) / 0.3); }
+[data-visual="vidro"] .dark\:border-yellow-800 { border-color: hsl(var(--warning) / 0.3); }
+[data-visual="vidro"] .dark\:text-blue-400 { color: hsl(var(--info)); }
+[data-visual="vidro"] .dark\:text-green-400 { color: hsl(var(--success)); }
+[data-visual="vidro"] .dark\:text-green-500 { color: hsl(var(--success)); }
+[data-visual="vidro"] .dark\:text-red-400 { color: hsl(var(--destructive)); }
+[data-visual="vidro"] .dark\:text-red-500 { color: hsl(var(--destructive)); }
+[data-visual="vidro"] .dark\:text-yellow-400 { color: hsl(var(--warning)); }
+[data-visual="vidro"] .dark\:text-yellow-500 { color: hsl(var(--warning)); }
+[data-visual="vidro"] .text-amber-500 { color: hsl(var(--warning)); }
+[data-visual="vidro"] .text-blue-500 { color: hsl(var(--info)); }
+[data-visual="vidro"] .text-blue-600 { color: hsl(var(--info)); }
+[data-visual="vidro"] .text-blue-700 { color: hsl(var(--info)); }
+[data-visual="vidro"] .text-green-500 { color: hsl(var(--success)); }
+[data-visual="vidro"] .text-green-600 { color: hsl(var(--success)); }
+[data-visual="vidro"] .text-green-700 { color: hsl(var(--success)); }
+[data-visual="vidro"] .text-orange-500 { color: hsl(var(--warning)); }
+[data-visual="vidro"] .text-purple-500 { color: hsl(var(--chart-4)); }
+[data-visual="vidro"] .text-red-500 { color: hsl(var(--destructive)); }
+[data-visual="vidro"] .text-red-600 { color: hsl(var(--destructive)); }
+[data-visual="vidro"] .text-red-700 { color: hsl(var(--destructive)); }
+[data-visual="vidro"] .text-yellow-500 { color: hsl(var(--warning)); }
+[data-visual="vidro"] .text-yellow-600 { color: hsl(var(--warning)); }
+[data-visual="vidro"] .text-yellow-700 { color: hsl(var(--warning)); }

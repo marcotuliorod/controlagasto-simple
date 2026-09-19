@@ -88,7 +88,7 @@ export function InsightsCard() {
   }
 
   return (
-    <Card className="p-6 shadow-card">
+    <Card className="glass-soft p-6 shadow-card">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-5 h-5 text-accent" />
         <h2 className="text-xl font-semibold">Insights Personalizados</h2>
