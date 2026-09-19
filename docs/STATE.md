@@ -273,11 +273,23 @@ Caddy próprio, ver PR #19.
   traefik-traefik-1` (fora do nosso compose, mas necessário).
 - Corte: `npx supabase secrets set AI_SERVICE_URL=https://ai.mtrm.tech`.
   `curl https://ai.mtrm.tech/health` → 200 com certificado TLS de verdade.
-- Vercel do `services/ai` mantido no ar como rollback (não desprovisionado).
+- ~~Vercel do `services/ai` mantido no ar como rollback~~ **Desligado em
+  19/09/2026.** O registro de imagens do projeto `controlagasto-ai` encheu
+  (`denied: repository has reached the maximum allowed number of images`) e
+  todo push, até de PR só de frontend, passou a deixar um check vermelho. Com a
+  IA já validada na VPS, os builds foram desativados na Vercel (ignore command
+  `exit 0` + previews desligados), e `vercel.json`/`Dockerfile.vercel` saíram
+  do repo. O deploy antigo continua no ar até o projeto ser apagado no painel
+  (ação manual).
+- **Risco novo:** a VPS é agora o único host da IA e não há rollback
+  pré-pronto. Se cair, as 4 funcionalidades de IA respondem 503 com mensagem
+  explícita e o resto do app segue normal. Mitigação: o runbook
+  (`deploy/ai-service/README.md`, item 6) reimplanta em outro host; guardar
+  uma cópia do `.env` da VPS fora dela.
 - **Validada de ponta a ponta (19/09/2026)**: chat respondeu no app real
   (`app → edge function → ai.mtrm.tech → Gemini`), confirmado por
   `chat_replied` nos logs do container da VPS. Falta só o período de
-  estabilidade antes de desprovisionar a Vercel ou começar a Fase C.
+  estabilidade antes de começar a Fase C.
 - Detalhe do chat: a resposta vinha em markdown e era mostrada com
   asteriscos literais; o PR #22 passou a renderizá-la com `react-markdown`
   (só a resposta do assistente; sem `rehype-raw` de propósito, é o que
