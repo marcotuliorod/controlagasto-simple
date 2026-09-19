@@ -167,7 +167,10 @@ export function FileUploadZone({
         isDragging 
           ? "border-primary bg-primary/10" 
           : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
-        error && "border-destructive"
+        error && "border-destructive",
+        // Vidro só em repouso: o `glass` do visual "vidro" sobrescreve borda e
+        // fundo, e apagaria o feedback de arrastar e de erro.
+        !isDragging && !error && "glass"
       )}
       role="button"
       tabIndex={0}
