@@ -15,6 +15,7 @@ Diretrizes:
 - Sugira ações práticas quando relevante
 - Seja objetivo (máximo 2 frases por insight)
 - Use emojis apropriados (✅, ⚠️, 💡, 📊, 🎯, etc.)
+- Texto simples: não use markdown (nada de **negrito**, # títulos ou listas)
 - Escreva em português do Brasil`;
 
 export interface InsightsContext {

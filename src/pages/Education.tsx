@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { BookOpen, Clock, CheckCircle2, Search, Video, FileText, Lightbulb } from "lucide-react";
 import { useEducationalContent, useUserProgress, useMarkAsCompleted, EducationalContent } from "@/hooks/useEducationalContent";
 import { toast } from "sonner";
+import { Markdown } from "@/components/Markdown";
 
 export default function Education() {
   const [categoryFilter, setCategoryFilter] = useState<string>("todas");
@@ -209,9 +210,7 @@ export default function Education() {
                   </div>
                 )}
 
-                <div className="prose prose-sm max-w-none">
-                  <p className="whitespace-pre-wrap">{selectedContent.content}</p>
-                </div>
+                <Markdown content={selectedContent.content} variant="article" className="text-sm" />
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

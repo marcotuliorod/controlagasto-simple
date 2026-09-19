@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { Markdown } from "@/components/Markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Lightbulb, AlertCircle, CheckCircle2, TrendingUp, RefreshCw } from "lucide-react";
@@ -120,7 +121,7 @@ export function InsightsCard() {
               {getInsightIcon(insight.type)}
             </div>
             <div className="flex-1">
-              <p className="text-sm leading-relaxed">{insight.message}</p>
+              <Markdown inline content={insight.message} className="text-sm leading-relaxed" />
             </div>
           </div>
         ))}

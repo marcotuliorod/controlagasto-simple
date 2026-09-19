@@ -41,6 +41,16 @@ describe("FinancialAssistant.ask", () => {
     expect(system).toContain("72/100");
   });
 
+  // O app renderiza markdown sem GFM (src/components/Markdown.tsx): tabela e
+  // título chegariam como texto cru.
+  it("pede formatação compatível com o renderizador do app", async () => {
+    const provider = createFakeProvider({ respondWith: "ok" });
+    await createFinancialAssistant(provider).ask({ question: "e aí?", context });
+
+    const system = provider.calls[0]!.system ?? "";
+    expect(system).toMatch(/Não use tabelas/);
+  });
+
   // O chat-assistant antigo interpolava profile.name direto no prompt.
   it("não envia o nome real do usuário no system prompt", async () => {
     const provider = createFakeProvider({ respondWith: "ok" });

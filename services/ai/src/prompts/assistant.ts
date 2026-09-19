@@ -73,5 +73,6 @@ Diretrizes importantes:
 - Sempre que relevante, mencione o score de saúde financeira e como melhorá-lo
 - Sugira funcionalidades do app quando apropriado (simuladores, conteúdo educacional, quiz)
 - Mantenha respostas concisas mas completas (máximo 3-4 parágrafos)
+- Formate com markdown simples: parágrafos curtos, listas e **negrito**. Não use tabelas, títulos (#) nem blocos de código
 - Você não sabe o nome do usuário; não invente um nem peça para ele se identificar`;
 }

@@ -1,5 +1,5 @@
 import { Bot, User } from "lucide-react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import { Markdown } from "@/components/Markdown";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface MessageBubbleProps {
@@ -7,25 +7,6 @@ interface MessageBubbleProps {
   content: string;
   timestamp: string;
 }
-
-/*
- * O modelo responde em markdown (negrito, itálico, listas). react-markdown não
- * usa dangerouslySetInnerHTML: HTML cru no texto é escapado, e `javascript:` em
- * link é filtrado por padrão. Não adicionar `rehype-raw` — reabre essa porta.
- * Só o assistente passa por aqui; o que o usuário digita fica como texto.
- */
-const markdownComponents: Components = {
-  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
-  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-  a: ({ children, href }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
-      {children}
-    </a>
-  ),
-  code: ({ children }) => <code className="rounded bg-background/60 px-1 py-0.5 text-xs">{children}</code>,
-};
 
 export default function MessageBubble({ role, content, timestamp }: MessageBubbleProps) {
   const isAssistant = role === 'assistant';
@@ -47,9 +28,7 @@ export default function MessageBubble({ role, content, timestamp }: MessageBubbl
           }`}
         >
           {isAssistant ? (
-            <div className="text-sm break-words">
-              <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
-            </div>
+            <Markdown content={content} variant="compact" className="text-sm" />
           ) : (
             <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
           )}
