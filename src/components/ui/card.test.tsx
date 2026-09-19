@@ -21,10 +21,13 @@ describe("Card", () => {
     expect(el.classList.contains("border")).toBe(true);
   });
 
-  it("usa o raio do token, que hoje vale o mesmo que rounded-md", () => {
+  it("mantém rounded-md: os E2E de recorrentes e exports agendados localizam o card por essa classe", () => {
     const { container } = render(<Card>x</Card>);
+    const el = container.firstElementChild as HTMLElement;
 
-    expect((container.firstElementChild as HTMLElement).classList.contains("rounded-card")).toBe(true);
+    expect(el.matches("div.rounded-md")).toBe(true);
+    // O raio maior do visual "vidro" vem de outra classe, não de trocar rounded-md.
+    expect(el.classList.contains("card-surface")).toBe(true);
   });
 
   it("mantém className recebido e demais props", () => {

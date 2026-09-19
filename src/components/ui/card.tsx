@@ -18,7 +18,10 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant =
   <div
     ref={ref}
     className={cn(
-      "rounded-card bg-card text-card-foreground border border-border/50",
+      // `rounded-md` é a classe que e2e/recurring-expenses e e2e/scheduled-exports
+      // usam para achar o card: não trocar. O raio maior do visual "vidro" vem de
+      // `card-surface` (src/index.css), que só age sob [data-visual="vidro"].
+      "card-surface rounded-md bg-card text-card-foreground border border-border/50",
       variant === "glass" && "glass",
       className,
     )}

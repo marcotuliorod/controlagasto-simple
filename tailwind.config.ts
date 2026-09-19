@@ -106,7 +106,6 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 1px)",
         sm: "calc(var(--radius) - 2px)",
-        card: "var(--radius-card)",
       },
       fontFamily: {
         sans: ['var(--font-sans)'],

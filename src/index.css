@@ -329,6 +329,10 @@ All colors MUST be HSL.
   --chart-6: 201 17% 67%;
 }
 
+/* Raio dos cards. O <Card> continua com `rounded-md` (os E2E o usam como
+   seletor); aqui, com a chave ligada, ele passa a valer --radius-card. */
+[data-visual="vidro"] .card-surface { border-radius: var(--radius-card); }
+
 /* .glass: cards de destaque · .glass-strong: navegação, sheets, diálogos,
    popovers (ficam sobre conteúdo, precisam de mais opacidade) · .glass-soft:
    insights e avisos. Especificidade (0,2,0) vence as utilitárias bg-* que os
