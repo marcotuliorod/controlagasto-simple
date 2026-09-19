@@ -4,21 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#3B82F6" />
-    <!-- Chave do visual "vidro" (branco/preto com cards translúcidos). Roda antes
-         do React para o atributo já estar no <html> no primeiro paint (sem
-         flash). ?visual=vidro|off grava a escolha no navegador; sem escolha vale
-         o default do build (VITE_VISUAL_DEFAULT). Lógica coberta por
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <!-- Visual "vidro" (branco/preto com cards translúcidos) é o padrão do app.
+         Este script roda antes do React para o atributo já estar no <html> no
+         primeiro paint (sem flash). ?visual=off volta ao visual anterior e
+         ?visual=vidro volta ao novo; a escolha fica no navegador. Para desligar
+         para todo mundo, buildar com VITE_VISUAL_DEFAULT=off. Sem localStorage
+         (aba privada, bloqueio) vale o padrão. Lógica coberta por
          src/lib/visualFlag.test.ts, que executa este script. -->
     <script data-visual-flag>
       (function () {
+        var v = '%VITE_VISUAL_DEFAULT%' === 'off' ? 'off' : 'vidro';
+        var q = null;
+        try { q = new URLSearchParams(location.search).get('visual'); } catch (e) {}
+        var chosen = q === 'vidro' || q === 'off';
         try {
-          var build = '%VITE_VISUAL_DEFAULT%' === 'vidro' ? 'vidro' : 'off';
-          var q = new URLSearchParams(location.search).get('visual');
-          if (q === 'vidro' || q === 'off') localStorage.setItem('visual', q);
-          var v = localStorage.getItem('visual') || build;
-          if (v === 'vidro') document.documentElement.setAttribute('data-visual', 'vidro');
+          if (chosen) localStorage.setItem('visual', q);
+          else {
+            var s = localStorage.getItem('visual');
+            if (s === 'vidro' || s === 'off') v = s;
+          }
         } catch (e) {}
+        if (chosen) v = q;
+        if (v === 'vidro') document.documentElement.setAttribute('data-visual', 'vidro');
       })();
     </script>
     <meta name="mobile-web-app-capable" content="yes" />
