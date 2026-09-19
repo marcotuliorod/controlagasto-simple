@@ -75,7 +75,7 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 gradient-primary">
-      <Card className="w-full max-w-md p-8 shadow-hover">
+      <Card variant="glass" className="w-full max-w-md p-8 shadow-hover">
         <Progress value={(step / TOTAL_STEPS) * 100} className="mb-6" />
 
         {step === 1 && (

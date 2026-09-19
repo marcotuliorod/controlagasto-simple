@@ -71,7 +71,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md p-8">
+      <Card variant="glass" className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <Wallet className="w-8 h-8 text-primary" />
