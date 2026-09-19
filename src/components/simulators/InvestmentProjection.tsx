@@ -136,7 +136,7 @@ export const InvestmentProjection = () => {
                     />
                     <Legend />
                     <Bar dataKey="contribuicoes" fill="hsl(var(--primary))" name="Contribuições" />
-                    <Bar dataKey="rendimentos" fill="#10b981" name="Rendimentos" />
+                    <Bar dataKey="rendimentos" fill="hsl(var(--chart-1))" name="Rendimentos" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

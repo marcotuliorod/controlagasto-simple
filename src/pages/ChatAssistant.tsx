@@ -52,7 +52,7 @@ export default function ChatAssistant() {
   };
 
   return (
-    <div className="container max-w-4xl mx-auto p-4 h-[calc(100vh-4rem)]">
+    <div className="chat-page container max-w-4xl mx-auto p-4 h-[calc(100vh-4rem)]">
       <div className="flex flex-col h-full gap-4">
         {/* Header */}
         <div className="flex items-center justify-between">

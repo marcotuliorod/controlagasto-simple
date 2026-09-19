@@ -18,6 +18,8 @@ const hooks: Array<[string, string[]]> = [
   ["app-main", ["src/components/AppLayout.tsx"]],
   ["app-bottom-nav", ["src/components/BottomNav.tsx"]],
   ["command-root", ["src/components/ui/command.tsx"]],
+  ["chat-bubble-assistant", ["src/components/chat/MessageBubble.tsx"]],
+  ["chat-page", ["src/pages/ChatAssistant.tsx"]],
 ];
 
 describe("ganchos do visual vidro", () => {
