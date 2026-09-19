@@ -368,3 +368,32 @@ All colors MUST be HSL.
   [data-visual="vidro"] .glass-strong { background-color: hsl(var(--card)); }
   [data-visual="vidro"] .glass-soft { background-color: hsl(var(--accent)); }
 }
+
+/* ---- Casca do app (PR 2) -------------------------------------------------
+   Ganchos em AppLayout, BottomNav e Command. Só valem com a chave ligada; o
+   teste src/lib/visualHooks.test.ts garante que cada gancho usado nos
+   componentes tem regra aqui. */
+
+/* Fundo chapado: some o degradê from-background → secondary do layout. */
+[data-visual="vidro"] .app-shell { background-image: none; }
+
+/* Barra inferior flutuante (só existe no mobile: md:hidden). */
+[data-visual="vidro"] .app-bottom-nav {
+  left: 0.875rem;
+  right: 0.875rem;
+  bottom: calc(0.875rem + env(safe-area-inset-bottom));
+  border-width: 1px;
+  border-radius: 1.75rem;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+/* Sem isso o fim da página ficaria escondido atrás da barra flutuante
+   (64px de barra + 14px de margem + área segura do aparelho). */
+@media (max-width: 767px) {
+  [data-visual="vidro"] .app-main { padding-bottom: calc(6.25rem + env(safe-area-inset-bottom)); }
+}
+
+/* O <Command> traz bg-popover opaco: dentro de um diálogo/popover de vidro ele
+   taparia o vidro do pai. */
+[data-visual="vidro"] .command-root { background-color: transparent; }

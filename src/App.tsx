@@ -52,7 +52,7 @@ const queryClient = new QueryClient({
 });
 
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
+  <div className="app-shell min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
     <Loader2 className="h-12 w-12 animate-spin text-primary" />
   </div>
 );

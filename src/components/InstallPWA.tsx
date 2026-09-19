@@ -54,7 +54,7 @@ export default function InstallPWA() {
   if (isIOS && !isStandalone) {
     return (
       <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-md">
-        <Card className="border-primary/20 shadow-lg">
+        <Card className="glass-strong border-primary/20 shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -112,7 +112,7 @@ export default function InstallPWA() {
   if (canInstall) {
     return (
       <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-md">
-        <Card className="border-primary/20 shadow-lg">
+        <Card className="glass-strong border-primary/20 shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">

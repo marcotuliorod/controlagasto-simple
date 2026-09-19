@@ -17,16 +17,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
         Pular para o conteúdo principal
       </a>
       
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-secondary/20">
+      <div className="app-shell flex min-h-screen w-full bg-gradient-to-br from-background to-secondary/20">
         {/* Desktop Sidebar - Semantic HTML */}
         <aside className="hidden md:block" aria-label="Menu lateral de navegação">
           <AppSidebar />
         </aside>
 
         {/* Main Content - Semantic HTML with ID for skip link */}
-        <main id="main-content" className="flex-1 pb-16 md:pb-0 overflow-x-hidden" role="main">
+        <main id="main-content" className="app-main flex-1 pb-16 md:pb-0 overflow-x-hidden" role="main">
           {/* Mobile trigger */}
-          <header className="md:hidden sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card/95 backdrop-blur px-4">
+          <header className="glass-strong md:hidden sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card/95 backdrop-blur px-4">
             <SidebarTrigger aria-label="Abrir menu de navegação" />
             <h1 className="text-sm font-semibold">Entenda Gastos</h1>
           </header>
