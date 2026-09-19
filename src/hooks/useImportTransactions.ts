@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { TransactionClassification } from "@/lib/bankPatterns";
+import { messageFromInvokeError } from '@/lib/functionErrors';
 
 export interface ParsedTransaction {
   date: string;
@@ -110,37 +111,6 @@ export const MAX_FILE_SIZE_MB_BY_EXTENSION: Record<string, number> = {
   '.pdf': MAX_FILE_SIZE_MB.pdf,
 };
 
-/**
- * Extrai a mensagem que a edge function escreveu no corpo da resposta.
- *
- * `supabase.functions.invoke` devolve `data: null` em qualquer status não-2xx,
- * então o `data.error` em português nunca era lido e o usuário via
- * "Edge Function returned a non-2xx status code". A resposta crua fica em
- * `error.context`; é de lá que a mensagem tem que sair.
- */
-async function messageFromInvokeError(error: unknown): Promise<string> {
-  const context = (error as { context?: unknown })?.context;
-
-  if (context instanceof Response) {
-    try {
-      const body = await context.clone().json();
-      if (typeof body?.error === 'string' && body.error.trim()) {
-        return body.error;
-      }
-    } catch {
-      // Corpo não-JSON (timeout de gateway, HTML de erro): cai no genérico.
-    }
-
-    if (context.status === 504 || context.status === 408) {
-      return 'O processamento demorou demais. Tente um arquivo menor ou exporte o extrato em CSV.';
-    }
-  }
-
-  // Nunca repassar `error.message` aqui: é sempre a mensagem em inglês do SDK.
-  console.error('Falha na chamada de process-import-file:', error);
-  return 'Não foi possível processar o arquivo. Tente novamente ou exporte o extrato em CSV.';
-}
-
 export function useImportTransactions() {
   const queryClient = useQueryClient();
 
@@ -177,7 +147,15 @@ export function useImportTransactions() {
         }
       });
 
-      if (error) throw new Error(await messageFromInvokeError(error));
+      if (error) {
+        throw new Error(
+          await messageFromInvokeError(error, {
+            source: 'process-import-file',
+            timeout: 'O processamento demorou demais. Tente um arquivo menor ou exporte o extrato em CSV.',
+            fallback: 'Não foi possível processar o arquivo. Tente novamente ou exporte o extrato em CSV.',
+          }),
+        );
+      }
       if (!data?.success) {
         throw new Error(data?.error || 'Não foi possível processar o arquivo.');
       }
