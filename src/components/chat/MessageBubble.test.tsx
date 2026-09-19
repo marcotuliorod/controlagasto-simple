@@ -62,4 +62,14 @@ describe("MessageBubble", () => {
     expect(container.querySelector("strong")).toBeNull();
     expect(container.textContent).toContain("**10%**");
   });
+
+  it("renderiza título e itálico do assistente", () => {
+    const { container } = render(
+      <MessageBubble role="assistant" content={"## Resumo\n\nSeu gasto está *estável*"} timestamp={TS} />,
+    );
+
+    expect(container.querySelector("h2")?.textContent).toBe("Resumo");
+    expect(container.querySelector("em")?.textContent).toBe("estável");
+    expect(container.textContent).not.toMatch(/##|\*/);
+  });
 });

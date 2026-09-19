@@ -45,6 +45,15 @@ describe("FinancialInsights.generate", () => {
     expect(prompt).not.toMatch(/CPF|comerciante|merchant/i);
   });
 
+  // O insight é exibido em <Markdown inline>; texto com **, # ou listas só
+  // atrapalha. O prompt pede texto simples.
+  it("pede texto simples, sem markdown", async () => {
+    const provider = createFakeProvider({ respondWith: validInsights });
+    await createFinancialInsights(provider).generate(context);
+
+    expect(provider.calls[0]!.system ?? "").toMatch(/não use markdown/i);
+  });
+
   it("limita a 4 insights", async () => {
     const provider = createFakeProvider({
       respondWith: JSON.stringify({
