@@ -132,6 +132,13 @@ entre plataformas é como as duas divergem em silêncio.
   pública a ela. Só com `services`, a imagem sobe no registry e mesmo assim
   toda rota responde 404 — o build avisa `no "functions" or "static"
   directory` e é fácil ler isso como falha de build, quando é falta de rota.
+- `ignoreCommand` (`git diff --quiet HEAD^ HEAD -- .`): este projeto só builda
+  quando algo dentro de `services/ai` muda no último commit. Sem isso, todo
+  push do frontend gerava uma imagem no registry da Vercel, que tem teto de
+  imagens — cheio, o build falha com `denied: repository has reached the
+  maximum allowed number of images` e o check "Vercel – controlagasto-ai"
+  fica vermelho em PRs que nem tocam o serviço. Se acontecer mesmo assim,
+  apague imagens antigas em Sandboxes → Container Registry.
 - O `HEALTHCHECK` do Dockerfile é ignorado aqui (`not supported for OCI image
   format`). Continua valendo para container/VPS.
 
