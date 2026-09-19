@@ -71,7 +71,7 @@ export default function Settings() {
         </p>
       </div>
 
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Bell className="h-5 w-5 text-primary" />
@@ -150,7 +150,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Download className="h-5 w-5 text-primary" />

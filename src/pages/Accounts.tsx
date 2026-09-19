@@ -90,7 +90,7 @@ const Accounts = () => {
           id="accounts-balance-card"
           message="Cadastre carteiras, contas e cartões para organizar suas despesas por conta e acompanhar o saldo de cada uma."
         >
-          <div className="bg-card rounded-lg p-6 border">
+          <div className="card-surface bg-card rounded-lg p-6 border">
             <div className="text-sm text-muted-foreground">Saldo Total (contas ativas)</div>
             <div className={`text-3xl font-bold mt-1 ${totalBalance < 0 ? "text-destructive" : "text-primary"}`}>
               {new Intl.NumberFormat("pt-BR", {
