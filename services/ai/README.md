@@ -114,53 +114,30 @@ npx supabase secrets set AI_SERVICE_URL=https://ai.seu-dominio.com
 Sem esse secret, as 4 funcionalidades de IA respondem 503 com mensagem
 explícita; o resto do app continua funcionando normalmente.
 
-#### Vercel
+#### Onde roda hoje
 
-É onde este serviço está publicado hoje, em **projeto próprio**, separado do
-frontend. A separação é deliberada: aqui moram `GEMINI_API_KEY` e
+Numa **VPS Hostinger**, como container atrás do Traefik que a própria
+Hostinger provisiona (TLS automático), em `https://ai.mtrm.tech`. O passo a
+passo — e como reimplantar em outro host — está em
+`deploy/ai-service/README.md`.
+
+O serviço fica **fora do projeto do frontend**: aqui moram `GEMINI_API_KEY` e
 `SUPABASE_JWT_SECRET`, que não devem dividir ambiente com um build que produz
 bundle de browser.
 
-Roda como **imagem de container**, não como função. `Dockerfile.vercel` é um
-symlink para o `Dockerfile` — um arquivo só, porque duplicar lógica de build
-entre plataformas é como as duas divergem em silêncio.
-
-- `rootDirectory` = `services/ai` (o repositório é o mesmo do app)
-- `"framework": null` no `vercel.json`, para desligar a detecção automática
-- **Duas chaves, não uma.** `services` faz a imagem ser construída e publicada;
-  o `rewrites` com `destination: { "service": "ai" }` é o que liga a URL
-  pública a ela. Só com `services`, a imagem sobe no registry e mesmo assim
-  toda rota responde 404 — o build avisa `no "functions" or "static"
-  directory` e é fácil ler isso como falha de build, quando é falta de rota.
-- O `HEALTHCHECK` do Dockerfile é ignorado aqui (`not supported for OCI image
-  format`). Continua valendo para container/VPS.
-
-**Por que container e não função**, já que a Vercel tem preset para Hono: o
-código usa import com extensão explícita (`./config.ts`), que é o que o Node 24
-exige para executar TypeScript nativamente. A Vercel transpila arquivo a
-arquivo sem reescrever o especificador, então `index.js` sai procurando um
-`config.ts` que não existe mais e a função morre com `ERR_MODULE_NOT_FOUND`.
-
-As duas exigências são incompatíveis — medido, não deduzido:
-
-| especificador | Node 24 nativo | função na Vercel |
-|---|---|---|
-| `./config.ts` | funciona | quebra |
-| `./config.js` | não resolve | funcionaria |
-
-Sair dessa exigiria ou uma etapa de bundle, ou trocar a convenção de import de
-todo o pacote. O container dispensa as duas: dentro dele o Node 24 roda o
-TypeScript como sempre rodou, e o artefato publicado é exatamente o que os
-testes exercitam. **Cuidado ao "simplificar" isto para uma função** — o custo
-não é de configuração, é de arquitetura.
+**Histórico.** Até 19/09/2026 o serviço rodou num projeto próprio da Vercel, como
+imagem de container e não como função. O motivo continua valendo para qualquer
+plataforma de funções: o código usa import com extensão explícita
+(`./config.ts`), que é o que o Node 24 exige para executar TypeScript
+nativamente, e um bundler de função reescreve/transpila arquivo a arquivo sem
+ajustar o especificador (`ERR_MODULE_NOT_FOUND`). **Cuidado ao "simplificar"
+isto para uma função** — o custo não é de configuração, é de arquitetura. O
+projeto Vercel foi desligado (o registro de imagens dele encheu e a IA já
+estava na VPS); `Dockerfile` continua sendo o único arquivo de build.
 
 `ALLOWED_ORIGINS` **não** precisa ser configurada aqui: quem chama este serviço
 é a Edge Function do Supabase (Deno, servidor-a-servidor), não o browser — não
 há header `Origin` em jogo. O CORS só importaria se o frontend chamasse direto.
-
-Uma armadilha específica da plataforma: se a **Deployment Protection** estiver
-ligada, a Edge Function recebe uma página HTML de SSO em vez de JSON, e o
-sintoma vira um erro genérico difícil de rastrear. Precisa estar desligada.
 
 ## Rotas
 

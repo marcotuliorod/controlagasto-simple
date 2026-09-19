@@ -158,9 +158,12 @@ na VPS antes de assumir que só 22/80/443 estão acessíveis.
    ssh deploy@SEU_IP_VPS 'cd ai-service && docker compose logs -f ai'
    ```
 
-6. **Rollback**: manter o projeto Vercel no ar. Se algo falhar, reverta o
-   secret para a URL antiga da Vercel — mesmo comando `secrets set`, efeito
-   imediato.
+6. **Rollback**: o projeto Vercel foi desligado em 19/09/2026 e não é mais
+   opção. Se a VPS falhar, suba o mesmo compose em outro host (passos 1–4 deste
+   runbook, só com outro IP), aponte o DNS de `ai.mtrm.tech` para ele e, se o
+   domínio mudar, refaça o `secrets set AI_SERVICE_URL=...` do passo 5. Guarde
+   uma cópia do `.env` da VPS fora dela (senha/gerenciador), porque é o que
+   falta para reimplantar.
 
 ## O que este runbook não faz
 Não migra Supabase, não altera o frontend, não troca `AI_PROVIDER` (continua
