@@ -114,6 +114,9 @@ jobs:
           PUB_KEY=$(npx supabase status -o env | grep '^PUBLISHABLE_KEY=' | cut -d'"' -f2)
           echo "VITE_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "VITE_SUPABASE_PUBLISHABLE_KEY=$PUB_KEY" >> "$GITHUB_ENV"
+          # Valida o visual "vidro" (a virada da PR 8) antes de ele virar o
+          # padrão de produção: o app sobe com a chave ligada por default.
+          echo "VITE_VISUAL_DEFAULT=vidro" >> "$GITHUB_ENV"
 
       # `supabase start` sobe o edge-runtime junto, mas ele morre calado quando
       # falta memória — e o sintoma vira teste de export vermelho, não erro de
@@ -191,6 +194,9 @@ jobs:
           PUB_KEY=$(npx supabase status -o env | grep '^PUBLISHABLE_KEY=' | cut -d'"' -f2)
           echo "VITE_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "VITE_SUPABASE_PUBLISHABLE_KEY=$PUB_KEY" >> "$GITHUB_ENV"
+          # Valida o visual "vidro" (a virada da PR 8) antes de ele virar o
+          # padrão de produção: o app sobe com a chave ligada por default.
+          echo "VITE_VISUAL_DEFAULT=vidro" >> "$GITHUB_ENV"
 
       - name: Build app
         run: npm run build
