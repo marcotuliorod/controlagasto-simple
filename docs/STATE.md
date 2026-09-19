@@ -314,6 +314,79 @@ produção**. Decisão de upgrade de plano/billing é do usuário (Google AI
 Studio / Google Cloud Console), fora do alcance de qualquer ferramenta
 disponível aqui. Ver "Known open items" abaixo.
 
+## Redesign "vidro" (A2-P) — no ar desde 19/09/2026
+
+Visual novo do app inteiro: **branco puro (claro) / preto puro (escuro)** com cards
+translúcidos ("vidro" por tinta + borda fina + realce na borda superior), fonte DM Sans
+self-host. Saiu em PRs pequenas atrás de uma chave: #23 fundação, #26 casca, #27
+painel/relatórios/saúde, #28 importação, #29 contas/configurações, #30 chat/educação,
+#31 landing/login/404, #32 CI com a chave ligada, #34 virada (vira o padrão).
+
+**Como funciona**
+- `<html data-visual="vidro">` vem de um script inline em `index.html` (antes do React,
+  sem flash). Tokens em `src/index.css` sob `[data-visual="vidro"]` e
+  `[data-visual="vidro"].dark`; utilitários `.glass`, `.glass-strong`, `.glass-soft` (fora
+  da chave são no-op; caem para superfície opaca sem `backdrop-filter`, com
+  `prefers-reduced-transparency` ou `prefers-contrast: more`).
+- **Saída de emergência:** `?visual=off` (por pessoa, persiste em `localStorage`) e
+  `VITE_VISUAL_DEFAULT=off` no build da Vercel (para todos). `?visual=vidro` religa.
+- Ganchos de CSS com teste (`src/lib/visualHooks.test.ts`): `app-shell`, `app-main`,
+  `app-bottom-nav`, `command-root`, `card-surface`, `chat-bubble-assistant`, `chat-page`.
+- Regras: dado financeiro sempre em superfície **sólida**; ~3 vidros por tela; nenhum blur
+  em item de lista virtualizada nem nas bolhas do chat; texto ≥ 4,5:1 (verificado em
+  `src/lib/glassContrast.test.ts`, que lê o `index.css`).
+
+**Dívida com prazo — PR 8c, ~26/09/2026, só se a semana passar sem precisar de `?visual=off`**
+- Blocos-ponte no fim de `src/index.css`, que existem para não editar ~26 arquivos: cores
+  de status (`text-green-500`, `bg-red-500/10`… → tokens; `visualHooks.test` falha se surgir
+  classe de paleta sem regra), `.bg-gradient-to-br { background-image: none }`,
+  `.gradient-primary` (landing/onboarding) e cinzas fixos (404, quiz). Na 8c as classes
+  viram tokens nos componentes e os blocos saem.
+- Tokens saem de `[data-visual]` para `:root`/`.dark`; remover a chave e o script; remover
+  Inter + link do Google Fonts; tirar `VITE_VISUAL_DEFAULT=vidro` (redundante) do `ci.yml`.
+- Escrever `docs/design-system.md`. Adiados: `Switch` 52×32, reavaliar ícones 192/512 e
+  splash. O manifest do PWA só aceita uma cor: `background_color` branco dá um flash
+  branco na abertura do app instalado com o sistema escuro.
+
+**Armadilhas já pagas (não repetir)**
+- Os E2E de recorrentes e exportações acham o card por `div.rounded-md`, a classe base do
+  `<Card>`: **não trocar** classes base compartilhadas sem `grep` em `e2e/`
+  (`rounded-`, `bg-card`, `border-dashed`…).
+- Teste que importe (mesmo indiretamente) `src/integrations/supabase/client.ts` quebra no
+  CI, que não tem `.env`: mockar o cliente e rodar o Vitest **sem** `.env` antes da PR.
+
+**Achados que ainda existem (não são do redesign)**
+- `Accounts`, `FinancialHealth`, `Simulator`, `Quiz` e `AuditLogs` se envolvem em
+  `<AppLayout>` e a rota em `App.tsx` também: cabeçalho duplicado no mobile e vão lateral
+  no desktop.
+- Sem a chave, o campo de mensagem do chat fica parcialmente sob a barra inferior no
+  mobile (`h-[calc(100vh-4rem)]` ignora o cabeçalho); com a chave o `chat-page` corrige.
+- As perguntas sugeridas do chat estouram a largura no mobile.
+
+## Markdown e mensagens de erro (19/09/2026)
+- **Markdown:** `src/components/Markdown.tsx` é o renderizador único (artigos de Educação,
+  chat, insights). Antes, Educação mostrava `##` e `**` crus. Sem `remark-gfm` (bundle
+  perto do teto de 350 KB): os prompts de `services/ai` pedem sem tabela/título/bloco de
+  código, mas só valem **depois de reimplantar a VPS**.
+- **Erro de edge function:** `supabase.functions.invoke` devolve só "Edge Function returned
+  a non-2xx status code"; o motivo está em `error.context`. `src/lib/functionErrors.ts`
+  (`messageFromInvokeError`) lê o corpo; usado em importação e chat. Ainda **não** usado em
+  `useInsights`, exportações de Relatórios, `useNotifications`, `usePushNotifications` e
+  `DeleteAccount`.
+
+## Chat instável: 429/503 do Gemini (19/09/2026)
+O chat falha com `AIServiceError 429` (`Muitas solicitações em sequência`). O console do
+AI Studio mostra 429 **e** 503 (17-19/09) com a cota **não** estourada: parece capacidade
+do `gemini-3.5-flash` (o `2.5-flash` não existe para chaves novas), não limite da conta.
+O serviço tenta até 3 vezes por chamada (`resilience.ts`), o que multiplica as requisições.
+`generate-insights` continua 200 porque cai no cálculo local, o que esconde o problema.
+**Pendente:** confirmar o corpo do erro nos logs da VPS
+(`docker compose logs --since 24h ai | grep -iE "429|503|overloaded|quota"`); depois,
+modelo reserva (`AI_FALLBACK_MODEL`, ainda **não** implementado; precisa do nome de um
+modelo que a chave enxergue), mensagem distinta para 503 e aviso quando o insight vier do
+cálculo local. Tudo em `services/ai` exige reimplantar na VPS. Faturamento no Google é
+decisão do usuário.
+
 ## Recently shipped
 - **Extrato e fatura do Nubank passaram a ser lidos por regra, sem IA.** Um
   registro de layouts (`_shared/statementLayouts.ts`) casa por assinatura do
@@ -553,6 +626,11 @@ neste caso o commit e o deploy ficaram separados por ~3h20 sem que ninguém
 notasse até agora.
 
 ## Notes for next session
+**Redesign (19/09/2026):** o visual "vidro" é o padrão em produção desde a #34. Próximo
+passo do redesign é a **PR 8c (limpeza), ~26/09/2026**; ver "Redesign 'vidro' (A2-P)". Antes
+disso: olhar a produção no celular (claro e escuro) e conferir os achados listados lá.
+O chat está falhando por 429/503 do Gemini; ver "Chat instável".
+
 **Primeira coisa:** deployar o fix do acento —
 `npx supabase functions deploy process-import-file`. Código e teste E2E já
 estão prontos (25/08/2026, ver "A edge function corrompe acento..." acima,

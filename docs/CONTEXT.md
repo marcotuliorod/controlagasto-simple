@@ -71,3 +71,28 @@ corrige parsing errado (recusar isso tornaria a importação pior que digitar), 
 despesa importada é correção de dado que já veio do extrato. A restrição é sobre a
 **criação avulsa**, não sobre toda escrita em `expenses`.
 
+### 2026-09-19 — Redesign "vidro" atrás de chave, virada em etapas
+**Decisão:** o visual novo entrou em PRs pequenas atrás de `data-visual="vidro"`, e a
+virada foi em duas etapas: primeiro o CI (E2E + Lighthouse) rodando com a chave ligada
+(#32), depois o padrão de produção (#34), e só ~1 semana depois a limpeza (8c).
+**Por quê:** virar o padrão é o único passo que muda a produção. O E2E completo e a
+acessibilidade do Lighthouse nunca tinham rodado com o visual ligado, e o Lighthouse é o
+único que mede o contraste real do vidro. A chave deixa `?visual=off` como saída sem
+deploy; `VITE_VISUAL_DEFAULT=off` desliga para todos.
+**Alternativas consideradas:** uma PR única de virada (mais simples, sem prova prévia).
+
+### 2026-09-19 — Blocos-ponte de CSS em vez de editar ~26 arquivos
+**Decisão:** sob a chave, classes de paleta de status, `bg-gradient-to-br`,
+`.gradient-primary` e cinzas fixos são remapeados por regras em `src/index.css`, e um teste
+falha se surgir classe de paleta sem regra.
+**Por quê:** manter "sem a chave nada muda" nas PRs 1-7 sem tocar em dezenas de componentes
+nem em classes que os E2E usam como seletor. É dívida deliberada, com data para sair (8c).
+
+### 2026-09-19 — Markdown sem `remark-gfm`; bolha do chat sem blur
+**Decisão:** o renderizador de markdown não interpreta tabela/riscado; o prompt do
+assistente pede para não usá-los. A bolha do assistente usa a tinta do vidro **sem**
+`backdrop-filter`.
+**Por quê:** o bundle está perto do teto de 350 KB (~7 KB gzip do plugin); uma conversa
+tem dezenas de bolhas e o fundo atrás é chapado, então o desfoque só custaria rolagem.
+**Alternativas consideradas:** adicionar `remark-gfm` (escolha do usuário foi orientar o
+modelo).
