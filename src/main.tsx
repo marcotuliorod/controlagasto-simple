@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import "@fontsource-variable/dm-sans/wght.css";
 import "./index.css";
 import { registerSW } from 'virtual:pwa-register';
 import { devLog } from "./lib/logger";

@@ -44,6 +44,14 @@ All colors MUST be HSL.
     --ring: 202 35% 62%;
 
     --radius: 0.375rem;
+
+    /* Valores de hoje para variáveis que os componentes passaram a ler (ver o
+       bloco [data-visual="vidro"] no fim do arquivo): sem a chave, nada muda. */
+    --radius-card: calc(0.375rem - 1px);
+    --control-h: 2.5rem;
+    --control-h-sm: 2.25rem;
+    --control-h-lg: 2.75rem;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   .dark {
@@ -183,4 +191,180 @@ All colors MUST be HSL.
       hsl(183 25% 30%) 100%
     );
   }
+}
+
+/* ==========================================================================
+   Visual "vidro" (A2-P): branco puro no claro, preto puro no escuro, cards
+   translúcidos. Só vale com <html data-visual="vidro"> (ver index.html); sem o
+   atributo nada abaixo se aplica e o app fica como sempre foi.
+
+   Fundo chapado: o efeito de vidro vem de tinta translúcida + borda fina +
+   realce na borda superior. O desfoque só aparece onde conteúdo rola por baixo
+   (barra de navegação, cabeçalhos, sheets).
+
+   Regras de uso: dado financeiro sempre em superfície sólida (bg-card); no
+   máximo ~3 vidros simultâneos por tela; nunca em item de lista virtualizada.
+   Contraste dos pares abaixo é verificado em src/lib/glassContrast.test.ts —
+   ao mudar um valor, o teste diz se ainda passa de 4,5:1.
+   Valores derivados do canvas de design (direção A2-P).
+   ========================================================================== */
+
+[data-visual="vidro"] {
+  --background: 0 0% 100%;
+  --foreground: 201 36% 9%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 201 36% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 201 36% 9%;
+
+  --primary: 202 52% 38%;
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: 202 52% 32%;
+
+  --secondary: 195 17% 95%;
+  --secondary-foreground: 201 36% 9%;
+  --secondary-hover: 195 17% 90%;
+
+  --muted: 195 17% 95%;
+  --muted-foreground: 198 14% 35%;
+
+  --accent: 200 43% 93%;
+  --accent-foreground: 201 58% 29%;
+
+  --destructive: 0 41% 46%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 133 33% 36%;
+  --warning: 34 80% 35%;
+  --info: 202 52% 38%;
+
+  --border: 202 17% 91%;
+  --input: 200 14% 82%;
+  --ring: 202 52% 38%;
+
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 201 36% 9%;
+  --sidebar-accent: 200 43% 93%;
+  --sidebar-accent-foreground: 201 58% 29%;
+  --sidebar-border: 202 17% 91%;
+  --sidebar-ring: 202 52% 38%;
+
+  --radius: 0.875rem;
+  --radius-card: 1.25rem;
+  --control-h: 3rem;
+  --control-h-sm: 2.75rem;
+  --control-h-lg: 3rem;
+  --font-sans: 'DM Sans Variable', 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Vidro: cores completas (não triplas HSL), só usadas nas classes .glass*. */
+  --glass: rgb(15 30 40 / 0.035);
+  --glass-strong: rgb(250 252 253 / 0.78);
+  --glass-soft: rgb(47 111 147 / 0.08);
+  --glass-border: rgb(15 30 40 / 0.1);
+  --glass-shadow: rgb(15 30 40 / 0.07);
+  --glass-edge: rgb(255 255 255 / 0.9);
+
+  --chart-1: 201 43% 55%;
+  --chart-2: 136 19% 58%;
+  --chart-3: 38 50% 57%;
+  --chart-4: 273 24% 64%;
+  --chart-5: 0 41% 69%;
+  --chart-6: 200 15% 62%;
+}
+
+[data-visual="vidro"].dark {
+  --background: 0 0% 0%;
+  --foreground: 200 18% 97%;
+
+  --card: 210 11% 7%;
+  --card-foreground: 200 18% 97%;
+  --popover: 210 11% 7%;
+  --popover-foreground: 200 18% 97%;
+
+  --primary: 201 48% 65%;
+  --primary-foreground: 200 47% 9%;
+  --primary-hover: 201 48% 72%;
+
+  --secondary: 204 9% 11%;
+  --secondary-foreground: 200 18% 97%;
+  --secondary-hover: 204 9% 16%;
+
+  --muted: 204 9% 11%;
+  --muted-foreground: 199 12% 69%;
+
+  --accent: 202 41% 12%;
+  --accent-foreground: 200 55% 78%;
+
+  --destructive: 0 59% 75%;
+  --destructive-foreground: 200 47% 9%;
+
+  --success: 134 35% 65%;
+  --warning: 38 75% 65%;
+  --info: 201 48% 65%;
+
+  --border: 210 7% 16%;
+  --input: 204 9% 24%;
+  --ring: 201 48% 65%;
+
+  --sidebar-background: 210 11% 7%;
+  --sidebar-foreground: 200 18% 97%;
+  --sidebar-accent: 202 41% 12%;
+  --sidebar-accent-foreground: 200 55% 78%;
+  --sidebar-border: 210 7% 16%;
+  --sidebar-ring: 201 48% 65%;
+
+  --glass: rgb(255 255 255 / 0.07);
+  --glass-strong: rgb(28 31 33 / 0.72);
+  --glass-soft: rgb(125 179 209 / 0.14);
+  --glass-border: rgb(255 255 255 / 0.14);
+  --glass-shadow: rgb(0 0 0 / 0.5);
+  --glass-edge: rgb(255 255 255 / 0.16);
+
+  --chart-1: 202 43% 61%;
+  --chart-2: 135 27% 65%;
+  --chart-3: 38 58% 65%;
+  --chart-4: 273 30% 71%;
+  --chart-5: 0 47% 75%;
+  --chart-6: 201 17% 67%;
+}
+
+/* Raio dos cards. O <Card> continua com `rounded-md` (os E2E o usam como
+   seletor); aqui, com a chave ligada, ele passa a valer --radius-card. */
+[data-visual="vidro"] .card-surface { border-radius: var(--radius-card); }
+
+/* .glass: cards de destaque · .glass-strong: navegação, sheets, diálogos,
+   popovers (ficam sobre conteúdo, precisam de mais opacidade) · .glass-soft:
+   insights e avisos. Especificidade (0,2,0) vence as utilitárias bg-* que os
+   componentes já trazem, então a mesma classe funciona dentro e fora da chave.
+   Só cor de borda: quem já tem largura de borda (border, border-t…) a mantém. */
+[data-visual="vidro"] .glass,
+[data-visual="vidro"] .glass-strong,
+[data-visual="vidro"] .glass-soft {
+  border-color: var(--glass-border);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 8px 32px var(--glass-shadow), inset 0 1px 0 var(--glass-edge);
+}
+[data-visual="vidro"] .glass { background-color: var(--glass); }
+[data-visual="vidro"] .glass-strong { background-color: var(--glass-strong); }
+[data-visual="vidro"] .glass-soft { background-color: var(--glass-soft); }
+
+/* Fallback opaco: sem suporte a backdrop-filter, ou quando a pessoa pede menos
+   transparência/mais contraste no sistema. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-visual="vidro"] .glass,
+  [data-visual="vidro"] .glass-strong { background-color: hsl(var(--card)); }
+  [data-visual="vidro"] .glass-soft { background-color: hsl(var(--accent)); }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-visual="vidro"] .glass,
+  [data-visual="vidro"] .glass-strong,
+  [data-visual="vidro"] .glass-soft {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  [data-visual="vidro"] .glass,
+  [data-visual="vidro"] .glass-strong { background-color: hsl(var(--card)); }
+  [data-visual="vidro"] .glass-soft { background-color: hsl(var(--accent)); }
 }
