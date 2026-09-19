@@ -80,6 +80,24 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Só definidos sob [data-visual="vidro"] (src/index.css): fora da chave
+        // a variável não existe e a classe é ignorada, como sempre foi.
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+          6: "hsl(var(--chart-6))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         info: "hsl(var(--info))",
@@ -88,9 +106,10 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 1px)",
         sm: "calc(var(--radius) - 2px)",
+        card: "var(--radius-card)",
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['var(--font-sans)'],
       },
       keyframes: {
         "accordion-down": {

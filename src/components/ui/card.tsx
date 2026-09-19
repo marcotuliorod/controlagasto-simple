@@ -2,8 +2,28 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-md bg-card text-card-foreground border border-border/50", className)} {...props} />
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * `solid` (padrão): superfície opaca — dado financeiro (listas, tabelas,
+   * linhas de categoria) fica sempre assim.
+   * `glass`: vidro translúcido do visual A2-P, para hero, insight e chat. Só
+   * tem efeito com `<html data-visual="vidro">`; fora dele renderiza igual ao
+   * `solid`. Respeite o teto de ~3 vidros por tela e nunca use em item de lista
+   * virtualizada (ver src/index.css).
+   */
+  variant?: "solid" | "glass";
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant = "solid", ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-card bg-card text-card-foreground border border-border/50",
+      variant === "glass" && "glass",
+      className,
+    )}
+    {...props}
+  />
 ));
 Card.displayName = "Card";
 
