@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { urlBase64ToUint8Array, isValidVapidKey } from "@/lib/pushUtils";
 import { getErrorMessage } from "@/lib/errorUtils";
 import { devLog } from "@/lib/logger";
+import { messageFromInvokeError } from "@/lib/functionErrors";
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -204,7 +205,14 @@ export function usePushNotifications() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(
+          await messageFromInvokeError(error, {
+            source: "send-push-notification",
+            fallback: "Não foi possível enviar a notificação de teste.",
+          }),
+        );
+      }
 
       toast.success(`✅ Notificação enviada! (${data.sent} dispositivo(s))`);
       
