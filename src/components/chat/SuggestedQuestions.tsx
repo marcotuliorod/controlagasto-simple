@@ -25,7 +25,9 @@ export default function SuggestedQuestions({ onQuestionClick }: SuggestedQuestio
           <Button
             key={index}
             variant="outline"
-            className="justify-start text-left h-auto py-3 px-4"
+            // O Button base tem whitespace-nowrap: sem `whitespace-normal` a pergunta
+            // longa estoura a largura no mobile em vez de quebrar de linha.
+            className="w-full justify-start text-left whitespace-normal h-auto py-3 px-4"
             onClick={() => onQuestionClick(question)}
           >
             <span className="text-sm">{question}</span>
