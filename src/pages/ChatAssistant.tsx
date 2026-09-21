@@ -82,7 +82,7 @@ export default function ChatAssistant() {
             className="flex-1 p-4 overflow-y-auto"
           >
             {!hasMessages ? (
-              <div className="h-full flex flex-col items-center justify-center gap-8">
+              <div className="min-h-full flex flex-col items-center justify-center gap-8">
                 <div className="text-center space-y-2">
                   <Bot className="h-16 w-16 mx-auto text-primary" />
                   <h2 className="text-xl font-semibold">Olá! Como posso ajudar?</h2>
