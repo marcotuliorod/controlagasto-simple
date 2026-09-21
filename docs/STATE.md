@@ -355,13 +355,14 @@ painel/relatórios/saúde, #28 importação, #29 contas/configurações, #30 cha
 - Teste que importe (mesmo indiretamente) `src/integrations/supabase/client.ts` quebra no
   CI, que não tem `.env`: mockar o cliente e rodar o Vitest **sem** `.env` antes da PR.
 
-**Achados que ainda existem (não são do redesign)**
-- `Accounts`, `FinancialHealth`, `Simulator`, `Quiz` e `AuditLogs` se envolvem em
-  `<AppLayout>` e a rota em `App.tsx` também: cabeçalho duplicado no mobile e vão lateral
-  no desktop.
+**Achados (não eram do redesign)**
+- ~~`Accounts`, `FinancialHealth`, `Simulator`, `Quiz` e `AuditLogs` se envolviam em
+  `<AppLayout>` além da rota (cabeçalho duplicado no mobile, vão lateral no desktop).~~
+  Corrigido na #36 (21/09/2026); `src/pages/layoutWrap.guard.test.ts` impede a volta.
 - Sem a chave, o campo de mensagem do chat fica parcialmente sob a barra inferior no
   mobile (`h-[calc(100vh-4rem)]` ignora o cabeçalho); com a chave o `chat-page` corrige.
-- As perguntas sugeridas do chat estouram a largura no mobile.
+  Como a chave agora é o padrão, isso só aparece com `?visual=off`.
+- **Aberto:** as perguntas sugeridas do chat estouram a largura no mobile.
 
 ## Markdown e mensagens de erro (19/09/2026)
 - **Markdown:** `src/components/Markdown.tsx` é o renderizador único (artigos de Educação,
@@ -370,9 +371,10 @@ painel/relatórios/saúde, #28 importação, #29 contas/configurações, #30 cha
   código, mas só valem **depois de reimplantar a VPS**.
 - **Erro de edge function:** `supabase.functions.invoke` devolve só "Edge Function returned
   a non-2xx status code"; o motivo está em `error.context`. `src/lib/functionErrors.ts`
-  (`messageFromInvokeError`) lê o corpo; usado em importação e chat. Ainda **não** usado em
-  `useInsights`, exportações de Relatórios, `useNotifications`, `usePushNotifications` e
-  `DeleteAccount`.
+  (`messageFromInvokeError`) lê o corpo; usado em importação, chat, excluir conta e
+  notificação de teste (#35, #37). Os demais pontos (`useInsights`, exportações de
+  Relatórios, chave VAPID, `useTriggerVariationCheck`) já têm texto fixo em português ou
+  não têm consumidor: de propósito não migrados, para não expor texto técnico do servidor.
 
 ## Chat instável: 429/503 do Gemini (19/09/2026)
 O chat falha com `AIServiceError 429` (`Muitas solicitações em sequência`). O console do
