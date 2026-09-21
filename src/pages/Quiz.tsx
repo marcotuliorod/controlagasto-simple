@@ -1,5 +1,4 @@
 import { useState } from "react";
-import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,178 +97,170 @@ const Quiz = () => {
 
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (!questions || questions.length === 0) {
     return (
-      <AppLayout>
-        <div className="container mx-auto p-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Nenhuma questão disponível</CardTitle>
-              <CardDescription>
-                Não há questões de quiz cadastradas no momento.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </AppLayout>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nenhuma questão disponível</CardTitle>
+            <CardDescription>
+              Não há questões de quiz cadastradas no momento.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     );
   }
 
   if (!currentQuestion) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
     );
   }
 
   return (
-    <AppLayout>
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header with Score */}
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Brain className="h-8 w-8 text-primary" />
-              Quiz Financeiro
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Teste seus conhecimentos e aprenda mais sobre finanças
-            </p>
-          </div>
-          
-          <Card className="w-full md:w-auto">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-500" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Pontuação Total</p>
-                  <p className="text-2xl font-bold">{totalPoints}</p>
-                </div>
-              </div>
-              <div className="h-12 w-px bg-border" />
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header with Score */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Brain className="h-8 w-8 text-primary" />
+            Quiz Financeiro
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Teste seus conhecimentos e aprenda mais sobre finanças
+          </p>
+        </div>
+        
+        <Card className="w-full md:w-auto">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
               <div>
-                <p className="text-sm text-muted-foreground">Acertos</p>
-                <p className="text-2xl font-bold">{correctAnswers}</p>
+                <p className="text-sm text-muted-foreground">Pontuação Total</p>
+                <p className="text-2xl font-bold">{totalPoints}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Questão {currentQuestionIndex + 1} de {totalQuestions}</span>
-            <span>{Math.round(progress)}% concluído</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-
-        {/* Question Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap gap-2 mb-3">
-              <Badge variant="outline" className={getDifficultyColor(currentQuestion.difficulty)}>
-                {currentQuestion.difficulty.charAt(0).toUpperCase() + currentQuestion.difficulty.slice(1)}
-              </Badge>
-              <Badge variant="outline">
-                {getCategoryLabel(currentQuestion.category)}
-              </Badge>
-              <Badge variant="outline">
-                {currentQuestion.points} pontos
-              </Badge>
             </div>
-            <CardTitle className="text-xl">{currentQuestion.question}</CardTitle>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
-            <RadioGroup
-              value={selectedAnswer}
-              onValueChange={setSelectedAnswer}
-              disabled={isAnswered}
-              className="space-y-3"
-            >
-              {currentQuestion.options.map((option, index) => {
-                const isCorrectAnswer = option === currentQuestion.correct_answer;
-                const isSelectedAnswer = option === selectedAnswer;
-                
-                return (
-                  <div
-                    key={index}
-                    className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors ${
-                      isAnswered
-                        ? isCorrectAnswer
-                          ? "border-green-500 bg-green-500/10"
-                          : isSelectedAnswer
-                          ? "border-red-500 bg-red-500/10"
-                          : "border-border"
-                        : isSelectedAnswer
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <RadioGroupItem value={option} id={`option-${index}`} />
-                    <Label
-                      htmlFor={`option-${index}`}
-                      className="flex-1 cursor-pointer font-normal"
-                    >
-                      {option}
-                    </Label>
-                    {isAnswered && isCorrectAnswer && (
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    )}
-                    {isAnswered && isSelectedAnswer && !isCorrectAnswer && (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                );
-              })}
-            </RadioGroup>
-
-            {showExplanation && (
-              <Alert>
-                <Brain className="h-4 w-4" />
-                <AlertDescription className="mt-2">
-                  <strong>Explicação:</strong> {currentQuestion.explanation}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex gap-3">
-              {!isAnswered ? (
-                <Button
-                  onClick={handleSubmitAnswer}
-                  disabled={!selectedAnswer || submitAnswer.isPending}
-                  className="flex-1"
-                >
-                  Confirmar Resposta
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleNextQuestion}
-                  disabled={currentQuestionIndex === totalQuestions - 1}
-                  className="flex-1"
-                >
-                  {currentQuestionIndex === totalQuestions - 1
-                    ? "Quiz Finalizado"
-                    : "Próxima Questão"}
-                </Button>
-              )}
+            <div className="h-12 w-px bg-border" />
+            <div>
+              <p className="text-sm text-muted-foreground">Acertos</p>
+              <p className="text-2xl font-bold">{correctAnswers}</p>
             </div>
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
+
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>Questão {currentQuestionIndex + 1} de {totalQuestions}</span>
+          <span>{Math.round(progress)}% concluído</span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+
+      {/* Question Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <Badge variant="outline" className={getDifficultyColor(currentQuestion.difficulty)}>
+              {currentQuestion.difficulty.charAt(0).toUpperCase() + currentQuestion.difficulty.slice(1)}
+            </Badge>
+            <Badge variant="outline">
+              {getCategoryLabel(currentQuestion.category)}
+            </Badge>
+            <Badge variant="outline">
+              {currentQuestion.points} pontos
+            </Badge>
+          </div>
+          <CardTitle className="text-xl">{currentQuestion.question}</CardTitle>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          <RadioGroup
+            value={selectedAnswer}
+            onValueChange={setSelectedAnswer}
+            disabled={isAnswered}
+            className="space-y-3"
+          >
+            {currentQuestion.options.map((option, index) => {
+              const isCorrectAnswer = option === currentQuestion.correct_answer;
+              const isSelectedAnswer = option === selectedAnswer;
+              
+              return (
+                <div
+                  key={index}
+                  className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors ${
+                    isAnswered
+                      ? isCorrectAnswer
+                        ? "border-green-500 bg-green-500/10"
+                        : isSelectedAnswer
+                        ? "border-red-500 bg-red-500/10"
+                        : "border-border"
+                      : isSelectedAnswer
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <RadioGroupItem value={option} id={`option-${index}`} />
+                  <Label
+                    htmlFor={`option-${index}`}
+                    className="flex-1 cursor-pointer font-normal"
+                  >
+                    {option}
+                  </Label>
+                  {isAnswered && isCorrectAnswer && (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  )}
+                  {isAnswered && isSelectedAnswer && !isCorrectAnswer && (
+                    <XCircle className="h-5 w-5 text-red-500" />
+                  )}
+                </div>
+              );
+            })}
+          </RadioGroup>
+
+          {showExplanation && (
+            <Alert>
+              <Brain className="h-4 w-4" />
+              <AlertDescription className="mt-2">
+                <strong>Explicação:</strong> {currentQuestion.explanation}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex gap-3">
+            {!isAnswered ? (
+              <Button
+                onClick={handleSubmitAnswer}
+                disabled={!selectedAnswer || submitAnswer.isPending}
+                className="flex-1"
+              >
+                Confirmar Resposta
+              </Button>
+            ) : (
+              <Button
+                onClick={handleNextQuestion}
+                disabled={currentQuestionIndex === totalQuestions - 1}
+                className="flex-1"
+              >
+                {currentQuestionIndex === totalQuestions - 1
+                  ? "Quiz Finalizado"
+                  : "Próxima Questão"}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
